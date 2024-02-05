@@ -1,4 +1,5 @@
-use bytes::BufMut;
+use bytes::{Buf, BufMut};
+use thiserror::Error;
 
 use crate::coding::BufMutExt;
 
@@ -24,9 +25,42 @@ impl PacketNumber {
             U32(x) => w.write(x),
         }
     }
+
+    /// 1.2
+    pub(crate) fn decode<R: Buf>(len: usize, r: &mut R) -> Result<Self, PacketDecodeError> {
+        // todo1
+        todo!()
+    }
+
+    /// 1.3
+    pub(crate) fn len(self) -> usize {
+        use self::PacketNumber::*;
+        match self {
+            U8(_) => 1,
+            U16(_) => 2,
+            U24(_) => 3,
+            U32(_) => 4,
+        }
+    }
+}
+
+#[allow(unreachable_pub)] // fuzzing only
+#[derive(Debug, Error, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+pub enum PacketDecodeError {
+    /* todo2
+    #[error("unsupported version {version:x}")]
+    UnsupportedVersion {
+        src_cid: ConnectionId,
+        dst_cid: ConnectionId,
+        version: u32,
+    }, */
+    #[error("invalid header: {0}")]
+    InvalidHeader(&'static str),
 }
 
 mod tests {
+    use std::io;
+
     use super::PacketNumber;
 
     /// check packet number
@@ -34,5 +68,7 @@ mod tests {
         let mut buf = Vec::new();
         typed.encode(&mut buf);
         assert_eq!(&buf[..], encoded);
+        let decoded = PacketNumber::decode(typed.len(), &mut io::Cursor::new(&buf)).unwrap();
+        assert_eq!(typed, decoded);
     }
 }
