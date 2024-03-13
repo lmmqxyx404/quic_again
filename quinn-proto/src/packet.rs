@@ -29,7 +29,15 @@ impl PacketNumber {
     /// 1.2
     pub(crate) fn decode<R: Buf>(len: usize, r: &mut R) -> Result<Self, PacketDecodeError> {
         // todo1
-        todo!()
+        use self::PacketNumber::*;
+        let pn = match len {
+            1 => U8(r.get()?),
+            2 => U16(r.get()?),
+            3 => U24(r.get_uint(3) as u32),
+            4 => U32(r.get()?),
+            _ => unreachable!(),
+        };
+        Ok(pn)
     }
 
     /// 1.3
@@ -59,6 +67,7 @@ pub enum PacketDecodeError {
 }
 
 mod tests {
+    use hex_literal::hex;
     use std::io;
 
     use super::PacketNumber;
@@ -70,5 +79,10 @@ mod tests {
         assert_eq!(&buf[..], encoded);
         let decoded = PacketNumber::decode(typed.len(), &mut io::Cursor::new(&buf)).unwrap();
         assert_eq!(typed, decoded);
+    }
+
+    #[test]
+    fn roundtrip_packet_numbers() {
+        check_pn(PacketNumber::U8(0x7f), &hex!("7f"));
     }
 }
