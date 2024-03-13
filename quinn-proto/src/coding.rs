@@ -5,6 +5,7 @@ use bytes::{Buf, BufMut};
 use thiserror::Error;
 use crate::VarInt;
 
+
 #[derive(Error, Debug, Copy, Clone, Eq, PartialEq)]
 #[error("unexpected end of buffer")]
 pub struct UnexpectedEnd;
@@ -90,6 +91,22 @@ impl Codec for Ipv6Addr {
     }
     fn encode<B: BufMut>(&self, buf: &mut B) {
         buf.put_slice(&self.octets());
+    }
+}
+
+
+pub trait BufExt {
+    fn get<T: Codec>(&mut self) -> Result<T>;
+    fn get_var(&mut self) -> Result<u64>;
+}
+
+impl<T: Buf> BufExt for T {
+    fn get<U: Codec>(&mut self) -> Result<U> {
+        U::decode(self)
+    }
+
+    fn get_var(&mut self) -> Result<u64> {
+        Ok(VarInt::decode(self)?.into_inner())
     }
 }
 

@@ -20,6 +20,11 @@ impl VarInt {
             Err(VarIntBoundsExceeded)
         }
     }
+
+    /// Extract the integer value
+    pub const fn into_inner(self) -> u64 {
+        self.0
+    }
 }
 
 /// Error returned when constructing a `VarInt` from a value >= 2^62

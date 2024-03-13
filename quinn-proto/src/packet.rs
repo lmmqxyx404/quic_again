@@ -1,8 +1,9 @@
 use bytes::{Buf, BufMut};
 use thiserror::Error;
 
-use crate::coding::BufMutExt;
+// use crate::coding::BufMutExt;
 
+use crate::coding::{self, BufExt, BufMutExt};
 /// 1.
 // An encoded packet number
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -28,7 +29,7 @@ impl PacketNumber {
 
     /// 1.2
     pub(crate) fn decode<R: Buf>(len: usize, r: &mut R) -> Result<Self, PacketDecodeError> {
-        // todo1
+        // done1 completed
         use self::PacketNumber::*;
         let pn = match len {
             1 => U8(r.get()?),
@@ -66,6 +67,13 @@ pub enum PacketDecodeError {
     InvalidHeader(&'static str),
 }
 
+// the impl is forst used for decode r.get()? parse
+impl From<coding::UnexpectedEnd> for PacketDecodeError {
+    fn from(_: coding::UnexpectedEnd) -> Self {
+        Self::InvalidHeader("unexpected end of packet")
+    }
+}
+
 mod tests {
     use hex_literal::hex;
     use std::io;
@@ -84,5 +92,10 @@ mod tests {
     #[test]
     fn roundtrip_packet_numbers() {
         check_pn(PacketNumber::U8(0x7f), &hex!("7f"));
+        check_pn(PacketNumber::U16(0x80), &hex!("0080"));
+        check_pn(PacketNumber::U16(0x3fff), &hex!("3fff"));
+        check_pn(PacketNumber::U32(0x0000_4000), &hex!("0000 4000"));
+        check_pn(PacketNumber::U32(0xffff_ffff), &hex!("ffff ffff"));
     }
+
 }
