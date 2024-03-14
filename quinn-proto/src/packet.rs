@@ -51,6 +51,52 @@ impl PacketNumber {
             U32(_) => 4,
         }
     }
+
+    /// 1.4
+    pub(crate) fn new(n: u64, largest_acked: u64) -> Self {
+        let range = (n - largest_acked) * 2;
+        if range < 1 << 8 {
+            Self::U8(n as u8)
+        } else if range < 1 << 16 {
+            Self::U16(n as u16)
+        } else if range < 1 << 24 {
+            Self::U24(n as u32)
+        } else if range < 1 << 32 {
+            Self::U32(n as u32)
+        } else {
+            panic!("packet number too large to encode")
+        }
+    }
+
+    pub(crate) fn expand(self, expected: u64) -> u64 {
+        use self::PacketNumber::*;
+        let truncated = match self {
+            U8(x) => u64::from(x),
+            U16(x) => u64::from(x),
+            U24(x) => u64::from(x),
+            U32(x) => u64::from(x),
+        };
+        let nbits = self.len() * 8;
+        let win = 1 << nbits;
+        let hwin = win / 2;
+        let mask = win - 1;
+        // The incoming packet number should be greater than expected - hwin and less than or equal
+        // to expected + hwin
+        //
+        // This means we can't just strip the trailing bits from expected and add the truncated
+        // because that might yield a value outside the window.
+        //
+        // The following code calculates a candidate value and makes sure it's within the packet
+        // number window.
+        let candidate = (expected & !mask) | truncated;
+        if expected.checked_sub(hwin).map_or(false, |x| candidate <= x) {
+            candidate + win
+        } else if candidate > expected + hwin && candidate > win {
+            candidate - win
+        } else {
+            candidate
+        }
+    }
 }
 
 #[allow(unreachable_pub)] // fuzzing only
@@ -98,4 +144,19 @@ mod tests {
         check_pn(PacketNumber::U32(0xffff_ffff), &hex!("ffff ffff"));
     }
 
+    #[test]
+    fn pn_encode() {
+        check_pn(PacketNumber::new(0x10, 0), &hex!("10"));
+        check_pn(PacketNumber::new(0x100, 0), &hex!("0100"));
+        check_pn(PacketNumber::new(0x10000, 0), &hex!("010000"));
+    }
+
+    #[test]
+    fn pn_expand_roundtrip() {
+        for expected in 0..1024 {
+            for actual in expected..1024 {
+                assert_eq!(actual, PacketNumber::new(actual, expected).expand(expected));
+            }
+        }
+    }
 }
