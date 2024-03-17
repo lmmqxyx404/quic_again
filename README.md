@@ -11,3 +11,5 @@ Learn the implementation of quic
 ### PacketNumber
 - fn encode() completed
 
+# todo
+## complete the `EndpointConfig`

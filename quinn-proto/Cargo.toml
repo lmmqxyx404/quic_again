@@ -9,6 +9,7 @@ edition = "2021"
 bytes = "1"
 thiserror = "1.0.21"
 rand = "0.8"
+slab = "0.4"
 
 [dev-dependencies]
 hex-literal = "0.4.0"

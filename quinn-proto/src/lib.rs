@@ -17,3 +17,10 @@ pub use crate::cid_generator::{ConnectionIdGenerator, RandomConnectionIdGenerato
 mod shared;
 
 const MAX_CID_SIZE: usize = 20;
+
+// 5. endpoint
+mod endpoint;
+pub use crate::endpoint::{ConnectError, ConnectionHandle, DatagramEvent, Endpoint};
+
+// 6.config
+mod config;
