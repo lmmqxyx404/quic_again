@@ -9,3 +9,11 @@ pub mod coding;
 mod varint;
 
 pub use varint::{VarInt, VarIntBoundsExceeded};
+
+// 4. generate connection id
+mod cid_generator;
+pub use crate::cid_generator::{ConnectionIdGenerator, RandomConnectionIdGenerator};
+
+mod shared;
+
+const MAX_CID_SIZE: usize = 20;

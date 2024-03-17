@@ -120,6 +120,7 @@ impl From<coding::UnexpectedEnd> for PacketDecodeError {
     }
 }
 
+#[cfg(test)]
 mod tests {
     use hex_literal::hex;
     use std::io;
