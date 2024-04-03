@@ -1,5 +1,3 @@
-
-
 mod tests;
 // 1. basic components of quic
 mod packet;
@@ -9,3 +7,7 @@ pub mod coding;
 mod varint;
 
 pub use varint::{VarInt, VarIntBoundsExceeded};
+
+/// 4.common ways
+mod shared;
+pub use crate::shared::ConnectionId;

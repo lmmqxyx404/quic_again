@@ -120,6 +120,19 @@ impl From<coding::UnexpectedEnd> for PacketDecodeError {
     }
 }
 
+pub(crate) struct Packet {
+    pub(crate) header: Header,
+}
+
+pub(crate) enum Header {
+    Initial,
+    Long,
+    Retry,
+    Short,
+    VersionNegotiate,
+}
+
+#[cfg(test)]
 mod tests {
     use hex_literal::hex;
     use std::io;
@@ -159,4 +172,7 @@ mod tests {
             }
         }
     }
+
+    #[test]
+    fn header_encoding() {}
 }

@@ -1,13 +1,17 @@
 # quic_again
 Learn the implementation of quic
 
-# basic
+# basic knowledge
 ## Frame
-12.4
+RFC 12.4
 
 ## Packet
-12.1
+RFC 12.1
 
-### PacketNumber
+## real rust code
+### 1. PacketNumber (atom)
 - fn encode() completed
 
+### 2. Packet(combined from 3)
+
+### 3. Header(atom)
