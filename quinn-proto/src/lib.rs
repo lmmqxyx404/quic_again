@@ -8,6 +8,19 @@ mod varint;
 
 pub use varint::{VarInt, VarIntBoundsExceeded};
 
-/// 4.common ways
+// 4. generate connection id
+mod cid_generator;
+pub use crate::cid_generator::{ConnectionIdGenerator, RandomConnectionIdGenerator};
+// 5
 mod shared;
-pub use crate::shared::ConnectionId;
+
+const MAX_CID_SIZE: usize = 20;
+
+/// 6. endpoint
+mod endpoint;
+pub use crate::endpoint::Endpoint;
+
+/// 7.config
+mod config;
+/// 8
+pub mod crypto;

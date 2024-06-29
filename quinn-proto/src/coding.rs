@@ -2,9 +2,8 @@ use std::net::{Ipv4Addr, Ipv6Addr};
 
 use bytes::{Buf, BufMut};
 
-use thiserror::Error;
 use crate::VarInt;
-
+use thiserror::Error;
 
 #[derive(Error, Debug, Copy, Clone, Eq, PartialEq)]
 #[error("unexpected end of buffer")]
@@ -93,7 +92,6 @@ impl Codec for Ipv6Addr {
         buf.put_slice(&self.octets());
     }
 }
-
 
 pub trait BufExt {
     fn get<T: Codec>(&mut self) -> Result<T>;
