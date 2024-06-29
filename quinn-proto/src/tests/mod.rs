@@ -2,6 +2,9 @@ use std::{sync::Arc, time::Instant};
 
 use crate::{config::EndpointConfig, ConnectionIdGenerator, Endpoint, RandomConnectionIdGenerator};
 
+
+mod util;
+use util::*;
 #[test]
 fn version_negotiate_client() {
     // let _guard = subscribe();
