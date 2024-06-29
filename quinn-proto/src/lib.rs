@@ -11,14 +11,16 @@ pub use varint::{VarInt, VarIntBoundsExceeded};
 // 4. generate connection id
 mod cid_generator;
 pub use crate::cid_generator::{ConnectionIdGenerator, RandomConnectionIdGenerator};
-
+// 5
 mod shared;
 
 const MAX_CID_SIZE: usize = 20;
 
-// 5. endpoint
+/// 6. endpoint
 mod endpoint;
 pub use crate::endpoint::Endpoint;
 
-// 6.config
+/// 7.config
 mod config;
+/// 8
+pub mod crypto;

@@ -1,7 +1,7 @@
 use std::fmt;
 
 use bytes::{Buf, BufMut};
-// 引入对应的 trait 
+// 引入对应的 trait
 use crate::{coding::BufExt, MAX_CID_SIZE};
 
 /// Protocol-level identifier for a connection.

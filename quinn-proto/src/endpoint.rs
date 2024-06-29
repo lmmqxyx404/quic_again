@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use rand::RngCore;
+
 use crate::config::{EndpointConfig, ServerConfig};
 
 /// The main entry point to the library
@@ -27,12 +29,5 @@ impl Endpoint {
     ) -> Self {
         let rng_seed = rng_seed.or(config.rng_seed);
         Self {}
-    }
-}
-
-#[cfg(feature = "ring")]
-impl Default for EndpointConfig {
-    fn default() -> Self {
-        todo!()
     }
 }

@@ -18,3 +18,9 @@ Learn the implementation of quic
 ## 1.  `Endpoint::new()`
 
 ## 2. `EndpointConfig`
+
+## 3. 
+
+# code skill 
+## 1. pay attention to crypto mod.
+The crypto module consists of both a file and a directory.
