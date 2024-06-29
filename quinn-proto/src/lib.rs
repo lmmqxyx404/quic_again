@@ -1,5 +1,3 @@
-
-
 mod tests;
 // 1. basic components of quic
 mod packet;
@@ -20,7 +18,7 @@ const MAX_CID_SIZE: usize = 20;
 
 // 5. endpoint
 mod endpoint;
-pub use crate::endpoint::{ConnectError, ConnectionHandle, DatagramEvent, Endpoint};
+pub use crate::endpoint::Endpoint;
 
 // 6.config
 mod config;

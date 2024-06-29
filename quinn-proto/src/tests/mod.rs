@@ -1,4 +1,8 @@
-use crate::{ConnectionIdGenerator, RandomConnectionIdGenerator};
+use std::sync::Arc;
+
+use crate::{
+    config::EndpointConfig, endpoint::Endpoint, ConnectionIdGenerator, RandomConnectionIdGenerator,
+};
 
 #[test]
 fn version_negotiate_server() {
@@ -8,7 +12,7 @@ fn version_negotiate_server() {
 
 #[test]
 fn version_negotiate_client() {
-    let server_addr = "[::2]:7890".parse().unwrap();
+    // let server_addr: _ = "[::2]:7890".parse().unwrap();
     // Configure client to use empty CIDs so we can easily hardcode a server version negotiation
     // packet
     let cid_generator_factory: fn() -> Box<dyn ConnectionIdGenerator> =

@@ -11,5 +11,10 @@ Learn the implementation of quic
 ### PacketNumber
 - fn encode() completed
 
-# todo
+# todo tasks
 ## complete the `EndpointConfig`
+
+# code log
+## 1.  `Endpoint::new()`
+
+## 2. `EndpointConfig`
