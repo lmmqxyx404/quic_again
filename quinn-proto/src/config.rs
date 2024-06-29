@@ -24,7 +24,10 @@ impl EndpointConfig {
     pub fn new(reset_key: Arc<dyn HmacKey>) -> Self {
         let cid_factory =
             || -> Box<dyn ConnectionIdGenerator> { Box::<HashedConnectionIdGenerator>::default() };
-        todo!()
+        Self {
+            connection_id_generator_factory: Arc::new(cid_factory),
+            rng_seed: None,
+        }
     }
 }
 /// Parameters governing incoming connections
