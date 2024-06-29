@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{sync::Arc, time::Instant};
 
 use crate::{config::EndpointConfig, ConnectionIdGenerator, Endpoint, RandomConnectionIdGenerator};
 
@@ -19,5 +19,8 @@ fn version_negotiate_client() {
         true,
         None,
     );
+    let (_, mut client_ch) = client
+        .connect(Instant::now(), client_config(), server_addr, "localhost")
+        .unwrap();
     println!("hello world");
 }

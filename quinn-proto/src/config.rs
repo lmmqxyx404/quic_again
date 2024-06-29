@@ -48,3 +48,10 @@ impl Default for EndpointConfig {
         )))
     }
 }
+
+/// Configuration for outgoing connections
+///
+/// Default values should be suitable for most internet applications.
+#[derive(Clone)]
+#[non_exhaustive]
+pub struct ClientConfig {}

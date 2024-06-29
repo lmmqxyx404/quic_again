@@ -1,8 +1,12 @@
-use std::sync::Arc;
+use std::{net::SocketAddr, sync::Arc, time::Instant};
 
 use rand::RngCore;
+use thiserror::Error;
 
-use crate::config::{EndpointConfig, ServerConfig};
+use crate::{
+    config::{ClientConfig, EndpointConfig, ServerConfig},
+    connection::Connection,
+};
 
 /// The main entry point to the library
 ///
@@ -30,4 +34,25 @@ impl Endpoint {
         let rng_seed = rng_seed.or(config.rng_seed);
         Self {}
     }
+
+    /// Initiate a connection
+    pub fn connect(
+        &mut self,
+        now: Instant,
+        config: ClientConfig,
+        remote: SocketAddr,
+        server_name: &str,
+    ) -> Result<(ConnectionHandle, Connection), ConnectError> {
+        todo!()
+    }
 }
+
+/// Internal identifier for a `Connection` currently associated with an endpoint
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash, Ord, PartialOrd)]
+pub struct ConnectionHandle(pub usize);
+
+/// Errors in the parameters being used to create a new connection
+///
+/// These arise before any I/O has been performed.
+#[derive(Debug, Error, Clone, PartialEq, Eq)]
+pub enum ConnectError {}

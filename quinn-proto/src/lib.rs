@@ -22,5 +22,7 @@ pub use crate::endpoint::Endpoint;
 
 /// 7.config
 mod config;
+/// 9
+mod connection;
 /// 8
 pub mod crypto;
