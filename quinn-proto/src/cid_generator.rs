@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use rand::RngCore;
+use rand::{Rng, RngCore};
 
 use crate::shared::ConnectionId;
 use crate::MAX_CID_SIZE;
@@ -72,5 +72,53 @@ impl ConnectionIdGenerator for RandomConnectionIdGenerator {
 
     fn cid_lifetime(&self) -> Option<Duration> {
         self.lifetime
+    }
+}
+
+/// Generates 8-byte connection IDs that can be efficiently
+/// [`validate`](ConnectionIdGenerator::validate)d
+///
+/// This generator uses a non-cryptographic hash and can therefore still be spoofed, but nonetheless
+/// helps prevents Quinn from responding to non-QUIC packets at very low cost.
+pub struct HashedConnectionIdGenerator {
+    key: u64,
+    lifetime: Option<Duration>,
+}
+
+impl HashedConnectionIdGenerator {
+    /// Create a generator with a random key
+    pub fn new() -> Self {
+        Self::from_key(rand::thread_rng().gen())
+    }
+
+    /// Create a generator with a specific key
+    ///
+    /// Allows [`validate`](ConnectionIdGenerator::validate) to recognize a consistent set of
+    /// connection IDs across restarts
+    pub fn from_key(key: u64) -> Self {
+        Self {
+            key,
+            lifetime: None,
+        }
+    }
+}
+
+impl Default for HashedConnectionIdGenerator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl ConnectionIdGenerator for HashedConnectionIdGenerator {
+    fn generate_cid(&mut self) -> ConnectionId {
+        todo!()
+    }
+
+    fn cid_len(&self) -> usize {
+        todo!()
+    }
+
+    fn cid_lifetime(&self) -> Option<Duration> {
+        todo!()
     }
 }

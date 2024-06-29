@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use rand::RngCore;
 
-use crate::{crypto::HmacKey, ConnectionIdGenerator};
+use crate::{cid_generator::HashedConnectionIdGenerator, crypto::HmacKey, ConnectionIdGenerator};
 
 /// Global configuration for the endpoint, affecting all connections
 ///
@@ -22,6 +22,8 @@ pub struct EndpointConfig {
 impl EndpointConfig {
     /// Create a default config with a particular `reset_key`
     pub fn new(reset_key: Arc<dyn HmacKey>) -> Self {
+        let cid_factory =
+            || -> Box<dyn ConnectionIdGenerator> { Box::<HashedConnectionIdGenerator>::default() };
         todo!()
     }
 }
