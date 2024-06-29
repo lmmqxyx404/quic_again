@@ -1,8 +1,6 @@
 use std::sync::Arc;
 
-use crate::{
-    config::EndpointConfig, endpoint::Endpoint, ConnectionIdGenerator, RandomConnectionIdGenerator,
-};
+use crate::{config::EndpointConfig, ConnectionIdGenerator, Endpoint, RandomConnectionIdGenerator};
 
 #[test]
 fn version_negotiate_server() {

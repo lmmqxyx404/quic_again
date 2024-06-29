@@ -25,7 +25,8 @@ impl Endpoint {
         allow_mtud: bool,
         rng_seed: Option<[u8; 32]>,
     ) -> Self {
-        todo!()
+        let rng_seed = rng_seed.or(config.rng_seed);
+        Self {}
     }
 }
 
