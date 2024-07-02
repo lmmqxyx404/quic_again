@@ -1,6 +1,13 @@
+use std::sync::Arc;
+
+use crate::{endpoint::ConnectError, transport_parameters::TransportParameters};
+
 /// 1. Cryptography interface based on *ring*
 #[cfg(feature = "ring")]
 pub(crate) mod ring;
+/// TLS interface based on rustls
+#[cfg(feature = "rustls")]
+pub mod rustls;
 
 /// A key for signing with HMAC-based algorithms
 pub trait HmacKey: Send + Sync {
@@ -15,3 +22,17 @@ pub trait HmacKey: Send + Sync {
 /// Generic crypto errors
 #[derive(Debug)]
 pub struct CryptoError;
+
+/// Client-side configuration for the crypto protocol
+pub trait ClientConfig: Send + Sync {
+    /// Start a client session with this configuration
+    fn start_session(
+        self: Arc<Self>,
+        version: u32,
+        server_name: &str,
+        params: &TransportParameters,
+    ) -> Result<Box<dyn Session>, ConnectError>;
+}
+
+/// A cryptographic session (commonly TLS)
+pub trait Session: Send + Sync + 'static {}

@@ -1,3 +1,5 @@
+use std::fmt;
+
 use bytes::{Buf, BufMut};
 use thiserror::Error;
 
@@ -24,6 +26,17 @@ impl VarInt {
     /// Extract the integer value
     pub const fn into_inner(self) -> u64 {
         self.0
+    }
+
+    /// 3 Construct a `VarInt` infallibly
+    pub const fn from_u32(x: u32) -> Self {
+        Self(x as u64)
+    }
+}
+
+impl fmt::Debug for VarInt {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.fmt(f)
     }
 }
 
