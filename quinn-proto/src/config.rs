@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use rand::RngCore;
 
-use crate::{cid_generator::HashedConnectionIdGenerator, crypto::HmacKey, ConnectionIdGenerator};
+use crate::{cid_generator::HashedConnectionIdGenerator, crypto::{self, HmacKey}, ConnectionIdGenerator};
 
 /// Global configuration for the endpoint, affecting all connections
 ///
@@ -55,3 +55,10 @@ impl Default for EndpointConfig {
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct ClientConfig {}
+
+impl ClientConfig {
+    /// Create a default config with a particular cryptographic config
+    pub fn new(crypto: Arc<dyn crypto::ClientConfig>) -> Self {
+        todo!()
+    }
+}
