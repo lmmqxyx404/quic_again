@@ -11,4 +11,13 @@ use crate::crypto;
 /// [platform]: crate::config::ClientConfig::with_platform_verifier()
 pub struct QuicClientConfig {}
 
-impl crypto::ClientConfig for QuicClientConfig {}
+impl crypto::ClientConfig for QuicClientConfig {
+    fn start_session(
+        self: std::sync::Arc<Self>,
+        version: u32,
+        server_name: &str,
+        params: &crate::transport_parameters::TransportParameters,
+    ) {
+        todo!()
+    }
+}

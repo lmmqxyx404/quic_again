@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use crate::transport_parameters::TransportParameters;
+
 /// 1. Cryptography interface based on *ring*
 #[cfg(feature = "ring")]
 pub(crate) mod ring;
@@ -23,6 +25,11 @@ pub struct CryptoError;
 
 /// 1. todo change teh signature  Client-side configuration for the crypto protocol
 pub trait ClientConfig: Send + Sync {
-    // Start a client session with this configuration
-    // fn start_session(self: Arc<Self>, version: u32, server_name: &str);
+    /// Start a client session with this configuration
+    fn start_session(
+        self: Arc<Self>,
+        version: u32,
+        server_name: &str,
+        params: &TransportParameters,
+    );
 }
