@@ -57,7 +57,7 @@ impl Default for EndpointConfig {
 pub struct ClientConfig {}
 
 impl ClientConfig {
-    /// Create a default config with a particular cryptographic config
+    /// 1. todo: change the  Create a default config with a particular cryptographic config
     pub fn new(crypto: Arc<dyn crypto::ClientConfig>) -> Self {
         todo!()
     }
