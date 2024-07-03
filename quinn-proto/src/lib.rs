@@ -14,8 +14,6 @@ pub use crate::cid_generator::{ConnectionIdGenerator, RandomConnectionIdGenerato
 // 5
 mod shared;
 
-const MAX_CID_SIZE: usize = 20;
-
 /// 6. endpoint
 mod endpoint;
 pub use crate::endpoint::Endpoint;
@@ -26,3 +24,18 @@ mod config;
 mod connection;
 /// 8
 pub mod crypto;
+
+/// 10
+pub mod transport_parameters;
+
+/// 11
+pub mod token;
+use token::ResetToken;
+
+/// 12 used for [`ResetToken`]
+mod constant_time;
+
+/// 1
+const MAX_CID_SIZE: usize = 20;
+/// 2
+const RESET_TOKEN_SIZE: usize = 16;

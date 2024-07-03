@@ -1,4 +1,4 @@
-use crate::crypto;
+use crate::{crypto, endpoint::ConnectError};
 
 /// A QUIC-compatible TLS client configuration
 ///
@@ -11,4 +11,13 @@ use crate::crypto;
 /// [platform]: crate::config::ClientConfig::with_platform_verifier()
 pub struct QuicClientConfig {}
 
-impl crypto::ClientConfig for QuicClientConfig {}
+impl crypto::ClientConfig for QuicClientConfig {
+    fn start_session(
+        self: std::sync::Arc<Self>,
+        version: u32,
+        server_name: &str,
+        params: &crate::transport_parameters::TransportParameters,
+    ) -> Result<Box<dyn crypto::Session>, ConnectError> {
+        todo!()
+    }
+}

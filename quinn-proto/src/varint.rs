@@ -1,3 +1,5 @@
+use core::fmt;
+
 use bytes::{Buf, BufMut};
 use thiserror::Error;
 
@@ -13,6 +15,7 @@ use crate::coding::{self, Codec, UnexpectedEnd};
 pub struct VarInt(pub(crate) u64);
 
 impl VarInt {
+    /// 1
     pub fn from_u64(x: u64) -> Result<Self, VarIntBoundsExceeded> {
         if x < 2u64.pow(62) {
             Ok(Self(x))
@@ -21,9 +24,20 @@ impl VarInt {
         }
     }
 
-    /// Extract the integer value
+    /// 2.Extract the integer value
     pub const fn into_inner(self) -> u64 {
         self.0
+    }
+
+    /// 3 Construct a `VarInt` infallibly used for `$($name: VarInt::from_u32($default),)*`
+    pub const fn from_u32(x: u32) -> Self {
+        Self(x as u64)
+    }
+}
+/// used for [`$($(#[$doc])* pub(crate) $name : VarInt,)*`]
+impl fmt::Debug for VarInt {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.fmt(f)
     }
 }
 
