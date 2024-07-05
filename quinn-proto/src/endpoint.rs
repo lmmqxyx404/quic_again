@@ -1,6 +1,7 @@
-use std::{net::SocketAddr, sync::Arc, time::Instant};
+use std::{collections::hash_map, net::SocketAddr, sync::Arc, time::Instant};
 
 use rand::RngCore;
+use rustc_hash::FxHashMap;
 use slab::Slab;
 use thiserror::Error;
 
@@ -8,6 +9,7 @@ use crate::{
     config::{ClientConfig, EndpointConfig, ServerConfig},
     connection::Connection,
     shared::ConnectionId,
+    ConnectionIdGenerator,
 };
 
 /// 1. The main entry point to the library
@@ -17,6 +19,10 @@ use crate::{
 pub struct Endpoint {
     /// 1.
     connections: Slab<ConnectionMeta>,
+    /// 2
+    local_cid_generator: Box<dyn ConnectionIdGenerator>,
+    /// 3.
+    index: ConnectionIndex,
 }
 
 impl Endpoint {
@@ -39,6 +45,8 @@ impl Endpoint {
         let rng_seed = rng_seed.or(config.rng_seed);
         Self {
             connections: Slab::new(),
+            local_cid_generator: (config.connection_id_generator_factory.as_ref())(),
+            index: ConnectionIndex::default(),
         }
     }
 
@@ -57,7 +65,18 @@ impl Endpoint {
     }
     /// Generate a connection ID for `ch`
     fn new_cid(&mut self, ch: ConnectionHandle) -> ConnectionId {
-        todo!()
+        loop {
+            let cid = self.local_cid_generator.generate_cid();
+            if cid.len() == 0 {
+                // Zero-length CID; nothing to track
+                debug_assert_eq!(self.local_cid_generator.cid_len(), 0);
+                return cid;
+            }
+            if let hash_map::Entry::Vacant(e) = self.index.connection_ids.entry(cid) {
+                e.insert(ch);
+                break cid;
+            }
+        }
     }
 }
 
@@ -74,3 +93,12 @@ pub enum ConnectError {}
 /// 4. connection meta data
 #[derive(Debug)]
 pub(crate) struct ConnectionMeta {}
+
+/// 5. Maps packets to existing connections
+#[derive(Default, Debug)]
+struct ConnectionIndex {
+    /// 1. Identifies connections based on locally created CIDs
+    ///
+    /// Uses a cheaper hash function since keys are locally created
+    connection_ids: FxHashMap<ConnectionId, ConnectionHandle>,
+}
