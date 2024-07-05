@@ -3,10 +3,7 @@ use std::sync::Arc;
 use rand::RngCore;
 
 use crate::{
-    cid_generator::HashedConnectionIdGenerator,
-    crypto::{self, HmacKey},
-    shared::ConnectionId,
-    ConnectionIdGenerator, RandomConnectionIdGenerator, MAX_CID_SIZE,
+    cid_generator::HashedConnectionIdGenerator, crypto::{self, HmacKey}, endpoint::TransportConfig, shared::ConnectionId, ConnectionIdGenerator, RandomConnectionIdGenerator, MAX_CID_SIZE
 };
 
 /// Global configuration for the endpoint, affecting all connections
@@ -62,6 +59,8 @@ impl Default for EndpointConfig {
 pub struct ClientConfig {
     /// 1. Provider that populates the destination connection ID of Initial Packets
     pub(crate) initial_dst_cid_provider: Arc<dyn Fn() -> ConnectionId + Send + Sync>,
+    /// 2. Transport configuration to use
+    pub(crate) transport: Arc<TransportConfig>,
 }
 
 impl ClientConfig {
@@ -71,6 +70,8 @@ impl ClientConfig {
             initial_dst_cid_provider: Arc::new(|| {
                 RandomConnectionIdGenerator::new(MAX_CID_SIZE).generate_cid()
             }),
+            transport: Default::default(),
+
         }
     }
 }

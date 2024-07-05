@@ -1,6 +1,6 @@
 use std::net::{SocketAddrV4, SocketAddrV6};
 
-use crate::{shared::ConnectionId, ResetToken, VarInt};
+use crate::{endpoint::TransportConfig, shared::ConnectionId, ResetToken, VarInt};
 // Apply a given macro to a list of all the transport parameters having integer types, along with
 // their codes and default values. Using this helps us avoid error-prone duplication of the
 // contained information across decoding, encoding, and the `Default` impl. Whenever we want to do
@@ -114,4 +114,10 @@ pub(crate) struct PreferredAddress {
     pub(crate) address_v6: Option<SocketAddrV6>,
     pub(crate) connection_id: ConnectionId,
     pub(crate) stateless_reset_token: ResetToken,
+}
+
+impl TransportParameters {
+    pub(crate) fn new(config: &TransportConfig) -> Self {
+        todo!()
+    }
 }

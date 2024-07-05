@@ -23,3 +23,7 @@ RFC 12.1
 ### 3. Header(atom)
 
 connectionId
+
+# todo
+## need to optimize
+TransportParameters

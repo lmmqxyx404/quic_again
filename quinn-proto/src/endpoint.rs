@@ -9,6 +9,7 @@ use crate::{
     config::{ClientConfig, EndpointConfig, ServerConfig},
     connection::Connection,
     shared::ConnectionId,
+    transport_parameters::TransportParameters,
     ConnectionIdGenerator,
 };
 
@@ -61,8 +62,11 @@ impl Endpoint {
         let remote_id = (config.initial_dst_cid_provider)();
         let ch = ConnectionHandle(self.connections.vacant_key());
         let loc_cid = self.new_cid(ch);
+
+        let params = TransportParameters::new(&config.transport);
         todo!()
     }
+
     /// Generate a connection ID for `ch`
     fn new_cid(&mut self, ch: ConnectionHandle) -> ConnectionId {
         loop {
@@ -101,4 +105,30 @@ struct ConnectionIndex {
     ///
     /// Uses a cheaper hash function since keys are locally created
     connection_ids: FxHashMap<ConnectionId, ConnectionHandle>,
+}
+
+/// 6. Parameters governing the core QUIC state machine
+///
+/// Default values should be suitable for most internet applications. Applications protocols which
+/// forbid remotely-initiated streams should set `max_concurrent_bidi_streams` and
+/// `max_concurrent_uni_streams` to zero.
+///
+/// In some cases, performance or resource requirements can be improved by tuning these values to
+/// suit a particular application and/or network connection. In particular, data window sizes can be
+/// tuned for a particular expected round trip time, link capacity, and memory availability. Tuning
+/// for higher bandwidths and latencies increases worst-case memory consumption, but does not impair
+/// performance at lower bandwidths and latencies. The default configuration is tuned for a 100Mbps
+/// link with a 100ms round trip time.
+pub struct TransportConfig {}
+
+impl Default for TransportConfig {
+    fn default() -> Self {
+        const EXPECTED_RTT: u32 = 100; // ms
+        const MAX_STREAM_BANDWIDTH: u32 = 12500 * 1000; // bytes/s
+                                                        // Window size needed to avoid pipeline
+                                                        // stalls
+        const STREAM_RWND: u32 = MAX_STREAM_BANDWIDTH / 1000 * EXPECTED_RTT;
+
+        Self {}
+    }
 }
