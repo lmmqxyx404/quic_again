@@ -52,7 +52,11 @@ impl Endpoint {
     ) -> Result<(ConnectionHandle, Connection), ConnectError> {
         let remote_id = (config.initial_dst_cid_provider)();
         let ch = ConnectionHandle(self.connections.vacant_key());
-
+        let loc_cid = self.new_cid(ch);
+        todo!()
+    }
+    /// Generate a connection ID for `ch`
+    fn new_cid(&mut self, ch: ConnectionHandle) -> ConnectionId {
         todo!()
     }
 }
