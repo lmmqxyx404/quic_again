@@ -2,7 +2,12 @@ use std::sync::Arc;
 
 use rand::RngCore;
 
-use crate::{cid_generator::HashedConnectionIdGenerator, crypto::{self, HmacKey}, ConnectionIdGenerator};
+use crate::{
+    cid_generator::HashedConnectionIdGenerator,
+    crypto::{self, HmacKey},
+    shared::ConnectionId,
+    ConnectionIdGenerator, RandomConnectionIdGenerator, MAX_CID_SIZE,
+};
 
 /// Global configuration for the endpoint, affecting all connections
 ///
@@ -54,11 +59,18 @@ impl Default for EndpointConfig {
 /// Default values should be suitable for most internet applications.
 #[derive(Clone)]
 #[non_exhaustive]
-pub struct ClientConfig {}
+pub struct ClientConfig {
+    /// 1. Provider that populates the destination connection ID of Initial Packets
+    pub(crate) initial_dst_cid_provider: Arc<dyn Fn() -> ConnectionId + Send + Sync>,
+}
 
 impl ClientConfig {
     /// 1. Create a default config with a particular cryptographic config
     pub fn new(crypto: Arc<dyn crypto::ClientConfig>) -> Self {
-        todo!()
+        Self {
+            initial_dst_cid_provider: Arc::new(|| {
+                RandomConnectionIdGenerator::new(MAX_CID_SIZE).generate_cid()
+            }),
+        }
     }
 }

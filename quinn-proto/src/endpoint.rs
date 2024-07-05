@@ -1,18 +1,23 @@
 use std::{net::SocketAddr, sync::Arc, time::Instant};
 
 use rand::RngCore;
+use slab::Slab;
 use thiserror::Error;
 
 use crate::{
     config::{ClientConfig, EndpointConfig, ServerConfig},
     connection::Connection,
+    shared::ConnectionId,
 };
 
 /// 1. The main entry point to the library
 ///
 /// This object performs no I/O whatsoever. Instead, it consumes incoming packets and
 /// connection-generated events via `handle` and `handle_event`.
-pub struct Endpoint {}
+pub struct Endpoint {
+    /// 1.
+    connections: Slab<ConnectionMeta>,
+}
 
 impl Endpoint {
     /// Create a new endpoint
@@ -32,7 +37,9 @@ impl Endpoint {
         rng_seed: Option<[u8; 32]>,
     ) -> Self {
         let rng_seed = rng_seed.or(config.rng_seed);
-        Self {}
+        Self {
+            connections: Slab::new(),
+        }
     }
 
     /// Initiate a connection
@@ -43,6 +50,9 @@ impl Endpoint {
         remote: SocketAddr,
         server_name: &str,
     ) -> Result<(ConnectionHandle, Connection), ConnectError> {
+        let remote_id = (config.initial_dst_cid_provider)();
+        let ch = ConnectionHandle(self.connections.vacant_key());
+
         todo!()
     }
 }
@@ -56,3 +66,7 @@ pub struct ConnectionHandle(pub usize);
 /// These arise before any I/O has been performed.
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
 pub enum ConnectError {}
+
+/// 4. connection meta data
+#[derive(Debug)]
+pub(crate) struct ConnectionMeta {}
