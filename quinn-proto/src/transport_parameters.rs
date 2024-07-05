@@ -118,6 +118,6 @@ pub(crate) struct PreferredAddress {
 
 impl TransportParameters {
     pub(crate) fn new(config: &TransportConfig) -> Self {
-        todo!()
+        Self { ..Self::default() }
     }
 }

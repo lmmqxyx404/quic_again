@@ -3,7 +3,11 @@ use std::sync::Arc;
 use rand::RngCore;
 
 use crate::{
-    cid_generator::HashedConnectionIdGenerator, crypto::{self, HmacKey}, endpoint::TransportConfig, shared::ConnectionId, ConnectionIdGenerator, RandomConnectionIdGenerator, MAX_CID_SIZE
+    cid_generator::HashedConnectionIdGenerator,
+    crypto::{self, HmacKey},
+    endpoint::TransportConfig,
+    shared::ConnectionId,
+    ConnectionIdGenerator, RandomConnectionIdGenerator, MAX_CID_SIZE,
 };
 
 /// Global configuration for the endpoint, affecting all connections
@@ -61,6 +65,10 @@ pub struct ClientConfig {
     pub(crate) initial_dst_cid_provider: Arc<dyn Fn() -> ConnectionId + Send + Sync>,
     /// 2. Transport configuration to use
     pub(crate) transport: Arc<TransportConfig>,
+    /// 3. Cryptographic configuration to use
+    pub(crate) crypto: Arc<dyn crypto::ClientConfig>,
+    /// 4.QUIC protocol version to use
+    pub(crate) version: u32,
 }
 
 impl ClientConfig {
@@ -71,7 +79,8 @@ impl ClientConfig {
                 RandomConnectionIdGenerator::new(MAX_CID_SIZE).generate_cid()
             }),
             transport: Default::default(),
-
+            crypto,
+            version: 1,
         }
     }
 }

@@ -64,6 +64,10 @@ impl Endpoint {
         let loc_cid = self.new_cid(ch);
 
         let params = TransportParameters::new(&config.transport);
+
+        let tls = config
+            .crypto
+            .start_session(config.version, server_name, &params)?;
         todo!()
     }
 
