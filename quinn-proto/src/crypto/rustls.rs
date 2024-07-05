@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use rustls::client::danger::ServerCertVerifier;
+use rustls::{client::danger::ServerCertVerifier, quic::Suite};
 
 use crate::{crypto, endpoint::ConnectError, transport_parameters::TransportParameters};
 
@@ -13,7 +13,10 @@ use crate::{crypto, endpoint::ConnectError, transport_parameters::TransportParam
 ///
 /// [root_certs]: crate::config::ClientConfig::with_root_certificates()
 /// [platform]: crate::config::ClientConfig::with_platform_verifier()
-pub struct QuicClientConfig {}
+pub struct QuicClientConfig {
+    pub(crate) inner: Arc<rustls::ClientConfig>,
+    initial: Suite,
+}
 
 impl crypto::ClientConfig for QuicClientConfig {
     fn start_session(
@@ -54,12 +57,11 @@ impl TryFrom<Arc<rustls::ClientConfig>> for QuicClientConfig {
     type Error = NoInitialCipherSuite;
 
     fn try_from(inner: Arc<rustls::ClientConfig>) -> Result<Self, Self::Error> {
-        todo!()
-        /* Ok(Self {
+        Ok(Self {
             initial: initial_suite_from_provider(inner.crypto_provider())
                 .ok_or(NoInitialCipherSuite { specific: false })?,
             inner,
-        }) */
+        })
     }
 }
 
@@ -74,4 +76,19 @@ impl TryFrom<Arc<rustls::ClientConfig>> for QuicClientConfig {
 pub struct NoInitialCipherSuite {
     /// Whether the initial cipher suite was supplied by the caller
     specific: bool,
+}
+
+pub(crate) fn initial_suite_from_provider(
+    provider: &Arc<rustls::crypto::CryptoProvider>,
+) -> Option<Suite> {
+    provider
+        .cipher_suites
+        .iter()
+        .find_map(|cs| match (cs.suite(), cs.tls13()) {
+            (rustls::CipherSuite::TLS13_AES_128_GCM_SHA256, Some(suite)) => {
+                Some(suite.quic_suite())
+            }
+            _ => None,
+        })
+        .flatten()
 }
