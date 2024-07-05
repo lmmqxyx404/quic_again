@@ -8,7 +8,7 @@ use crate::{
     connection::Connection,
 };
 
-/// The main entry point to the library
+/// 1. The main entry point to the library
 ///
 /// This object performs no I/O whatsoever. Instead, it consumes incoming packets and
 /// connection-generated events via `handle` and `handle_event`.
@@ -47,11 +47,11 @@ impl Endpoint {
     }
 }
 
-/// Internal identifier for a `Connection` currently associated with an endpoint
+/// 2. Internal identifier for a `Connection` currently associated with an endpoint
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash, Ord, PartialOrd)]
 pub struct ConnectionHandle(pub usize);
 
-/// Errors in the parameters being used to create a new connection
+/// 3. Errors in the parameters being used to create a new connection
 ///
 /// These arise before any I/O has been performed.
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
