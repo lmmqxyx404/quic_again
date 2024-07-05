@@ -1,3 +1,7 @@
+use std::sync::Arc;
+
+use rustls::client::danger::ServerCertVerifier;
+
 use crate::{crypto, endpoint::ConnectError, transport_parameters::TransportParameters};
 
 /// A QUIC-compatible TLS client configuration
@@ -19,5 +23,21 @@ impl crypto::ClientConfig for QuicClientConfig {
         params: &TransportParameters,
     ) -> Result<Box<dyn crypto::Session>, ConnectError> {
         todo!()
+    }
+}
+
+impl QuicClientConfig {
+    pub(crate) fn inner(verifier: Arc<dyn ServerCertVerifier>) -> rustls::ClientConfig {
+        let mut config = rustls::ClientConfig::builder_with_provider(
+            rustls::crypto::ring::default_provider().into(),
+        )
+        .with_protocol_versions(&[&rustls::version::TLS13])
+        .unwrap() // The *ring* default provider supports TLS 1.3
+        .dangerous()
+        .with_custom_certificate_verifier(verifier)
+        .with_no_client_auth();
+
+        config.enable_early_data = true;
+        config
     }
 }

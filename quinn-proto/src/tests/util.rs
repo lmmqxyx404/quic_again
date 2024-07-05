@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use rustls::pki_types::CertificateDer;
 use lazy_static::lazy_static;
+use rustls::{client::WebPkiServerVerifier, pki_types::CertificateDer};
 
 use crate::{config::ClientConfig, crypto::rustls::QuicClientConfig};
 
@@ -21,13 +21,15 @@ fn client_crypto_inner(
     for cert in certs.unwrap_or_else(|| vec![CERTIFIED_KEY.cert.der().clone()]) {
         roots.add(cert).unwrap();
     }
-
+    let mut inner = QuicClientConfig::inner(
+        WebPkiServerVerifier::builder(Arc::new(roots))
+            .build()
+            .unwrap(),
+    );
     todo!()
 }
 
-
 lazy_static! {
-    
     pub(crate) static ref CERTIFIED_KEY: rcgen::CertifiedKey =
         rcgen::generate_simple_self_signed(vec!["localhost".into()]).unwrap();
 }
