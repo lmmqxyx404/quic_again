@@ -12,12 +12,7 @@ use crate::{crypto, endpoint::ConnectError};
 pub struct QuicClientConfig {}
 
 impl crypto::ClientConfig for QuicClientConfig {
-    fn start_session(
-        self: std::sync::Arc<Self>,
-        version: u32,
-        server_name: &str,
-        params: &crate::transport_parameters::TransportParameters,
-    ) -> Result<Box<dyn crypto::Session>, ConnectError> {
+    fn start_session(self: std::sync::Arc<Self>, version: u32, server_name: &str) {
         todo!()
     }
 }
