@@ -4,7 +4,7 @@ use rustls::client::danger::ServerCertVerifier;
 
 use crate::{crypto, endpoint::ConnectError, transport_parameters::TransportParameters};
 
-/// A QUIC-compatible TLS client configuration
+/// 1. A QUIC-compatible TLS client configuration
 ///
 /// Can be constructed via [`ClientConfig::with_root_certificates()`][root_certs],
 /// [`ClientConfig::with_platform_verifier()`][platform] or by using the [`TryFrom`] implementation with a
@@ -40,4 +40,38 @@ impl QuicClientConfig {
         config.enable_early_data = true;
         config
     }
+}
+
+impl TryFrom<rustls::ClientConfig> for QuicClientConfig {
+    type Error = NoInitialCipherSuite;
+
+    fn try_from(inner: rustls::ClientConfig) -> Result<Self, Self::Error> {
+        Arc::new(inner).try_into()
+    }
+}
+
+impl TryFrom<Arc<rustls::ClientConfig>> for QuicClientConfig {
+    type Error = NoInitialCipherSuite;
+
+    fn try_from(inner: Arc<rustls::ClientConfig>) -> Result<Self, Self::Error> {
+        todo!()
+        /* Ok(Self {
+            initial: initial_suite_from_provider(inner.crypto_provider())
+                .ok_or(NoInitialCipherSuite { specific: false })?,
+            inner,
+        }) */
+    }
+}
+
+/// 2. The initial cipher suite (AES-128-GCM-SHA256) is not available
+///
+/// When the cipher suite is supplied `with_initial()`, it must be
+/// [`CipherSuite::TLS13_AES_128_GCM_SHA256`]. When the cipher suite is derived from a config's
+/// [`CryptoProvider`][provider], that provider must reference a cipher suite with the same ID.
+///
+/// [provider]: rustls::crypto::CryptoProvider
+#[derive(Clone, Debug)]
+pub struct NoInitialCipherSuite {
+    /// Whether the initial cipher suite was supplied by the caller
+    specific: bool,
 }

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use lazy_static::lazy_static;
-use rustls::{client::WebPkiServerVerifier, pki_types::CertificateDer};
+use rustls::{client::WebPkiServerVerifier, pki_types::CertificateDer, KeyLogFile};
 
 use crate::{config::ClientConfig, crypto::rustls::QuicClientConfig};
 
@@ -26,7 +26,11 @@ fn client_crypto_inner(
             .build()
             .unwrap(),
     );
-    todo!()
+    inner.key_log = Arc::new(KeyLogFile::new());
+    if let Some(alpn) = alpn {
+        inner.alpn_protocols = alpn;
+    }
+    inner.try_into().unwrap()
 }
 
 lazy_static! {
