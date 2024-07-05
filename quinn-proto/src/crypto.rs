@@ -36,3 +36,13 @@ pub trait ClientConfig: Send + Sync {
         params: &TransportParameters,
     ) -> Result<Box<dyn Session>, ConnectError>;
 }
+
+/// Error indicating that the specified QUIC version is not supported
+#[derive(Debug)]
+pub struct UnsupportedVersion;
+
+impl From<UnsupportedVersion> for ConnectError {
+    fn from(_: UnsupportedVersion) -> Self {
+        Self::UnsupportedVersion
+    }
+}

@@ -1,8 +1,13 @@
 use std::sync::Arc;
 
-use rustls::{client::danger::ServerCertVerifier, quic::Suite};
+use rustls::{
+    client::danger::ServerCertVerifier,
+    quic::{Suite, Version},
+};
 
 use crate::{crypto, endpoint::ConnectError, transport_parameters::TransportParameters};
+
+use super::UnsupportedVersion;
 
 /// 1. A QUIC-compatible TLS client configuration
 ///
@@ -25,6 +30,8 @@ impl crypto::ClientConfig for QuicClientConfig {
         server_name: &str,
         params: &TransportParameters,
     ) -> Result<Box<dyn crypto::Session>, ConnectError> {
+        let version = interpret_version(version)?;
+
         todo!()
     }
 }
@@ -91,4 +98,12 @@ pub(crate) fn initial_suite_from_provider(
             _ => None,
         })
         .flatten()
+}
+
+fn interpret_version(version: u32) -> Result<Version, UnsupportedVersion> {
+    match version {
+        0xff00_001d..=0xff00_0020 => Ok(Version::V1Draft),
+        0x0000_0001 | 0xff00_0021..=0xff00_0022 => Ok(Version::V1),
+        _ => Err(UnsupportedVersion),
+    }
 }
