@@ -1,8 +1,7 @@
 use std::sync::Arc;
 
 use rustls::{
-    client::danger::ServerCertVerifier,
-    quic::{Suite, Version},
+    client::danger::ServerCertVerifier, pki_types::ServerName, quic::{Connection, Secrets, Suite, Version}
 };
 
 use crate::{crypto, endpoint::ConnectError, transport_parameters::TransportParameters};
@@ -31,8 +30,23 @@ impl crypto::ClientConfig for QuicClientConfig {
         params: &TransportParameters,
     ) -> Result<Box<dyn crypto::Session>, ConnectError> {
         let version = interpret_version(version)?;
-
-        todo!()
+        Ok(Box::new(TlsSession {
+            version,
+            got_handshake_data: false,
+            next_secrets: None,
+            inner: rustls::quic::Connection::Client(
+                rustls::quic::ClientConnection::new(
+                    self.inner.clone(),
+                    version,
+                    ServerName::try_from(server_name)
+                        .map_err(|_| ConnectError::InvalidServerName(server_name.into()))?
+                        .to_owned(),
+                    to_vec(params),
+                )
+                .unwrap(),
+            ),
+            suite: self.initial,
+        }))
     }
 }
 
@@ -106,4 +120,23 @@ fn interpret_version(version: u32) -> Result<Version, UnsupportedVersion> {
         0x0000_0001 | 0xff00_0021..=0xff00_0022 => Ok(Version::V1),
         _ => Err(UnsupportedVersion),
     }
+}
+
+/// A rustls TLS session
+pub struct TlsSession {
+    version: Version,
+    got_handshake_data: bool,
+    next_secrets: Option<Secrets>,
+    inner: Connection,
+    suite: Suite,
+}
+
+impl crypto::Session for TlsSession {}
+
+
+fn to_vec(params: &TransportParameters) -> Vec<u8> {
+    let mut bytes = Vec::new();
+    // todo: very important
+    // params.write(&mut bytes);
+    bytes
 }

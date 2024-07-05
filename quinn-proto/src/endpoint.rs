@@ -97,9 +97,12 @@ pub struct ConnectionHandle(pub usize);
 /// These arise before any I/O has been performed.
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
 pub enum ConnectError {
-     /// 1. The local endpoint does not support the QUIC version specified in the client configuration
-     #[error("unsupported QUIC version")]
-     UnsupportedVersion,
+    /// 1. The local endpoint does not support the QUIC version specified in the client configuration
+    #[error("unsupported QUIC version")]
+    UnsupportedVersion,
+    /// 2. The given server name was malformed
+    #[error("invalid server name: {0}")]
+    InvalidServerName(String),
 }
 
 /// 4. connection meta data
