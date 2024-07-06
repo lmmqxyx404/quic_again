@@ -1,6 +1,10 @@
 use std::net::{SocketAddrV4, SocketAddrV6};
 
-use crate::{endpoint::TransportConfig, shared::ConnectionId, ResetToken, VarInt};
+use bytes::BufMut;
+
+use crate::{
+    coding::BufMutExt, endpoint::TransportConfig, shared::ConnectionId, ResetToken, VarInt,
+};
 // Apply a given macro to a list of all the transport parameters having integer types, along with
 // their codes and default values. Using this helps us avoid error-prone duplication of the
 // contained information across decoding, encoding, and the `Default` impl. Whenever we want to do
@@ -117,7 +121,28 @@ pub(crate) struct PreferredAddress {
 }
 
 impl TransportParameters {
+    /// 1
     pub(crate) fn new(config: &TransportConfig) -> Self {
         Self { ..Self::default() }
+    }
+}
+
+impl TransportParameters {
+    /// 2. Encode `TransportParameters` into buffer
+    pub fn write<W: BufMut>(&self, w: &mut W) {
+        macro_rules! write_params {
+            {$($(#[$doc:meta])* $name:ident ($code:expr) = $default:expr,)*} => {
+                $(
+                    if self.$name.0 != $default {
+                        w.write_var($code);
+                        w.write(VarInt::try_from(self.$name.size()).unwrap());
+                        w.write(self.$name);
+                    }
+                )*
+            }
+        }
+        apply_params!(write_params);
+
+        todo!()
     }
 }

@@ -33,11 +33,42 @@ impl VarInt {
     pub const fn from_u32(x: u32) -> Self {
         Self(x as u64)
     }
+    /// 4.Compute the number of bytes needed to encode this value
+    pub(crate) fn size(self) -> usize {
+        let x = self.0;
+        if x < 2u64.pow(6) {
+            1
+        } else if x < 2u64.pow(14) {
+            2
+        } else if x < 2u64.pow(30) {
+            4
+        } else if x < 2u64.pow(62) {
+            8
+        } else {
+            unreachable!("malformed VarInt");
+        }
+    }
 }
 /// used for [`$($(#[$doc])* pub(crate) $name : VarInt,)*`]
 impl fmt::Debug for VarInt {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.0.fmt(f)
+    }
+}
+
+impl std::convert::TryFrom<usize> for VarInt {
+    type Error = VarIntBoundsExceeded;
+    /// Succeeds iff `x` < 2^62
+    fn try_from(x: usize) -> Result<Self, VarIntBoundsExceeded> {
+        Self::try_from(x as u64)
+    }
+}
+
+impl std::convert::TryFrom<u64> for VarInt {
+    type Error = VarIntBoundsExceeded;
+    /// Succeeds iff `x` < 2^62
+    fn try_from(x: u64) -> Result<Self, VarIntBoundsExceeded> {
+        Self::from_u64(x)
     }
 }
 

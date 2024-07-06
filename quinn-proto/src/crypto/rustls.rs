@@ -136,7 +136,7 @@ impl crypto::Session for TlsSession {}
 
 fn to_vec(params: &TransportParameters) -> Vec<u8> {
     let mut bytes = Vec::new();
-    // todo: very important
-    // params.write(&mut bytes);
+    // note1: pay attention to the details.
+    params.write(&mut bytes);
     bytes
 }
