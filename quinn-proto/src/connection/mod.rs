@@ -1,3 +1,7 @@
+use std::{net::{IpAddr, SocketAddr}, sync::Arc, time::Instant};
+
+use crate::{config::{EndpointConfig, ServerConfig}, crypto, endpoint::TransportConfig, shared::ConnectionId, ConnectionIdGenerator};
+
 /// Protocol state and logic for a single QUIC connection
 ///
 /// Objects of this type receive [`ConnectionEvent`]s and emit [`EndpointEvent`]s and application
@@ -41,7 +45,25 @@
 pub struct Connection {}
 
 impl Connection {
-    pub(crate) fn new() -> Self {
+    pub(crate) fn new(
+        endpoint_config: Arc<EndpointConfig>,
+        server_config: Option<Arc<ServerConfig>>,
+        config: Arc<TransportConfig>,
+        init_cid: ConnectionId,
+        loc_cid: ConnectionId,
+        rem_cid: ConnectionId,
+        pref_addr_cid: Option<ConnectionId>,
+        remote: SocketAddr,
+        local_ip: Option<IpAddr>,
+        crypto: Box<dyn crypto::Session>,
+        cid_gen: &dyn ConnectionIdGenerator,
+        now: Instant,
+        version: u32,
+        allow_mtud: bool,
+        rng_seed: [u8; 32],
+        path_validated: bool,
+    ) -> Self {
+        // todo
         Self {}
     }
 }

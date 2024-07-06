@@ -32,6 +32,10 @@ pub struct Endpoint {
     index: ConnectionIndex,
     /// 4.
     rng: StdRng,
+    /// 5.
+    config: Arc<EndpointConfig>,
+    /// 6. Whether the underlying UDP socket promises not to fragment packets
+    allow_mtud: bool,
 }
 
 impl Endpoint {
@@ -57,6 +61,8 @@ impl Endpoint {
             local_cid_generator: (config.connection_id_generator_factory.as_ref())(),
             index: ConnectionIndex::default(),
             rng: rng_seed.map_or(StdRng::from_entropy(), StdRng::from_seed),
+            config,
+            allow_mtud,
         }
     }
 
@@ -135,7 +141,29 @@ impl Endpoint {
             true => Side::Server,
             false => Side::Client,
         };
-        let conn = Connection::new();
+        let conn = Connection::new(
+            self.config.clone(),
+            server_config,
+            transport_config,
+            init_cid,
+            loc_cid,
+            rem_cid,
+            pref_addr_cid,
+            addresses.remote,
+            addresses.local_ip,
+            tls,
+            self.local_cid_generator.as_ref(),
+            now,
+            version,
+            self.allow_mtud,
+            rng_seed,
+            path_validated,
+        );
+
+        let mut cids_issued = 0;
+        let mut loc_cids = FxHashMap::default();
+        loc_cids.insert(cids_issued, loc_cid);
+        cids_issued += 1;
 
         todo!()
     }
