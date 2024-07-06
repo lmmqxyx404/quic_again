@@ -196,7 +196,15 @@ impl ConnectionIdParser for FixedLengthConnectionIdParser {
 
 /// Plain packet header
 #[derive(Clone, Debug)]
-pub enum ProtectedHeader {}
+pub enum ProtectedHeader {
+    /// 1. A short packet header, as used during the data phase
+    Short {
+        /// Spin bit
+        spin: bool,
+        /// Destination Connection ID
+        dst_cid: ConnectionId,
+    },
+}
 
 impl ProtectedHeader {
     /// Decode a plain header from given buffer, with given [`ConnectionIdParser`].
@@ -206,9 +214,26 @@ impl ProtectedHeader {
         supported_versions: &[u32],
         grease_quic_bit: bool,
     ) -> Result<Self, PacketDecodeError> {
-        todo!()
+        let first = buf.get::<u8>()?;
+        if !grease_quic_bit && first & FIXED_BIT == 0 {
+            return Err(PacketDecodeError::InvalidHeader("fixed bit unset"));
+        }
+        if first & LONG_HEADER_FORM == 0 {
+            let spin = first & SPIN_BIT != 0;
+
+            Ok(Self::Short {
+                spin,
+                dst_cid: cid_parser.parse(buf)?,
+            })
+        } else {
+            todo!()
+        }
     }
 }
+
+pub(crate) const FIXED_BIT: u8 = 0x40;
+pub(crate) const LONG_HEADER_FORM: u8 = 0x80;
+pub(crate) const SPIN_BIT: u8 = 0x20;
 
 #[cfg(test)]
 mod tests {
