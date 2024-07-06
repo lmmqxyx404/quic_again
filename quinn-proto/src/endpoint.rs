@@ -1,4 +1,9 @@
-use std::{collections::hash_map, net::SocketAddr, sync::Arc, time::Instant};
+use std::{
+    collections::hash_map,
+    net::{IpAddr, SocketAddr},
+    sync::Arc,
+    time::Instant,
+};
 
 use rand::RngCore;
 use rustc_hash::FxHashMap;
@@ -8,6 +13,7 @@ use thiserror::Error;
 use crate::{
     config::{ClientConfig, EndpointConfig, ServerConfig},
     connection::Connection,
+    crypto,
     shared::ConnectionId,
     transport_parameters::TransportParameters,
     ConnectionIdGenerator,
@@ -27,7 +33,7 @@ pub struct Endpoint {
 }
 
 impl Endpoint {
-    /// Create a new endpoint
+    /// 1. Create a new endpoint
     ///
     /// `allow_mtud` enables path MTU detection when requested by `Connection` configuration for
     /// better performance. This requires that outgoing packets are never fragmented, which can be
@@ -51,7 +57,7 @@ impl Endpoint {
         }
     }
 
-    /// Initiate a connection
+    /// 2. Initiate a connection
     pub fn connect(
         &mut self,
         now: Instant,
@@ -68,10 +74,28 @@ impl Endpoint {
         let tls = config
             .crypto
             .start_session(config.version, server_name, &params)?;
-        todo!()
+
+        let conn = self.add_connection(
+            ch,
+            config.version,
+            remote_id,
+            loc_cid,
+            remote_id,
+            None,
+            FourTuple {
+                remote,
+                local_ip: None,
+            },
+            now,
+            tls,
+            None,
+            config.transport,
+            true,
+        );
+        Ok((ch, conn))
     }
 
-    /// Generate a connection ID for `ch`
+    /// 3. Generate a connection ID for `ch`
     fn new_cid(&mut self, ch: ConnectionHandle) -> ConnectionId {
         loop {
             let cid = self.local_cid_generator.generate_cid();
@@ -85,6 +109,24 @@ impl Endpoint {
                 break cid;
             }
         }
+    }
+    /// 4.
+    fn add_connection(
+        &mut self,
+        ch: ConnectionHandle,
+        version: u32,
+        init_cid: ConnectionId,
+        loc_cid: ConnectionId,
+        rem_cid: ConnectionId,
+        pref_addr_cid: Option<ConnectionId>,
+        addresses: FourTuple,
+        now: Instant,
+        tls: Box<dyn crypto::Session>,
+        server_config: Option<Arc<ServerConfig>>,
+        transport_config: Arc<TransportConfig>,
+        path_validated: bool,
+    ) -> Connection {
+        todo!()
     }
 }
 
@@ -142,4 +184,15 @@ impl Default for TransportConfig {
 
         Self {}
     }
+}
+
+/// 7. Identifies a connection by the combination of remote and local addresses
+///
+/// Including the local ensures good behavior when the host has multiple IP addresses on the same
+/// subnet and zero-length connection IDs are in use.
+#[derive(Hash, Eq, PartialEq, Debug, Copy, Clone)]
+struct FourTuple {
+    remote: SocketAddr,
+    // A single socket can only listen on a single port, so no need to store it explicitly
+    local_ip: Option<IpAddr>,
 }
