@@ -202,6 +202,34 @@ impl PartialDecode {
     pub fn dst_cid(&self) -> &ConnectionId {
         self.plain_header.dst_cid()
     }
+    /// 3.
+    pub(crate) fn is_initial(&self) -> bool {
+        self.space() == Some(SpaceId::Initial)
+    }
+    /// 4
+    pub(crate) fn space(&self) -> Option<SpaceId> {
+        use self::ProtectedHeader::*;
+        match self.plain_header {
+            Initial { .. } => Some(SpaceId::Initial),
+            Long {
+                ty: LongType::Handshake,
+                ..
+            } => Some(SpaceId::Handshake),
+            Long {
+                ty: LongType::ZeroRtt,
+                ..
+            } => Some(SpaceId::Data),
+            Short { .. } => Some(SpaceId::Data),
+            _ => None,
+        }
+    }
+    /// 5
+    pub(crate) fn is_0rtt(&self) -> bool {
+        match self.plain_header {
+            ProtectedHeader::Long { ty, .. } => ty == LongType::ZeroRtt,
+            _ => false,
+        }
+    }
 }
 
 /// Parse connection id in short header packet
@@ -426,6 +454,16 @@ pub(crate) struct PartialEncode {
     pub(crate) header_len: usize,
     // Packet number length, payload length needed
     pn: Option<(usize, bool)>,
+}
+
+/// Packet number space identifiers
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
+pub enum SpaceId {
+    /// Unprotected packets, used to bootstrap the handshake
+    Initial = 0,
+    Handshake = 1,
+    /// Application data space, used for 0-RTT and post-handshake/1-RTT packets
+    Data = 2,
 }
 
 pub(crate) const FIXED_BIT: u8 = 0x40;

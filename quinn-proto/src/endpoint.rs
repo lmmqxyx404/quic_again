@@ -357,6 +357,10 @@ struct ConnectionIndex {
     ///
     /// Uses a standard `HashMap` to protect against hash collision attacks.
     outgoing_connection_remotes: HashMap<SocketAddr, ConnectionHandle>,
+    /// 4. Identifies connections based on the initial DCID the peer utilized
+    ///
+    /// Uses a standard `HashMap` to protect against hash collision attacks.
+    connection_ids_initial: HashMap<ConnectionId, RouteDatagramTo>,
 }
 
 impl ConnectionIndex {
@@ -390,6 +394,11 @@ impl ConnectionIndex {
         if datagram.dst_cid().len() != 0 {
             if let Some(&ch) = self.connection_ids.get(datagram.dst_cid()) {
                 return Some(RouteDatagramTo::Connection(ch));
+            }
+        }
+        if datagram.is_initial() || datagram.is_0rtt() {
+            if let Some(&ch) = self.connection_ids_initial.get(datagram.dst_cid()) {
+                return Some(ch);
             }
         }
         todo!()
