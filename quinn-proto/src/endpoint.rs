@@ -135,6 +135,8 @@ impl Endpoint {
             true => Side::Server,
             false => Side::Client,
         };
+        let conn = Connection::new();
+
         todo!()
     }
 }

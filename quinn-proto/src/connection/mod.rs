@@ -37,4 +37,11 @@
 /// with events of the same [`Instant`] may be interleaved in any order with a
 /// call to [`handle_event`](Self::handle_event) at that same instant; however
 /// events or timeouts with different instants must not be interleaved.
+/// Todo: many tasks to be done.
 pub struct Connection {}
+
+impl Connection {
+    pub(crate) fn new() -> Self {
+        Self {}
+    }
+}
