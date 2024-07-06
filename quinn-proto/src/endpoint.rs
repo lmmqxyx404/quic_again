@@ -6,16 +6,17 @@ use std::{
 };
 
 use bytes::BytesMut;
-use rand::{rngs::StdRng, RngCore, SeedableRng};
+use rand::{rngs::StdRng, Rng, RngCore, SeedableRng};
 use rustc_hash::FxHashMap;
 use slab::Slab;
 use thiserror::Error;
 
 use crate::{
+    coding::BufMutExt,
     config::{ClientConfig, EndpointConfig, ServerConfig},
     connection::Connection,
     crypto,
-    packet::{FixedLengthConnectionIdParser, PartialDecode},
+    packet::{FixedLengthConnectionIdParser, Header, PacketDecodeError, PartialDecode},
     shared::{ConnectionId, EcnCodepoint},
     token::ResetToken,
     transport_parameters::TransportParameters,
@@ -39,6 +40,8 @@ pub struct Endpoint {
     config: Arc<EndpointConfig>,
     /// 6. Whether the underlying UDP socket promises not to fragment packets
     allow_mtud: bool,
+    /// 7.
+    server_config: Option<Arc<ServerConfig>>,
 }
 
 impl Endpoint {
@@ -66,6 +69,7 @@ impl Endpoint {
             rng: rng_seed.map_or(StdRng::from_entropy(), StdRng::from_seed),
             config,
             allow_mtud,
+            server_config,
         }
     }
 
@@ -210,6 +214,40 @@ impl Endpoint {
             self.config.grease_quic_bit,
         ) {
             Ok(x) => x,
+            Err(PacketDecodeError::UnsupportedVersion {
+                src_cid,
+                dst_cid,
+                version,
+            }) => {
+                if self.server_config.is_none() {
+                    // debug!("dropping packet with unsupported version");
+                    return None;
+                }
+                // trace!("sending version negotiation");
+                // Negotiate versions
+                Header::VersionNegotiate {
+                    random: self.rng.gen::<u8>() | 0x40,
+                    src_cid: dst_cid,
+                    dst_cid: src_cid,
+                }
+                .encode(buf);
+                // Grease with a reserved version
+                if version != 0x0a1a_2a3a {
+                    buf.write::<u32>(0x0a1a_2a3a);
+                } else {
+                    buf.write::<u32>(0x0a1a_2a4a);
+                }
+                for &version in &self.config.supported_versions {
+                    buf.write(version);
+                }
+                return Some(DatagramEvent::Response(Transmit {
+                    destination: remote,
+                    ecn: None,
+                    size: buf.len(),
+                    segment_size: None,
+                    src_ip: local_ip,
+                }));
+            }
             Err(e) => {
                 // trace!("malformed header: {}", e);
                 return None;
@@ -346,6 +384,23 @@ pub enum DatagramEvent {
     // ConnectionEvent(ConnectionHandle, ConnectionEvent),
     // The datagram may result in starting a new `Connection`
     // NewConnection(Incoming),
-    // Response generated directly by the endpoint
-    // Response(Transmit),
+    /// 1. Response generated directly by the endpoint
+    Response(Transmit),
+}
+
+/// An outgoing packet
+#[derive(Debug)]
+#[must_use]
+pub struct Transmit {
+    /// The socket this datagram should be sent to
+    pub destination: SocketAddr,
+    /// Explicit congestion notification bits to set on the packet
+    pub ecn: Option<EcnCodepoint>,
+    /// Amount of data written to the caller-supplied buffer
+    pub size: usize,
+    /// The segment size if this transmission contains multiple datagrams.
+    /// This is `None` if the transmit only contains a single datagram
+    pub segment_size: Option<usize>,
+    /// Optional source IP address for the datagram
+    pub src_ip: Option<IpAddr>,
 }

@@ -138,7 +138,17 @@ pub(crate) enum Header {
     Long,
     Retry,
     Short,
-    VersionNegotiate,
+    VersionNegotiate {
+        random: u8,
+        src_cid: ConnectionId,
+        dst_cid: ConnectionId,
+    },
+}
+
+impl Header {
+    pub(crate) fn encode(&self, w: &mut Vec<u8>) -> PartialEncode {
+        todo!()
+    }
 }
 
 /// Decodes a QUIC packet's invariant header
@@ -394,6 +404,14 @@ pub struct ProtectedInitialHeader {
     /// QUIC version
     pub version: u32,
 }
+
+pub(crate) struct PartialEncode {
+    pub(crate) start: usize,
+    pub(crate) header_len: usize,
+    // Packet number length, payload length needed
+    pn: Option<(usize, bool)>,
+}
+
 
 pub(crate) const FIXED_BIT: u8 = 0x40;
 pub(crate) const LONG_HEADER_FORM: u8 = 0x80;
