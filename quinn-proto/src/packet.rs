@@ -204,6 +204,15 @@ pub enum ProtectedHeader {
         /// Destination Connection ID
         dst_cid: ConnectionId,
     },
+    /// 2. A Version Negotiation packet header
+    VersionNegotiate {
+        /// Random value
+        random: u8,
+        /// Destination Connection ID
+        dst_cid: ConnectionId,
+        /// Source Connection ID
+        src_cid: ConnectionId,
+    },
 }
 
 impl ProtectedHeader {
@@ -226,6 +235,23 @@ impl ProtectedHeader {
                 dst_cid: cid_parser.parse(buf)?,
             })
         } else {
+            let version = buf.get::<u32>()?;
+
+            let dst_cid = ConnectionId::decode_long(buf)
+                .ok_or(PacketDecodeError::InvalidHeader("malformed cid"))?;
+            let src_cid = ConnectionId::decode_long(buf)
+                .ok_or(PacketDecodeError::InvalidHeader("malformed cid"))?;
+
+            // TODO: Support long CIDs for compatibility with future QUIC versions
+            if version == 0 {
+                let random = first & !LONG_HEADER_FORM;
+                return Ok(Self::VersionNegotiate {
+                    random,
+                    dst_cid,
+                    src_cid,
+                });
+            }
+
             todo!()
         }
     }
