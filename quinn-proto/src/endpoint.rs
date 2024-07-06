@@ -42,6 +42,10 @@ pub struct Endpoint {
     allow_mtud: bool,
     /// 7.
     server_config: Option<Arc<ServerConfig>>,
+    /// 8. Buffered Initial and 0-RTT messages for pending incoming connections
+    incoming_buffers: Slab<IncomingBuffer>,
+    /// 9
+    all_incoming_buffers_total_bytes: u64,
 }
 
 impl Endpoint {
@@ -70,6 +74,8 @@ impl Endpoint {
             config,
             allow_mtud,
             server_config,
+            incoming_buffers: Slab::new(),
+            all_incoming_buffers_total_bytes: 0,
         }
     }
 
@@ -263,7 +269,35 @@ impl Endpoint {
                 first_decode,
                 remaining,
             };
-            todo!()
+
+            match route_to {
+                RouteDatagramTo::Incoming(incoming_idx) => {
+                    let incoming_buffer = &mut self.incoming_buffers[incoming_idx];
+                    let config = &self.server_config.as_ref().unwrap();
+
+                    if incoming_buffer
+                        .total_bytes
+                        .checked_add(datagram_len as u64)
+                        .map_or(false, |n| n <= config.incoming_buffer_size)
+                        && self
+                            .all_incoming_buffers_total_bytes
+                            .checked_add(datagram_len as u64)
+                            .map_or(false, |n| n <= config.incoming_buffer_size_total)
+                    {
+                        incoming_buffer.datagrams.push(event);
+                        incoming_buffer.total_bytes += datagram_len as u64;
+                        self.all_incoming_buffers_total_bytes += datagram_len as u64;
+                    }
+
+                    return None;
+                }
+                RouteDatagramTo::Connection(ch) => {
+                    return Some(DatagramEvent::ConnectionEvent(
+                        ch,
+                        ConnectionEvent(ConnectionEventInner::Datagram(event)),
+                    ))
+                }
+            }
         }
         todo!()
     }
@@ -401,8 +435,8 @@ struct FourTuple {
 /// Event resulting from processing a single datagram
 #[allow(clippy::large_enum_variant)] // Not passed around extensively
 pub enum DatagramEvent {
-    // The datagram is redirected to its `Connection`
-    // ConnectionEvent(ConnectionHandle, ConnectionEvent),
+    /// 2. The datagram is redirected to its `Connection`
+    ConnectionEvent(ConnectionHandle, ConnectionEvent),
     // The datagram may result in starting a new `Connection`
     // NewConnection(Incoming),
     /// 1. Response generated directly by the endpoint
@@ -431,4 +465,30 @@ pub struct Transmit {
 enum RouteDatagramTo {
     Incoming(usize),
     Connection(ConnectionHandle),
+}
+
+/// Events sent from an Endpoint to a Connection
+#[derive(Debug)]
+pub struct ConnectionEvent(pub(crate) ConnectionEventInner);
+
+#[derive(Debug)]
+pub(crate) enum ConnectionEventInner {
+    /// A datagram has been received for the Connection
+    Datagram(DatagramConnectionEvent),
+    /// New connection identifiers have been issued for the Connection
+    NewIdentifiers(Vec<IssuedCid>, Instant),
+}
+
+#[derive(Debug, Copy, Clone)]
+pub(crate) struct IssuedCid {
+    pub(crate) sequence: u64,
+    pub(crate) id: ConnectionId,
+    pub(crate) reset_token: ResetToken,
+}
+
+/// Buffered Initial and 0-RTT messages for a pending incoming connection
+#[derive(Default)]
+struct IncomingBuffer {
+    datagrams: Vec<DatagramConnectionEvent>,
+    total_bytes: u64,
 }

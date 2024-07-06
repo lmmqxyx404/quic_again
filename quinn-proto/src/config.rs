@@ -3,7 +3,12 @@ use std::sync::Arc;
 use rand::RngCore;
 
 use crate::{
-    cid_generator::HashedConnectionIdGenerator, crypto::{self, HmacKey}, endpoint::TransportConfig, shared::ConnectionId, ConnectionIdGenerator, RandomConnectionIdGenerator, VarInt, DEFAULT_SUPPORTED_VERSIONS, MAX_CID_SIZE
+    cid_generator::HashedConnectionIdGenerator,
+    crypto::{self, HmacKey},
+    endpoint::TransportConfig,
+    shared::ConnectionId,
+    ConnectionIdGenerator, RandomConnectionIdGenerator, VarInt, DEFAULT_SUPPORTED_VERSIONS,
+    MAX_CID_SIZE,
 };
 
 /// Global configuration for the endpoint, affecting all connections
@@ -58,7 +63,12 @@ impl EndpointConfig {
 ///
 /// Default values should be suitable for most internet applications.
 #[derive(Clone)]
-pub struct ServerConfig {}
+pub struct ServerConfig {
+    /// 1
+    pub(crate) incoming_buffer_size: u64,
+    /// 2
+    pub(crate) incoming_buffer_size_total: u64,
+}
 
 #[cfg(feature = "ring")]
 impl Default for EndpointConfig {
