@@ -1,5 +1,5 @@
 use std::{
-    collections::hash_map,
+    collections::{hash_map, HashMap},
     net::{IpAddr, SocketAddr},
     sync::Arc,
     time::Instant,
@@ -15,6 +15,7 @@ use crate::{
     connection::Connection,
     crypto,
     shared::ConnectionId,
+    token::ResetToken,
     transport_parameters::TransportParameters,
     ConnectionIdGenerator, Side,
 };
@@ -165,7 +166,24 @@ impl Endpoint {
         loc_cids.insert(cids_issued, loc_cid);
         cids_issued += 1;
 
-        todo!()
+        if let Some(cid) = pref_addr_cid {
+            debug_assert_eq!(cids_issued, 1, "preferred address cid seq must be 1");
+            loc_cids.insert(cids_issued, cid);
+            cids_issued += 1;
+        }
+
+        let id = self.connections.insert(ConnectionMeta {
+            init_cid,
+            cids_issued,
+            loc_cids,
+            addresses,
+            reset_token: None,
+        });
+        debug_assert_eq!(id, ch.0, "connection handle allocation out of sync");
+
+        self.index.insert_conn(addresses, loc_cid, ch, side);
+
+        conn
     }
 }
 
@@ -188,7 +206,20 @@ pub enum ConnectError {
 
 /// 4. connection meta data
 #[derive(Debug)]
-pub(crate) struct ConnectionMeta {}
+pub(crate) struct ConnectionMeta {
+    init_cid: ConnectionId,
+    /// Number of local connection IDs that have been issued in NEW_CONNECTION_ID frames.
+    cids_issued: u64,
+    loc_cids: FxHashMap<u64, ConnectionId>,
+    /// Remote/local addresses the connection began with
+    ///
+    /// Only needed to support connections with zero-length CIDs, which cannot migrate, so we don't
+    /// bother keeping it up to date.
+    addresses: FourTuple,
+    /// Reset token provided by the peer for the CID we're currently sending to, and the address
+    /// being sent to
+    reset_token: Option<(SocketAddr, ResetToken)>,
+}
 
 /// 5. Maps packets to existing connections
 #[derive(Default, Debug)]
@@ -197,8 +228,48 @@ struct ConnectionIndex {
     ///
     /// Uses a cheaper hash function since keys are locally created
     connection_ids: FxHashMap<ConnectionId, ConnectionHandle>,
+    /// 2. Identifies incoming connections with zero-length CIDs
+    ///
+    /// Uses a standard `HashMap` to protect against hash collision attacks.
+    incoming_connection_remotes: HashMap<FourTuple, ConnectionHandle>,
+    /// 3. Identifies outgoing connections with zero-length CIDs
+    ///
+    /// We don't yet support explicit source addresses for client connections, and zero-length CIDs
+    /// require a unique four-tuple, so at most one client connection with zero-length local CIDs
+    /// may be established per remote. We must omit the local address from the key because we don't
+    /// necessarily know what address we're sending from, and hence receiving at.
+    ///
+    /// Uses a standard `HashMap` to protect against hash collision attacks.
+    outgoing_connection_remotes: HashMap<SocketAddr, ConnectionHandle>,
 }
 
+impl ConnectionIndex {
+    /// Associate a connection with its first locally-chosen destination CID if used, or otherwise
+    /// its current 4-tuple
+    fn insert_conn(
+        &mut self,
+        addresses: FourTuple,
+        dst_cid: ConnectionId,
+        connection: ConnectionHandle,
+        side: Side,
+    ) {
+        match dst_cid.len() {
+            0 => match side {
+                Side::Server => {
+                    self.incoming_connection_remotes
+                        .insert(addresses, connection);
+                }
+                Side::Client => {
+                    self.outgoing_connection_remotes
+                        .insert(addresses.remote, connection);
+                }
+            },
+            _ => {
+                self.connection_ids.insert(dst_cid, connection);
+            }
+        }
+    }
+}
 /// 6. Parameters governing the core QUIC state machine
 ///
 /// Default values should be suitable for most internet applications. Applications protocols which
