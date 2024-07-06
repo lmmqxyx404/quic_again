@@ -172,7 +172,7 @@ pub struct PartialDecode {
 
 #[allow(clippy::len_without_is_empty)]
 impl PartialDecode {
-    /// Begin decoding a QUIC packet from `bytes`, returning any trailing data not part of that packet
+    /// 1. Begin decoding a QUIC packet from `bytes`, returning any trailing data not part of that packet
     pub fn new(
         bytes: BytesMut,
         cid_parser: &(impl ConnectionIdParser + ?Sized),
@@ -197,6 +197,10 @@ impl PartialDecode {
                 Ok((Self { plain_header, buf }, rest))
             }
         }
+    }
+    /// 2. The destination connection ID of the packet
+    pub fn dst_cid(&self) -> &ConnectionId {
+        self.plain_header.dst_cid()
     }
 }
 
@@ -357,6 +361,18 @@ impl ProtectedHeader {
             _ => None,
         }
     }
+
+    /// 3. The destination Connection ID of the packet
+    pub fn dst_cid(&self) -> &ConnectionId {
+        use self::ProtectedHeader::*;
+        match self {
+            Initial(header) => &header.dst_cid,
+            Long { dst_cid, .. } => dst_cid,
+            Retry { dst_cid, .. } => dst_cid,
+            Short { dst_cid, .. } => dst_cid,
+            VersionNegotiate { dst_cid, .. } => dst_cid,
+        }
+    }
 }
 
 /// Long packet type including non-uniform cases
@@ -411,7 +427,6 @@ pub(crate) struct PartialEncode {
     // Packet number length, payload length needed
     pn: Option<(usize, bool)>,
 }
-
 
 pub(crate) const FIXED_BIT: u8 = 0x40;
 pub(crate) const LONG_HEADER_FORM: u8 = 0x80;

@@ -17,7 +17,7 @@ use crate::{
     connection::Connection,
     crypto,
     packet::{FixedLengthConnectionIdParser, Header, PacketDecodeError, PartialDecode},
-    shared::{ConnectionId, EcnCodepoint},
+    shared::{ConnectionId, DatagramConnectionEvent, EcnCodepoint},
     token::ResetToken,
     transport_parameters::TransportParameters,
     ConnectionIdGenerator, Side,
@@ -253,6 +253,18 @@ impl Endpoint {
                 return None;
             }
         };
+
+        let addresses = FourTuple { remote, local_ip };
+        if let Some(route_to) = self.index.get(&addresses, &first_decode) {
+            let event = DatagramConnectionEvent {
+                now,
+                remote: addresses.remote,
+                ecn,
+                first_decode,
+                remaining,
+            };
+            todo!()
+        }
         todo!()
     }
 }
@@ -314,7 +326,7 @@ struct ConnectionIndex {
 }
 
 impl ConnectionIndex {
-    /// Associate a connection with its first locally-chosen destination CID if used, or otherwise
+    /// 1. Associate a connection with its first locally-chosen destination CID if used, or otherwise
     /// its current 4-tuple
     fn insert_conn(
         &mut self,
@@ -338,6 +350,15 @@ impl ConnectionIndex {
                 self.connection_ids.insert(dst_cid, connection);
             }
         }
+    }
+    /// 2. Find the existing connection that `datagram` should be routed to, if any
+    fn get(&self, addresses: &FourTuple, datagram: &PartialDecode) -> Option<RouteDatagramTo> {
+        if datagram.dst_cid().len() != 0 {
+            if let Some(&ch) = self.connection_ids.get(datagram.dst_cid()) {
+                return Some(RouteDatagramTo::Connection(ch));
+            }
+        }
+        todo!()
     }
 }
 /// 6. Parameters governing the core QUIC state machine
@@ -403,4 +424,11 @@ pub struct Transmit {
     pub segment_size: Option<usize>,
     /// Optional source IP address for the datagram
     pub src_ip: Option<IpAddr>,
+}
+
+/// Part of protocol state incoming datagrams can be routed to
+#[derive(Copy, Clone, Debug)]
+enum RouteDatagramTo {
+    Incoming(usize),
+    Connection(ConnectionHandle),
 }

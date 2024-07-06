@@ -1,8 +1,8 @@
-use std::fmt;
+use std::{fmt, net::SocketAddr, time::Instant};
 
-use bytes::{Buf, BufMut};
+use bytes::{Buf, BufMut, BytesMut};
 // 引入对应的 trait
-use crate::{coding::BufExt, MAX_CID_SIZE};
+use crate::{coding::BufExt, packet::PartialDecode, MAX_CID_SIZE};
 
 /// Protocol-level identifier for a connection.
 ///
@@ -95,4 +95,14 @@ pub enum EcnCodepoint {
     Ect1 = 0b01,
     #[doc(hidden)]
     Ce = 0b11,
+}
+
+/// Variant of [`ConnectionEventInner`].
+#[derive(Debug)]
+pub(crate) struct DatagramConnectionEvent {
+    pub(crate) now: Instant,
+    pub(crate) remote: SocketAddr,
+    pub(crate) ecn: Option<EcnCodepoint>,
+    pub(crate) first_decode: PartialDecode,
+    pub(crate) remaining: Option<BytesMut>,
 }
