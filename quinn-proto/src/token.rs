@@ -19,15 +19,22 @@ impl ResetToken {
 }
 
 impl PartialEq for ResetToken {
-  fn eq(&self, other: &Self) -> bool {
-      crate::constant_time::eq(&self.0, &other.0)
-  }
+    fn eq(&self, other: &Self) -> bool {
+        crate::constant_time::eq(&self.0, &other.0)
+    }
 }
 
 impl Eq for ResetToken {}
 
 impl From<[u8; RESET_TOKEN_SIZE]> for ResetToken {
-  fn from(x: [u8; RESET_TOKEN_SIZE]) -> Self {
-      Self(x)
-  }
+    fn from(x: [u8; RESET_TOKEN_SIZE]) -> Self {
+        Self(x)
+    }
+}
+/// 用于 `w.put_slice(x);`
+impl std::ops::Deref for ResetToken {
+    type Target = [u8];
+    fn deref(&self) -> &[u8] {
+        &self.0
+    }
 }

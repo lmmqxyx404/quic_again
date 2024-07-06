@@ -143,6 +143,27 @@ impl TransportParameters {
         }
         apply_params!(write_params);
 
+        // Add a reserved parameter to keep people on their toes
+        w.write_var(31 * 5 + 27);
+        w.write_var(0);
+
+        if let Some(ref x) = self.stateless_reset_token {
+            w.write_var(0x02);
+            w.write_var(16);
+            w.put_slice(x);
+        }
+
+        if self.disable_active_migration {
+            w.write_var(0x0c);
+            w.write_var(0);
+        }
+
+        if let Some(x) = self.max_datagram_frame_size {
+            w.write_var(0x20);
+            w.write_var(x.size() as u64);
+            w.write(x);
+        }
+
         todo!()
     }
 }
