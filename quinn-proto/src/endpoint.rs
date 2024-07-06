@@ -5,6 +5,7 @@ use std::{
     time::Instant,
 };
 
+use bytes::BytesMut;
 use rand::{rngs::StdRng, RngCore, SeedableRng};
 use rustc_hash::FxHashMap;
 use slab::Slab;
@@ -14,7 +15,7 @@ use crate::{
     config::{ClientConfig, EndpointConfig, ServerConfig},
     connection::Connection,
     crypto,
-    shared::ConnectionId,
+    shared::{ConnectionId, EcnCodepoint},
     token::ResetToken,
     transport_parameters::TransportParameters,
     ConnectionIdGenerator, Side,
@@ -189,7 +190,19 @@ impl Endpoint {
     pub fn config(&self) -> &EndpointConfig {
         &self.config
     }
-   
+
+    /// 6. Process an incoming UDP datagram
+    pub fn handle(
+        &mut self,
+        now: Instant,
+        remote: SocketAddr,
+        local_ip: Option<IpAddr>,
+        ecn: Option<EcnCodepoint>,
+        data: BytesMut,
+        buf: &mut Vec<u8>,
+    ) -> Option<DatagramEvent> {
+        todo!()
+    }
 }
 
 /// 2. Internal identifier for a `Connection` currently associated with an endpoint
@@ -310,4 +323,15 @@ struct FourTuple {
     remote: SocketAddr,
     // A single socket can only listen on a single port, so no need to store it explicitly
     local_ip: Option<IpAddr>,
+}
+
+/// Event resulting from processing a single datagram
+#[allow(clippy::large_enum_variant)] // Not passed around extensively
+pub enum DatagramEvent {
+    // The datagram is redirected to its `Connection`
+    // ConnectionEvent(ConnectionHandle, ConnectionEvent),
+    // The datagram may result in starting a new `Connection`
+    // NewConnection(Incoming),
+    // Response generated directly by the endpoint
+    // Response(Transmit),
 }

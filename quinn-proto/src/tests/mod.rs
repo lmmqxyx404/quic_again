@@ -3,6 +3,7 @@ use std::{sync::Arc, time::Instant};
 use crate::{config::EndpointConfig, ConnectionIdGenerator, Endpoint, RandomConnectionIdGenerator};
 
 mod util;
+use hex_literal::hex;
 use util::*;
 
 #[test]
@@ -28,5 +29,18 @@ fn version_negotiate_client() {
     let now = Instant::now();
     let mut buf: Vec<u8> = Vec::with_capacity(client.config().get_max_udp_payload_size() as usize);
 
+    let opt_event = client.handle(
+        now,
+        server_addr,
+        None,
+        None,
+        // Version negotiation packet for reserved version, with empty DCID
+        hex!(
+            "80 00000000 00 04 00000000
+             0a1a2a3a"
+        )[..]
+            .into(),
+        &mut buf,
+    );
     println!("hello world");
 }
