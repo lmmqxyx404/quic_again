@@ -5,7 +5,7 @@ use std::{
     time::Instant,
 };
 
-use rand::{rngs::StdRng, RngCore};
+use rand::{rngs::StdRng, RngCore, SeedableRng};
 use rustc_hash::FxHashMap;
 use slab::Slab;
 use thiserror::Error;
@@ -16,7 +16,7 @@ use crate::{
     crypto,
     shared::ConnectionId,
     transport_parameters::TransportParameters,
-    ConnectionIdGenerator,
+    ConnectionIdGenerator, Side,
 };
 
 /// 1. The main entry point to the library
@@ -56,6 +56,7 @@ impl Endpoint {
             connections: Slab::new(),
             local_cid_generator: (config.connection_id_generator_factory.as_ref())(),
             index: ConnectionIndex::default(),
+            rng: rng_seed.map_or(StdRng::from_entropy(), StdRng::from_seed),
         }
     }
 
@@ -130,7 +131,10 @@ impl Endpoint {
     ) -> Connection {
         let mut rng_seed = [0; 32];
         self.rng.fill_bytes(&mut rng_seed);
-        
+        let side = match server_config.is_some() {
+            true => Side::Server,
+            false => Side::Client,
+        };
         todo!()
     }
 }

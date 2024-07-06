@@ -39,3 +39,14 @@ mod constant_time;
 const MAX_CID_SIZE: usize = 20;
 /// 2
 const RESET_TOKEN_SIZE: usize = 16;
+
+
+/// Whether an endpoint was the initiator of a connection
+#[cfg_attr(feature = "arbitrary", derive(Arbitrary))]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+pub enum Side {
+    /// The initiator of a connection
+    Client = 0,
+    /// The acceptor of a connection
+    Server = 1,
+}
