@@ -15,6 +15,7 @@ use crate::{
     config::{ClientConfig, EndpointConfig, ServerConfig},
     connection::Connection,
     crypto,
+    packet::{FixedLengthConnectionIdParser, PartialDecode},
     shared::{ConnectionId, EcnCodepoint},
     token::ResetToken,
     transport_parameters::TransportParameters,
@@ -201,6 +202,17 @@ impl Endpoint {
         data: BytesMut,
         buf: &mut Vec<u8>,
     ) -> Option<DatagramEvent> {
+        let datagram_len = data.len();
+        let (first_decode, remaining) = match PartialDecode::new(
+            data,
+            &FixedLengthConnectionIdParser::new(self.local_cid_generator.cid_len()),
+        ) {
+            Ok(x) => x,
+            Err(e) => {
+                // trace!("malformed header: {}", e);
+                return None;
+            }
+        };
         todo!()
     }
 }

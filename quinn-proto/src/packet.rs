@@ -1,11 +1,13 @@
-use bytes::{Buf, BufMut};
+use bytes::{Buf, BufMut, BytesMut};
 use thiserror::Error;
 
 // use crate::coding::BufMutExt;
 
-use crate::coding::{self, BufExt, BufMutExt};
-/// 1.
-// An encoded packet number
+use crate::{
+    coding::{self, BufExt, BufMutExt},
+    shared::ConnectionId,
+};
+/// 1. An encoded packet number
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub(crate) enum PacketNumber {
     U8(u8),
@@ -130,6 +132,59 @@ pub(crate) enum Header {
     Retry,
     Short,
     VersionNegotiate,
+}
+
+/// Decodes a QUIC packet's invariant header
+///
+/// Due to packet number encryption, it is impossible to fully decode a header
+/// (which includes a variable-length packet number) without crypto context.
+/// The crypto context (represented by the `Crypto` type in Quinn) is usually
+/// part of the `Connection`, or can be derived from the destination CID for
+/// Initial packets.
+///
+/// To cope with this, we decode the invariant header (which should be stable
+/// across QUIC versions), which gives us the destination CID and allows us
+/// to inspect the version and packet type (which depends on the version).
+/// This information allows us to fully decode and decrypt the packet.
+#[cfg_attr(test, derive(Clone))]
+#[derive(Debug)]
+pub struct PartialDecode {}
+
+#[allow(clippy::len_without_is_empty)]
+impl PartialDecode {
+    /// Begin decoding a QUIC packet from `bytes`, returning any trailing data not part of that packet
+    pub fn new(
+        bytes: BytesMut,
+        cid_parser: &(impl ConnectionIdParser + ?Sized),
+    ) -> Result<(Self, Option<BytesMut>), PacketDecodeError> {
+        todo!()
+    }
+}
+
+/// Parse connection id in short header packet
+pub trait ConnectionIdParser {
+    /// Parse a connection id from given buffer
+    fn parse(&self, buf: &mut dyn Buf) -> Result<ConnectionId, PacketDecodeError>;
+}
+
+/// A [`ConnectionIdParser`] implementation that assumes the connection ID is of fixed length
+pub struct FixedLengthConnectionIdParser {
+    expected_len: usize,
+}
+
+impl FixedLengthConnectionIdParser {
+    /// Create a new instance of `FixedLengthConnectionIdParser`
+    pub fn new(expected_len: usize) -> Self {
+        Self { expected_len }
+    }
+}
+
+impl ConnectionIdParser for FixedLengthConnectionIdParser {
+    fn parse(&self, buffer: &mut dyn Buf) -> Result<ConnectionId, PacketDecodeError> {
+        (buffer.remaining() >= self.expected_len)
+            .then(|| ConnectionId::from_buf(buffer, self.expected_len))
+            .ok_or(PacketDecodeError::InvalidHeader("packet too small"))
+    }
 }
 
 #[cfg(test)]
