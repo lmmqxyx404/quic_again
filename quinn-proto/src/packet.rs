@@ -106,15 +106,19 @@ impl PacketNumber {
 #[allow(unreachable_pub)] // fuzzing only
 #[derive(Debug, Error, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub enum PacketDecodeError {
-    /* todo2
-    #[error("unsupported version {version:x}")]
-    UnsupportedVersion {
-        src_cid: ConnectionId,
-        dst_cid: ConnectionId,
-        version: u32,
-    }, */
+    /// 1. 比较早的
     #[error("invalid header: {0}")]
     InvalidHeader(&'static str),
+    /// 2. Packet uses a QUIC version that is not supported
+    #[error("unsupported version {version:x}")]
+    UnsupportedVersion {
+        /// Source Connection ID
+        src_cid: ConnectionId,
+        /// Destination Connection ID
+        dst_cid: ConnectionId,
+        /// The version that was unsupported
+        version: u32,
+    },
 }
 
 // the impl is forst used for decode r.get()? parse
@@ -252,6 +256,13 @@ impl ProtectedHeader {
                 });
             }
 
+            if !supported_versions.contains(&version) {
+                return Err(PacketDecodeError::UnsupportedVersion {
+                    src_cid,
+                    dst_cid,
+                    version,
+                });
+            }
             todo!()
         }
     }
