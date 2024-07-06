@@ -2,9 +2,9 @@ use std::{sync::Arc, time::Instant};
 
 use crate::{config::EndpointConfig, ConnectionIdGenerator, Endpoint, RandomConnectionIdGenerator};
 
-
 mod util;
 use util::*;
+
 #[test]
 fn version_negotiate_client() {
     // let _guard = subscribe();
@@ -25,5 +25,8 @@ fn version_negotiate_client() {
     let (_, mut client_ch) = client
         .connect(Instant::now(), client_config(), server_addr, "localhost")
         .unwrap();
+    let now = Instant::now();
+    let mut buf: Vec<u8> = Vec::with_capacity(client.config().get_max_udp_payload_size() as usize);
+
     println!("hello world");
 }

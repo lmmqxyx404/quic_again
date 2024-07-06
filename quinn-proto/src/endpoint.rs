@@ -185,6 +185,11 @@ impl Endpoint {
 
         conn
     }
+    /// 5. Access the configuration used by this endpoint
+    pub fn config(&self) -> &EndpointConfig {
+        &self.config
+    }
+   
 }
 
 /// 2. Internal identifier for a `Connection` currently associated with an endpoint

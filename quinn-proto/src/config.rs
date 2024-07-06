@@ -3,11 +3,7 @@ use std::sync::Arc;
 use rand::RngCore;
 
 use crate::{
-    cid_generator::HashedConnectionIdGenerator,
-    crypto::{self, HmacKey},
-    endpoint::TransportConfig,
-    shared::ConnectionId,
-    ConnectionIdGenerator, RandomConnectionIdGenerator, MAX_CID_SIZE,
+    cid_generator::HashedConnectionIdGenerator, crypto::{self, HmacKey}, endpoint::TransportConfig, shared::ConnectionId, ConnectionIdGenerator, RandomConnectionIdGenerator, VarInt, MAX_CID_SIZE
 };
 
 /// Global configuration for the endpoint, affecting all connections
@@ -23,17 +19,33 @@ pub struct EndpointConfig {
 
     /// 2. Optional seed to be used internally for random number generation
     pub(crate) rng_seed: Option<[u8; 32]>,
+    /// 3.
+    pub(crate) max_udp_payload_size: VarInt,
 }
 
 impl EndpointConfig {
-    /// Create a default config with a particular `reset_key`
+    /// 1. Create a default config with a particular `reset_key`
     pub fn new(reset_key: Arc<dyn HmacKey>) -> Self {
         let cid_factory =
             || -> Box<dyn ConnectionIdGenerator> { Box::<HashedConnectionIdGenerator>::default() };
         Self {
             connection_id_generator_factory: Arc::new(cid_factory),
             rng_seed: None,
+            max_udp_payload_size: (1500u32 - 28).into(), // Ethernet MTU minus IP + UDP headers
         }
+    }
+
+    /// 2. Get the current value of `max_udp_payload_size`
+    ///
+    /// While most parameters don't need to be readable, this must be exposed to allow higher-level
+    /// layers, e.g. the `quinn` crate, to determine how large a receive buffer to allocate to
+    /// support an externally-defined `EndpointConfig`.
+    ///
+    /// While `get_` accessors are typically unidiomatic in Rust, we favor concision for setters,
+    /// which will be used far more heavily.
+    #[doc(hidden)]
+    pub fn get_max_udp_payload_size(&self) -> u64 {
+        self.max_udp_payload_size.into()
     }
 }
 /// Parameters governing incoming connections

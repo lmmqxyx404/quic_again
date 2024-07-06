@@ -71,6 +71,18 @@ impl std::convert::TryFrom<u64> for VarInt {
         Self::from_u64(x)
     }
 }
+/// used for `EndpointConfig:: fn new`
+impl From<u32> for VarInt {
+    fn from(x: u32) -> Self {
+        Self(x.into())
+    }
+}
+/// used for `pub fn get_max_udp_payload_size`
+impl From<VarInt> for u64 {
+    fn from(x: VarInt) -> Self {
+        x.0
+    }
+}
 
 /// Error returned when constructing a `VarInt` from a value >= 2^62
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Error)]
