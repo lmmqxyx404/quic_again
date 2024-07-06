@@ -1,4 +1,4 @@
-use std::net::{SocketAddrV4, SocketAddrV6};
+use std::net::{Ipv4Addr, Ipv6Addr, SocketAddrV4, SocketAddrV6};
 
 use bytes::BufMut;
 
@@ -164,6 +164,49 @@ impl TransportParameters {
             w.write(x);
         }
 
-        todo!()
+        if let Some(ref x) = self.preferred_address {
+            w.write_var(0x000d);
+            w.write_var(x.wire_size() as u64);
+            x.write(w);
+        }
+
+        for &(tag, cid) in &[
+            (0x00, &self.original_dst_cid),
+            (0x0f, &self.initial_src_cid),
+            (0x10, &self.retry_src_cid),
+        ] {
+            if let Some(ref cid) = *cid {
+                w.write_var(tag);
+                w.write_var(cid.len() as u64);
+                w.put_slice(cid);
+            }
+        }
+
+        if self.grease_quic_bit {
+            w.write_var(0x2ab2);
+            w.write_var(0);
+        }
+
+        if let Some(x) = self.min_ack_delay {
+            w.write_var(0xff04de1a);
+            w.write_var(x.size() as u64);
+            w.write(x);
+        }
+    }
+}
+
+impl PreferredAddress {
+    fn wire_size(&self) -> u16 {
+        4 + 2 + 16 + 2 + 1 + self.connection_id.len() as u16 + 16
+    }
+
+    fn write<W: BufMut>(&self, w: &mut W) {
+        w.write(self.address_v4.map_or(Ipv4Addr::UNSPECIFIED, |x| *x.ip()));
+        w.write::<u16>(self.address_v4.map_or(0, |x| x.port()));
+        w.write(self.address_v6.map_or(Ipv6Addr::UNSPECIFIED, |x| *x.ip()));
+        w.write::<u16>(self.address_v6.map_or(0, |x| x.port()));
+        w.write::<u8>(self.connection_id.len() as u8);
+        w.put_slice(&self.connection_id);
+        w.put_slice(&self.stateless_reset_token);
     }
 }
