@@ -20,7 +20,7 @@ use crate::{
     shared::{ConnectionId, DatagramConnectionEvent, EcnCodepoint},
     token::ResetToken,
     transport_parameters::TransportParameters,
-    ConnectionIdGenerator, Side,
+    ConnectionIdGenerator, Side, RESET_TOKEN_SIZE,
 };
 
 /// 1. The main entry point to the library
@@ -361,6 +361,11 @@ struct ConnectionIndex {
     ///
     /// Uses a standard `HashMap` to protect against hash collision attacks.
     connection_ids_initial: HashMap<ConnectionId, RouteDatagramTo>,
+    /// 5. Reset tokens provided by the peer for the CID each connection is currently sending to
+    ///
+    /// Incoming stateless resets do not have correct CIDs, so we need this to identify the correct
+    /// recipient, if any.
+    connection_reset_tokens: ResetTokenTable,
 }
 
 impl ConnectionIndex {
@@ -401,7 +406,22 @@ impl ConnectionIndex {
                 return Some(ch);
             }
         }
-        todo!()
+        if datagram.dst_cid().len() == 0 {
+            if let Some(&ch) = self.incoming_connection_remotes.get(addresses) {
+                return Some(RouteDatagramTo::Connection(ch));
+            }
+            if let Some(&ch) = self.outgoing_connection_remotes.get(&addresses.remote) {
+                return Some(RouteDatagramTo::Connection(ch));
+            }
+        }
+        let data = datagram.data();
+        if data.len() < RESET_TOKEN_SIZE {
+            return None;
+        }
+        self.connection_reset_tokens
+            .get(addresses.remote, &data[data.len() - RESET_TOKEN_SIZE..])
+            .cloned()
+            .map(RouteDatagramTo::Connection)
     }
 }
 /// 6. Parameters governing the core QUIC state machine
@@ -500,4 +520,18 @@ pub(crate) struct IssuedCid {
 struct IncomingBuffer {
     datagrams: Vec<DatagramConnectionEvent>,
     total_bytes: u64,
+}
+
+/// Reset Tokens which are associated with peer socket addresses
+///
+/// The standard `HashMap` is used since both `SocketAddr` and `ResetToken` are
+/// peer generated and might be usable for hash collision attacks.
+#[derive(Default, Debug)]
+struct ResetTokenTable(HashMap<SocketAddr, HashMap<ResetToken, ConnectionHandle>>);
+
+impl ResetTokenTable {
+    fn get(&self, remote: SocketAddr, token: &[u8]) -> Option<&ConnectionHandle> {
+        let token = ResetToken::from(<[u8; RESET_TOKEN_SIZE]>::try_from(token).ok()?);
+        self.0.get(&remote)?.get(&token)
+    }
 }

@@ -230,6 +230,10 @@ impl PartialDecode {
             _ => false,
         }
     }
+    /// 6. The underlying partially-decoded packet data
+    pub(crate) fn data(&self) -> &[u8] {
+        self.buf.get_ref()
+    }
 }
 
 /// Parse connection id in short header packet
