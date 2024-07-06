@@ -1,5 +1,5 @@
-use std::io;
 use std::ops::Range;
+use std::{cmp::Ordering, io};
 
 use bytes::{Buf, BufMut, BytesMut};
 use thiserror::Error;
@@ -155,7 +155,10 @@ pub(crate) enum Header {
 /// This information allows us to fully decode and decrypt the packet.
 #[cfg_attr(test, derive(Clone))]
 #[derive(Debug)]
-pub struct PartialDecode {}
+pub struct PartialDecode {
+    plain_header: ProtectedHeader,
+    buf: io::Cursor<BytesMut>,
+}
 
 #[allow(clippy::len_without_is_empty)]
 impl PartialDecode {
@@ -169,7 +172,21 @@ impl PartialDecode {
         let mut buf = io::Cursor::new(bytes);
         let plain_header =
             ProtectedHeader::decode(&mut buf, cid_parser, supported_versions, grease_quic_bit)?;
-        todo!()
+        let dgram_len = buf.get_ref().len();
+        let packet_len = plain_header
+            .payload_len()
+            .map(|len| (buf.position() + len) as usize)
+            .unwrap_or(dgram_len);
+        match dgram_len.cmp(&packet_len) {
+            Ordering::Equal => Ok((Self { plain_header, buf }, None)),
+            Ordering::Less => Err(PacketDecodeError::InvalidHeader(
+                "packet too short to contain payload length",
+            )),
+            Ordering::Greater => {
+                let rest = Some(buf.get_mut().split_off(packet_len));
+                Ok((Self { plain_header, buf }, rest))
+            }
+        }
     }
 }
 
@@ -245,7 +262,7 @@ pub enum ProtectedHeader {
 }
 
 impl ProtectedHeader {
-    /// Decode a plain header from given buffer, with given [`ConnectionIdParser`].
+    /// 1. Decode a plain header from given buffer, with given [`ConnectionIdParser`].
     pub fn decode(
         buf: &mut io::Cursor<BytesMut>,
         cid_parser: &(impl ConnectionIdParser + ?Sized),
@@ -320,6 +337,14 @@ impl ProtectedHeader {
                     version,
                 }),
             }
+        }
+    }
+    /// 2
+    fn payload_len(&self) -> Option<u64> {
+        use self::ProtectedHeader::*;
+        match self {
+            Initial(ProtectedInitialHeader { len, .. }) | Long { len, .. } => Some(*len),
+            _ => None,
         }
     }
 }
