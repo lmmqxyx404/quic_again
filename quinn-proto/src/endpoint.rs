@@ -5,7 +5,7 @@ use std::{
     time::Instant,
 };
 
-use rand::RngCore;
+use rand::{rngs::StdRng, RngCore};
 use rustc_hash::FxHashMap;
 use slab::Slab;
 use thiserror::Error;
@@ -30,6 +30,8 @@ pub struct Endpoint {
     local_cid_generator: Box<dyn ConnectionIdGenerator>,
     /// 3.
     index: ConnectionIndex,
+    /// 4.
+    rng: StdRng,
 }
 
 impl Endpoint {
@@ -126,6 +128,9 @@ impl Endpoint {
         transport_config: Arc<TransportConfig>,
         path_validated: bool,
     ) -> Connection {
+        let mut rng_seed = [0; 32];
+        self.rng.fill_bytes(&mut rng_seed);
+        
         todo!()
     }
 }
