@@ -206,6 +206,8 @@ impl Endpoint {
         let (first_decode, remaining) = match PartialDecode::new(
             data,
             &FixedLengthConnectionIdParser::new(self.local_cid_generator.cid_len()),
+            &self.config.supported_versions,
+            self.config.grease_quic_bit,
         ) {
             Ok(x) => x,
             Err(e) => {

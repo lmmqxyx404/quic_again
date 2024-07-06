@@ -3,7 +3,7 @@ use std::sync::Arc;
 use rand::RngCore;
 
 use crate::{
-    cid_generator::HashedConnectionIdGenerator, crypto::{self, HmacKey}, endpoint::TransportConfig, shared::ConnectionId, ConnectionIdGenerator, RandomConnectionIdGenerator, VarInt, MAX_CID_SIZE
+    cid_generator::HashedConnectionIdGenerator, crypto::{self, HmacKey}, endpoint::TransportConfig, shared::ConnectionId, ConnectionIdGenerator, RandomConnectionIdGenerator, VarInt, DEFAULT_SUPPORTED_VERSIONS, MAX_CID_SIZE
 };
 
 /// Global configuration for the endpoint, affecting all connections
@@ -21,6 +21,10 @@ pub struct EndpointConfig {
     pub(crate) rng_seed: Option<[u8; 32]>,
     /// 3.
     pub(crate) max_udp_payload_size: VarInt,
+    /// 4
+    pub(crate) supported_versions: Vec<u32>,
+    /// 5.
+    pub(crate) grease_quic_bit: bool,
 }
 
 impl EndpointConfig {
@@ -32,6 +36,8 @@ impl EndpointConfig {
             connection_id_generator_factory: Arc::new(cid_factory),
             rng_seed: None,
             max_udp_payload_size: (1500u32 - 28).into(), // Ethernet MTU minus IP + UDP headers
+            supported_versions: DEFAULT_SUPPORTED_VERSIONS.to_vec(),
+            grease_quic_bit: true,
         }
     }
 

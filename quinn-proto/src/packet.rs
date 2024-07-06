@@ -1,3 +1,5 @@
+use std::io;
+
 use bytes::{Buf, BufMut, BytesMut};
 use thiserror::Error;
 
@@ -156,7 +158,12 @@ impl PartialDecode {
     pub fn new(
         bytes: BytesMut,
         cid_parser: &(impl ConnectionIdParser + ?Sized),
+        supported_versions: &[u32],
+        grease_quic_bit: bool,
     ) -> Result<(Self, Option<BytesMut>), PacketDecodeError> {
+        let mut buf = io::Cursor::new(bytes);
+        let plain_header =
+            ProtectedHeader::decode(&mut buf, cid_parser, supported_versions, grease_quic_bit)?;
         todo!()
     }
 }
@@ -184,6 +191,22 @@ impl ConnectionIdParser for FixedLengthConnectionIdParser {
         (buffer.remaining() >= self.expected_len)
             .then(|| ConnectionId::from_buf(buffer, self.expected_len))
             .ok_or(PacketDecodeError::InvalidHeader("packet too small"))
+    }
+}
+
+/// Plain packet header
+#[derive(Clone, Debug)]
+pub enum ProtectedHeader {}
+
+impl ProtectedHeader {
+    /// Decode a plain header from given buffer, with given [`ConnectionIdParser`].
+    pub fn decode(
+        buf: &mut io::Cursor<BytesMut>,
+        cid_parser: &(impl ConnectionIdParser + ?Sized),
+        supported_versions: &[u32],
+        grease_quic_bit: bool,
+    ) -> Result<Self, PacketDecodeError> {
+        todo!()
     }
 }
 
