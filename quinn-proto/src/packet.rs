@@ -1,4 +1,5 @@
 use std::io;
+use std::ops::Range;
 
 use bytes::{Buf, BufMut, BytesMut};
 use thiserror::Error;
@@ -217,6 +218,30 @@ pub enum ProtectedHeader {
         /// Source Connection ID
         src_cid: ConnectionId,
     },
+    /// 3. An Initial packet header
+    Initial(ProtectedInitialHeader),
+    /// 4. A Retry packet header
+    Retry {
+        /// Destination Connection ID
+        dst_cid: ConnectionId,
+        /// Source Connection ID
+        src_cid: ConnectionId,
+        /// QUIC version
+        version: u32,
+    },
+    /// 5. A Long packet header, as used during the handshake
+    Long {
+        /// Type of the Long header packet
+        ty: LongType,
+        /// Destination Connection ID
+        dst_cid: ConnectionId,
+        /// Source Connection ID
+        src_cid: ConnectionId,
+        /// Length of the packet payload
+        len: u64,
+        /// QUIC version
+        version: u32,
+    },
 }
 
 impl ProtectedHeader {
@@ -263,9 +288,86 @@ impl ProtectedHeader {
                     version,
                 });
             }
-            todo!()
+
+            match LongHeaderType::from_byte(first)? {
+                LongHeaderType::Initial => {
+                    let token_len = buf.get_var()? as usize;
+                    let token_start = buf.position() as usize;
+                    if token_len > buf.remaining() {
+                        return Err(PacketDecodeError::InvalidHeader("token out of bounds"));
+                    }
+                    buf.advance(token_len);
+
+                    let len = buf.get_var()?;
+                    Ok(Self::Initial(ProtectedInitialHeader {
+                        dst_cid,
+                        src_cid,
+                        token_pos: token_start..token_start + token_len,
+                        len,
+                        version,
+                    }))
+                }
+                LongHeaderType::Retry => Ok(Self::Retry {
+                    dst_cid,
+                    src_cid,
+                    version,
+                }),
+                LongHeaderType::Standard(ty) => Ok(Self::Long {
+                    ty,
+                    dst_cid,
+                    src_cid,
+                    len: buf.get_var()?,
+                    version,
+                }),
+            }
         }
     }
+}
+
+/// Long packet type including non-uniform cases
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum LongHeaderType {
+    Initial,
+    Retry,
+    Standard(LongType),
+}
+
+impl LongHeaderType {
+    fn from_byte(b: u8) -> Result<Self, PacketDecodeError> {
+        use self::{LongHeaderType::*, LongType::*};
+        debug_assert!(b & LONG_HEADER_FORM != 0, "not a long packet");
+        Ok(match (b & 0x30) >> 4 {
+            0x0 => Initial,
+            0x1 => Standard(ZeroRtt),
+            0x2 => Standard(Handshake),
+            0x3 => Retry,
+            _ => unreachable!(),
+        })
+    }
+}
+
+/// Long packet types with uniform header structure
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum LongType {
+    /// Handshake packet
+    Handshake,
+    /// 0-RTT packet
+    ZeroRtt,
+}
+
+/// Header of an Initial packet, before decryption
+#[derive(Clone, Debug)]
+pub struct ProtectedInitialHeader {
+    /// Destination Connection ID
+    pub dst_cid: ConnectionId,
+    /// Source Connection ID
+    pub src_cid: ConnectionId,
+    /// The position of a token in the packet buffer
+    pub token_pos: Range<usize>,
+    /// Length of the packet payload
+    pub len: u64,
+    /// QUIC version
+    pub version: u32,
 }
 
 pub(crate) const FIXED_BIT: u8 = 0x40;
