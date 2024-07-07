@@ -2,7 +2,7 @@ use std::{fmt, net::SocketAddr, time::Instant};
 
 use bytes::{Buf, BufMut, BytesMut};
 // 引入对应的 trait
-use crate::{coding::BufExt, packet::PartialDecode, MAX_CID_SIZE};
+use crate::{coding::BufExt, endpoint::IssuedCid, packet::PartialDecode, MAX_CID_SIZE};
 
 /// Protocol-level identifier for a connection.
 ///
@@ -105,4 +105,16 @@ pub(crate) struct DatagramConnectionEvent {
     pub(crate) ecn: Option<EcnCodepoint>,
     pub(crate) first_decode: PartialDecode,
     pub(crate) remaining: Option<BytesMut>,
+}
+
+/// Events sent from an Endpoint to a Connection
+#[derive(Debug)]
+pub struct ConnectionEvent(pub(crate) ConnectionEventInner);
+
+#[derive(Debug)]
+pub(crate) enum ConnectionEventInner {
+    /// A datagram has been received for the Connection
+    Datagram(DatagramConnectionEvent),
+    /// New connection identifiers have been issued for the Connection
+    NewIdentifiers(Vec<IssuedCid>, Instant),
 }

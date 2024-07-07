@@ -17,7 +17,7 @@ use crate::{
     connection::Connection,
     crypto,
     packet::{FixedLengthConnectionIdParser, Header, PacketDecodeError, PartialDecode},
-    shared::{ConnectionId, DatagramConnectionEvent, EcnCodepoint},
+    shared::{ConnectionEvent, ConnectionEventInner, ConnectionId, DatagramConnectionEvent, EcnCodepoint},
     token::ResetToken,
     transport_parameters::TransportParameters,
     ConnectionIdGenerator, Side, RESET_TOKEN_SIZE,
@@ -494,18 +494,6 @@ pub struct Transmit {
 enum RouteDatagramTo {
     Incoming(usize),
     Connection(ConnectionHandle),
-}
-
-/// Events sent from an Endpoint to a Connection
-#[derive(Debug)]
-pub struct ConnectionEvent(pub(crate) ConnectionEventInner);
-
-#[derive(Debug)]
-pub(crate) enum ConnectionEventInner {
-    /// A datagram has been received for the Connection
-    Datagram(DatagramConnectionEvent),
-    /// New connection identifiers have been issued for the Connection
-    NewIdentifiers(Vec<IssuedCid>, Instant),
 }
 
 #[derive(Debug, Copy, Clone)]

@@ -1,6 +1,6 @@
 use std::{sync::Arc, time::Instant};
 
-use crate::{config::EndpointConfig, ConnectionIdGenerator, Endpoint, RandomConnectionIdGenerator};
+use crate::{config::EndpointConfig, endpoint::DatagramEvent, ConnectionIdGenerator, Endpoint, RandomConnectionIdGenerator};
 
 mod util;
 use hex_literal::hex;
@@ -42,5 +42,8 @@ fn version_negotiate_client() {
             .into(),
         &mut buf,
     );
+    if let Some(DatagramEvent::ConnectionEvent(_, event)) = opt_event {
+        client_ch.handle_event(event);
+    }
     println!("hello world");
 }
