@@ -29,6 +29,10 @@ use cid_state::CidState;
 /// 4.
 mod spaces;
 use spaces::PacketSpace;
+/// 5.
+mod timer;
+use timer::{Timer, TimerTable};
+
 // #[cfg(fuzzing)]
 // pub use spaces::Retransmits;
 
@@ -83,6 +87,8 @@ pub struct Connection {
     local_cid_state: CidState,
     /// 5. Packet number spaces: initial, handshake, 1-RTT
     spaces: [PacketSpace; 3],
+    /// 6.
+    timers: TimerTable,
 }
 
 impl Connection {
@@ -126,6 +132,7 @@ impl Connection {
                 if pref_addr_cid.is_some() { 2 } else { 1 },
             ),
             spaces: [initial_space, PacketSpace::new(now), PacketSpace::new(now)],
+            timers: TimerTable::default(),
         };
         this
     }
@@ -190,7 +197,14 @@ impl Connection {
                         .new_cids
                         .push(frame);
                 });
-                todo!()
+                // Update Timer::PushNewCid
+                if self
+                    .timers
+                    .get(Timer::PushNewCid)
+                    .map_or(true, |x| x <= now)
+                {
+                    self.reset_cid_retirement();
+                }
             }
         }
     }
@@ -218,12 +232,8 @@ impl Connection {
     fn set_loss_detection_timer(&mut self, now: Instant) {
         todo!()
     }
-}
-
-impl fmt::Debug for Connection {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("Connection")
-            // .field("handshake_cid", &self.handshake_cid)
-            .finish()
+    /// 6.
+    fn reset_cid_retirement(&mut self) {
+        todo!()
     }
 }
