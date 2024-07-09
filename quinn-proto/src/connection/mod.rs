@@ -114,6 +114,9 @@ impl Connection {
                     // trace!("discarding packet from unrecognized peer {}", remote);
                     return;
                 }
+
+                let was_anti_amplification_blocked = self.path.anti_amplification_blocked(1);
+
                 todo!()
             }
             NewIdentifiers(ids, now) => {
