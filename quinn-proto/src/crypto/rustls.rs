@@ -1,12 +1,17 @@
 use std::sync::Arc;
 
 use rustls::{
-    client::danger::ServerCertVerifier, pki_types::ServerName, quic::{Connection, Secrets, Suite, Version}
+    client::danger::ServerCertVerifier,
+    pki_types::ServerName,
+    quic::{Connection, Secrets, Suite, Version},
 };
 
-use crate::{crypto, endpoint::ConnectError, transport_parameters::TransportParameters};
+use crate::{
+    crypto, endpoint::ConnectError, shared::ConnectionId,
+    transport_parameters::TransportParameters, Side,
+};
 
-use super::UnsupportedVersion;
+use super::{Keys, UnsupportedVersion};
 
 /// 1. A QUIC-compatible TLS client configuration
 ///
@@ -131,12 +136,24 @@ pub struct TlsSession {
     suite: Suite,
 }
 
-impl crypto::Session for TlsSession {}
-
+impl crypto::Session for TlsSession {
+    fn initial_keys(&self, dst_cid: &ConnectionId, side: Side) -> Keys {
+        initial_keys(self.version, dst_cid, side, &self.suite)
+    }
+}
 
 fn to_vec(params: &TransportParameters) -> Vec<u8> {
     let mut bytes = Vec::new();
     // note1: pay attention to the details.
     params.write(&mut bytes);
     bytes
+}
+
+pub(crate) fn initial_keys(
+    version: Version,
+    dst_cid: &ConnectionId,
+    side: Side,
+    suite: &Suite,
+) -> Keys {
+    todo!()
 }

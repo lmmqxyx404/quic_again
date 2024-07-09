@@ -476,6 +476,12 @@ pub enum SpaceId {
     Data = 2,
 }
 
+impl SpaceId {
+    pub fn iter() -> impl Iterator<Item = Self> {
+        [Self::Initial, Self::Handshake, Self::Data].iter().cloned()
+    }
+}
+
 pub(crate) const FIXED_BIT: u8 = 0x40;
 pub(crate) const LONG_HEADER_FORM: u8 = 0x80;
 pub(crate) const SPIN_BIT: u8 = 0x20;

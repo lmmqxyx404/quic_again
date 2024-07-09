@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
-use crate::{endpoint::ConnectError, transport_parameters::TransportParameters};
+use bytes::BytesMut;
+
+use crate::{endpoint::ConnectError, shared::ConnectionId, transport_parameters::TransportParameters, Side};
 
 /// 1. Cryptography interface based on *ring*
 #[cfg(feature = "ring")]
@@ -10,7 +12,10 @@ pub(crate) mod ring;
 pub mod rustls;
 
 /// 3. A cryptographic session (commonly TLS)
-pub trait Session: Send + Sync + 'static {}
+pub trait Session: Send + Sync + 'static {
+    /// Create the initial set of keys given the client's initial destination ConnectionId
+    fn initial_keys(&self, dst_cid: &ConnectionId, side: Side) -> Keys;
+}
 
 /// 1. A key for signing with HMAC-based algorithms
 pub trait HmacKey: Send + Sync {
@@ -22,7 +27,7 @@ pub trait HmacKey: Send + Sync {
     fn verify(&self, data: &[u8], signature: &[u8]) -> Result<(), CryptoError>;
 }
 
-/// Generic crypto errors
+/// 1. Generic crypto errors
 #[derive(Debug)]
 pub struct CryptoError;
 
@@ -37,7 +42,7 @@ pub trait ClientConfig: Send + Sync {
     ) -> Result<Box<dyn Session>, ConnectError>;
 }
 
-/// Error indicating that the specified QUIC version is not supported
+/// 2. Error indicating that the specified QUIC version is not supported
 #[derive(Debug)]
 pub struct UnsupportedVersion;
 
@@ -45,4 +50,50 @@ impl From<UnsupportedVersion> for ConnectError {
     fn from(_: UnsupportedVersion) -> Self {
         Self::UnsupportedVersion
     }
+}
+
+/// 3. A complete set of keys for a certain packet space
+pub struct Keys {
+    /// Header protection keys
+    pub header: KeyPair<Box<dyn HeaderKey>>,
+    /// Packet protection keys
+    pub packet: KeyPair<Box<dyn PacketKey>>,
+}
+
+/// 4. A pair of keys for bidirectional communication
+pub struct KeyPair<T> {
+    /// Key for encrypting data
+    pub local: T,
+    /// Key for decrypting data
+    pub remote: T,
+}
+
+/// 4. Keys used to protect packet payloads
+pub trait PacketKey: Send + Sync {
+    /// Encrypt the packet payload with the given packet number
+    fn encrypt(&self, packet: u64, buf: &mut [u8], header_len: usize);
+    /// Decrypt the packet payload with the given packet number
+    fn decrypt(
+        &self,
+        packet: u64,
+        header: &[u8],
+        payload: &mut BytesMut,
+    ) -> Result<(), CryptoError>;
+    /// The length of the AEAD tag appended to packets on encryption
+    fn tag_len(&self) -> usize;
+    /// Maximum number of packets that may be sent using a single key
+    fn confidentiality_limit(&self) -> u64;
+    /// Maximum number of incoming packets that may fail decryption before the connection must be
+    /// abandoned
+    fn integrity_limit(&self) -> u64;
+}
+
+/// 5. Keys used to protect packet headers
+pub trait HeaderKey: Send + Sync {
+    /// Decrypt the given packet's header
+    fn decrypt(&self, pn_offset: usize, packet: &mut [u8]);
+    /// Encrypt the given packet's header
+    fn encrypt(&self, pn_offset: usize, packet: &mut [u8]);
+    /// The sample size used for this key's algorithm
+    fn sample_size(&self) -> usize;
 }
