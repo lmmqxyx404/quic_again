@@ -13,6 +13,15 @@ use crate::{
 
 use super::{Keys, UnsupportedVersion};
 
+impl From<Side> for rustls::Side {
+    fn from(s: Side) -> Self {
+        match s {
+            Side::Client => Self::Client,
+            Side::Server => Self::Server,
+        }
+    }
+}
+
 /// 1. A QUIC-compatible TLS client configuration
 ///
 /// Can be constructed via [`ClientConfig::with_root_certificates()`][root_certs],
@@ -155,5 +164,7 @@ pub(crate) fn initial_keys(
     side: Side,
     suite: &Suite,
 ) -> Keys {
+    let keys = suite.keys(dst_cid, side.into(), version);
+
     todo!()
 }
