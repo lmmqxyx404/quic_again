@@ -68,6 +68,11 @@ pub struct ServerConfig {
     pub(crate) incoming_buffer_size: u64,
     /// 2
     pub(crate) incoming_buffer_size_total: u64,
+    /// 3. Whether to allow clients to migrate to new addresses
+    ///
+    /// Improves behavior for clients that move between different internet connections or suffer NAT
+    /// rebinding. Enabled by default.
+    pub(crate) migration: bool,
 }
 
 #[cfg(feature = "ring")]
