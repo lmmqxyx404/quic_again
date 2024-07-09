@@ -8,12 +8,16 @@ use crate::{
     config::{EndpointConfig, ServerConfig},
     crypto,
     endpoint::TransportConfig,
-    shared::{ConnectionEvent, ConnectionEventInner, ConnectionId, DatagramConnectionEvent},
+    packet::PartialDecode,
+    shared::{
+        ConnectionEvent, ConnectionEventInner, ConnectionId, DatagramConnectionEvent, EcnCodepoint,
+    },
     ConnectionIdGenerator,
 };
 
 /// 1
 mod paths;
+use bytes::BytesMut;
 use paths::PathData;
 /// 2
 mod stats;
@@ -68,6 +72,7 @@ pub struct Connection {
 }
 
 impl Connection {
+    /// 1.
     pub(crate) fn new(
         endpoint_config: Arc<EndpointConfig>,
         server_config: Option<Arc<ServerConfig>>,
@@ -127,11 +132,52 @@ impl Connection {
                 self.stats.udp_rx.bytes += first_decode.len() as u64;
                 let data_len = first_decode.len();
 
-                todo!()
+                self.handle_decode(now, remote, ecn, first_decode);
+                // The current `path` might have changed inside `handle_decode`,
+                // since the packet could have triggered a migration. Make sure
+                // the data received is accounted for the most recent path by accessing
+                // `path` after `handle_decode`.
+                self.path.total_recvd = self.path.total_recvd.saturating_add(data_len as u64);
+
+                if let Some(data) = remaining {
+                    self.stats.udp_rx.bytes += data.len() as u64;
+                    self.handle_coalesced(now, remote, ecn, data);
+                }
+
+                if was_anti_amplification_blocked {
+                    // A prior attempt to set the loss detection timer may have failed due to
+                    // anti-amplification, so ensure it's set now. Prevents a handshake deadlock if
+                    // the server's first flight is lost.
+                    self.set_loss_detection_timer(now);
+                }
             }
             NewIdentifiers(ids, now) => {
                 todo!()
             }
         }
+    }
+    /// 3.
+    fn handle_decode(
+        &mut self,
+        now: Instant,
+        remote: SocketAddr,
+        ecn: Option<EcnCodepoint>,
+        partial_decode: PartialDecode,
+    ) {
+        todo!()
+    }
+    /// 4.
+    fn handle_coalesced(
+        &mut self,
+        now: Instant,
+        remote: SocketAddr,
+        ecn: Option<EcnCodepoint>,
+        data: BytesMut,
+    ) {
+        todo!()
+    }
+    /// 5.
+    fn set_loss_detection_timer(&mut self, now: Instant) {
+        todo!()
     }
 }
