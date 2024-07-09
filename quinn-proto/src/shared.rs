@@ -2,7 +2,7 @@ use std::{fmt, net::SocketAddr, time::Instant};
 
 use bytes::{Buf, BufMut, BytesMut};
 // 引入对应的 trait
-use crate::{coding::BufExt, endpoint::IssuedCid, packet::PartialDecode, MAX_CID_SIZE};
+use crate::{coding::BufExt, packet::PartialDecode, token::ResetToken, MAX_CID_SIZE};
 
 /// Protocol-level identifier for a connection.
 ///
@@ -117,4 +117,11 @@ pub(crate) enum ConnectionEventInner {
     Datagram(DatagramConnectionEvent),
     /// New connection identifiers have been issued for the Connection
     NewIdentifiers(Vec<IssuedCid>, Instant),
+}
+
+#[derive(Debug, Copy, Clone)]
+pub(crate) struct IssuedCid {
+    pub(crate) sequence: u64,
+    pub(crate) id: ConnectionId,
+    pub(crate) reset_token: ResetToken,
 }

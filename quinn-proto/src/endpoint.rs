@@ -496,13 +496,6 @@ enum RouteDatagramTo {
     Connection(ConnectionHandle),
 }
 
-#[derive(Debug, Copy, Clone)]
-pub(crate) struct IssuedCid {
-    pub(crate) sequence: u64,
-    pub(crate) id: ConnectionId,
-    pub(crate) reset_token: ResetToken,
-}
-
 /// Buffered Initial and 0-RTT messages for a pending incoming connection
 #[derive(Default)]
 struct IncomingBuffer {
