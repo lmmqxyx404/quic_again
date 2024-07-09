@@ -55,7 +55,31 @@ impl CidState {
     }
     /// 2. Track the lifetime of issued cids in `retire_timestamp`
     fn track_lifetime(&mut self, new_cid_seq: u64, now: Instant) {
-        todo!()
+        let lifetime = match self.cid_lifetime {
+            Some(lifetime) => lifetime,
+            None => return,
+        };
+
+        let expire_timestamp = now.checked_add(lifetime);
+        let expire_at = match expire_timestamp {
+            Some(expire_at) => expire_at,
+            None => return,
+        };
+        let last_record = self.retire_timestamp.back_mut();
+        if let Some(last) = last_record {
+            // Compare the timestamp with the last inserted record
+            // Combine into a single batch if timestamp of current cid is same as the last record
+            if expire_at == last.timestamp {
+                debug_assert!(new_cid_seq > last.sequence);
+                last.sequence = new_cid_seq;
+                return;
+            }
+        }
+
+        self.retire_timestamp.push_back(CidTimestamp {
+            sequence: new_cid_seq,
+            timestamp: expire_at,
+        });
     }
 
     /// Update cid state when `NewIdentifiers` event is received
