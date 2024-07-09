@@ -12,9 +12,12 @@ use crate::{
     ConnectionIdGenerator,
 };
 
+/// 1
 mod paths;
 use paths::PathData;
-
+/// 2
+mod stats;
+pub use stats::ConnectionStats;
 /// Protocol state and logic for a single QUIC connection
 ///
 /// Objects of this type receive [`ConnectionEvent`]s and emit [`EndpointEvent`]s and application
@@ -60,6 +63,8 @@ pub struct Connection {
     path: PathData,
     /// 2.
     server_config: Option<Arc<ServerConfig>>,
+    /// 3. Connection level statistics
+    stats: ConnectionStats,
 }
 
 impl Connection {
@@ -85,6 +90,7 @@ impl Connection {
         let mut this = Self {
             path: PathData::new(remote, allow_mtud, None, now, path_validated, &config),
             server_config,
+            stats: ConnectionStats::default(),
         };
         this
     }
@@ -116,6 +122,10 @@ impl Connection {
                 }
 
                 let was_anti_amplification_blocked = self.path.anti_amplification_blocked(1);
+
+                self.stats.udp_rx.datagrams += 1;
+                self.stats.udp_rx.bytes += first_decode.len() as u64;
+                let data_len = first_decode.len();
 
                 todo!()
             }

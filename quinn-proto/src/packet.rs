@@ -234,6 +234,12 @@ impl PartialDecode {
     pub(crate) fn data(&self) -> &[u8] {
         self.buf.get_ref()
     }
+
+    /// 7. Length of QUIC packet being decoded
+    #[allow(unreachable_pub)] // fuzzing only
+    pub fn len(&self) -> usize {
+        self.buf.get_ref().len()
+    }
 }
 
 /// Parse connection id in short header packet
