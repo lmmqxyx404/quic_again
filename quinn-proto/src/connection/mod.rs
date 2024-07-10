@@ -325,6 +325,22 @@ impl Connection {
             self.prev_crypto.as_ref(),
             self.next_crypto.as_ref(),
         )?;
+
+        let result = match result {
+            Some(r) => r,
+            None => return Ok(None),
+        };
+
+        if result.outgoing_key_update_acked {
+            if let Some(prev) = self.prev_crypto.as_mut() {
+                prev.end_packet = Some((result.number, now));
+                self.set_key_discard_timer(now, packet.header.space());
+            }
+        }
+        todo!()
+    }
+    /// 10
+    fn set_key_discard_timer(&mut self, now: Instant, space: SpaceId) {
         todo!()
     }
 }

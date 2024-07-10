@@ -72,12 +72,27 @@ pub(super) fn decrypt_packet_body(
         // Unprotected packets also don't have packet numbers
         return Ok(None);
     }
+    
     todo!()
 }
 /// 4.
-pub(super) struct DecryptPacketResult {}
+pub(super) struct DecryptPacketResult {
+    /// 1. Whether a locally initiated key update has been acknowledged by the peer
+    pub(super) outgoing_key_update_acked: bool,
+    /// 2. The packet number
+    pub(super) number: u64,
+}
 /// 3.
-pub(super) struct PrevCrypto {}
+pub(super) struct PrevCrypto {
+    /// 1. The incoming packet that ends the interval for which these keys are applicable, and the time
+    /// of its receipt.
+    ///
+    /// Incoming packets should be decrypted using these keys iff this is `None` or their packet
+    /// number is lower. `None` indicates that we have not yet received a packet using newer keys,
+    /// which implies that the update was locally initiated.
+    pub(super) end_packet: Option<(u64, Instant)>,
+}
+
 /// 2.
 pub(super) struct ZeroRttCrypto {
     pub(super) header: Box<dyn HeaderKey>,

@@ -176,6 +176,22 @@ impl Header {
     pub(crate) fn is_protected(&self) -> bool {
         !matches!(*self, Self::Retry { .. } | Self::VersionNegotiate { .. })
     }
+    /// 3.
+    pub(crate) fn space(&self) -> SpaceId {
+        use self::Header::*;
+        match *self {
+            Short { .. } => SpaceId::Data,
+            Long {
+                ty: LongType::ZeroRtt,
+                ..
+            } => SpaceId::Data,
+            Long {
+                ty: LongType::Handshake,
+                ..
+            } => SpaceId::Handshake,
+            _ => SpaceId::Initial,
+        }
+    }
 }
 
 /// Decodes a QUIC packet's invariant header
