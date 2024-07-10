@@ -9,16 +9,18 @@ use crate::{
     config::{EndpointConfig, ServerConfig},
     crypto,
     endpoint::TransportConfig,
-    packet::{PartialDecode, SpaceId},
+    packet::{Packet, PartialDecode, SpaceId},
     shared::{
         ConnectionEvent, ConnectionEventInner, ConnectionId, DatagramConnectionEvent, EcnCodepoint,
     },
+    transport_parameters::TransportParameters,
     ConnectionIdGenerator, Side,
 };
 use bytes::BytesMut;
 
 /// 1.
 mod paths;
+use packet_crypto::ZeroRttCrypto;
 use paths::PathData;
 /// 2.
 mod stats;
@@ -32,6 +34,8 @@ use spaces::PacketSpace;
 /// 5.
 mod timer;
 use timer::{Timer, TimerTable};
+/// 6.
+mod packet_crypto;
 
 // #[cfg(fuzzing)]
 // pub use spaces::Retransmits;
@@ -89,6 +93,10 @@ pub struct Connection {
     spaces: [PacketSpace; 3],
     /// 6.
     timers: TimerTable,
+    /// 7. Set if 0-RTT is supported, then cleared when no longer needed.
+    zero_rtt_crypto: Option<ZeroRttCrypto>,
+    /// 8. Transport parameters set by the peer
+    peer_params: TransportParameters,
 }
 
 impl Connection {
@@ -133,6 +141,8 @@ impl Connection {
             ),
             spaces: [initial_space, PacketSpace::new(now), PacketSpace::new(now)],
             timers: TimerTable::default(),
+            zero_rtt_crypto: None,
+            peer_params: TransportParameters::default(),
         };
         this
     }
@@ -216,7 +226,14 @@ impl Connection {
         ecn: Option<EcnCodepoint>,
         partial_decode: PartialDecode,
     ) {
-        todo!()
+        if let Some(decoded) = packet_crypto::unprotect_header(
+            partial_decode,
+            &self.spaces,
+            self.zero_rtt_crypto.as_ref(),
+            self.peer_params.stateless_reset_token,
+        ) {
+            self.handle_packet(now, remote, ecn, decoded.packet, decoded.stateless_reset);
+        }
     }
     /// 4.
     fn handle_coalesced(
@@ -234,6 +251,17 @@ impl Connection {
     }
     /// 6.
     fn reset_cid_retirement(&mut self) {
+        todo!()
+    }
+    /// 7.
+    fn handle_packet(
+        &mut self,
+        now: Instant,
+        remote: SocketAddr,
+        ecn: Option<EcnCodepoint>,
+        packet: Option<Packet>,
+        stateless_reset: bool,
+    ) {
         todo!()
     }
 }

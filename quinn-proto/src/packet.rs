@@ -6,6 +6,7 @@ use thiserror::Error;
 
 // use crate::coding::BufMutExt;
 
+use crate::crypto;
 use crate::{
     coding::{self, BufExt, BufMutExt},
     shared::ConnectionId,
@@ -239,6 +240,13 @@ impl PartialDecode {
     #[allow(unreachable_pub)] // fuzzing only
     pub fn len(&self) -> usize {
         self.buf.get_ref().len()
+    }
+    /// 8. used for `fn unprotect_header` in packet_crypto
+    pub(crate) fn finish(
+        self,
+        header_crypto: Option<&dyn crypto::HeaderKey>,
+    ) -> Result<Packet, PacketDecodeError> {
+        todo!()
     }
 }
 
