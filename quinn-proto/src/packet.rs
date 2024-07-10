@@ -141,9 +141,24 @@ pub(crate) struct Packet {
 
 pub(crate) enum Header {
     Initial(InitialHeader),
-    Long,
-    Retry,
-    Short,
+    Long {
+        ty: LongType,
+        dst_cid: ConnectionId,
+        src_cid: ConnectionId,
+        number: PacketNumber,
+        version: u32,
+    },
+    Retry {
+        dst_cid: ConnectionId,
+        src_cid: ConnectionId,
+        version: u32,
+    },
+    Short {
+        spin: bool,
+        key_phase: bool,
+        dst_cid: ConnectionId,
+        number: PacketNumber,
+    },
     VersionNegotiate {
         random: u8,
         src_cid: ConnectionId,
@@ -282,8 +297,59 @@ impl PartialDecode {
                 payload: bytes,
             });
         }
-        
-        todo!()
+
+        let header = match plain_header {
+            Long {
+                ty,
+                dst_cid,
+                src_cid,
+                version,
+                ..
+            } => Header::Long {
+                ty,
+                dst_cid,
+                src_cid,
+                number: Self::decrypt_header(&mut buf, header_crypto.unwrap())?,
+                version,
+            },
+            Retry {
+                dst_cid,
+                src_cid,
+                version,
+            } => Header::Retry {
+                dst_cid,
+                src_cid,
+                version,
+            },
+            Short { spin, dst_cid, .. } => {
+                let number = Self::decrypt_header(&mut buf, header_crypto.unwrap())?;
+                let key_phase = buf.get_ref()[0] & KEY_PHASE_BIT != 0;
+                Header::Short {
+                    spin,
+                    key_phase,
+                    dst_cid,
+                    number,
+                }
+            }
+            VersionNegotiate {
+                random,
+                dst_cid,
+                src_cid,
+            } => Header::VersionNegotiate {
+                random,
+                dst_cid,
+                src_cid,
+            },
+            Initial { .. } => unreachable!(),
+        };
+
+        let header_len = buf.position() as usize;
+        let mut bytes = buf.into_inner();
+        Ok(Packet {
+            header,
+            header_data: bytes.split_to(header_len).freeze(),
+            payload: bytes,
+        })
     }
     /// 9.
     fn decrypt_header(
@@ -546,7 +612,7 @@ pub(crate) struct InitialHeader {
 pub(crate) const FIXED_BIT: u8 = 0x40;
 pub(crate) const LONG_HEADER_FORM: u8 = 0x80;
 pub(crate) const SPIN_BIT: u8 = 0x20;
-
+const KEY_PHASE_BIT: u8 = 0x04;
 #[cfg(test)]
 mod tests {
     use hex_literal::hex;
