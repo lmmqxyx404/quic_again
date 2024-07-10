@@ -35,6 +35,9 @@ use token::ResetToken;
 /// 12 used for [`ResetToken`]
 mod constant_time;
 
+/// 13
+mod frame;
+
 /// 1
 const MAX_CID_SIZE: usize = 20;
 /// 2

@@ -279,6 +279,9 @@ impl Connection {
             // debug!("discarding packet with unexpected remote during handshake");
             return;
         }
+
+        let was_closed = self.state.is_closed();
+        let was_drained = self.state.is_drained();
         todo!()
     }
 
@@ -296,16 +299,33 @@ impl Connection {
 pub enum State {
     /// 1.
     Handshake(state::Handshake),
+    /// 2.
+    Closed(state::Closed),
+    /// 3
+    Draining,
+    /// 4. Waiting for application to call close so we can dispose of the resources
+    Drained,
 }
 
 impl State {
+    /// 1
     fn is_handshake(&self) -> bool {
         matches!(*self, Self::Handshake(_))
+    }
+    /// 2
+    fn is_closed(&self) -> bool {
+        matches!(*self, Self::Closed(_) | Self::Draining | Self::Drained)
+    }
+    /// 3
+    fn is_drained(&self) -> bool {
+        matches!(*self, Self::Drained)
     }
 }
 
 mod state {
     use bytes::Bytes;
+
+    use crate::frame::Close;
 
     use super::*;
 
@@ -324,5 +344,11 @@ mod state {
         ///
         /// Only set for clients
         pub(super) client_hello: Option<Bytes>,
+    }
+
+    #[allow(unreachable_pub)] // fuzzing only
+    #[derive(Clone)]
+    pub struct Closed {
+        pub(super) reason: Close,
     }
 }
