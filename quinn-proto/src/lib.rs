@@ -40,7 +40,6 @@ const MAX_CID_SIZE: usize = 20;
 /// 2
 const RESET_TOKEN_SIZE: usize = 16;
 
-
 /// Whether an endpoint was the initiator of a connection
 #[cfg_attr(feature = "arbitrary", derive(Arbitrary))]
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
@@ -49,6 +48,14 @@ pub enum Side {
     Client = 0,
     /// The acceptor of a connection
     Server = 1,
+}
+
+impl Side {
+    #[inline]
+    /// 1. Shorthand for `self == Side::Server`
+    pub fn is_server(self) -> bool {
+        self == Self::Server
+    }
 }
 
 /// The QUIC protocol version implemented.

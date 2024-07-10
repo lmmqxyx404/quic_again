@@ -16,7 +16,7 @@ use crate::{
     transport_parameters::TransportParameters,
     ConnectionIdGenerator, Side,
 };
-use bytes::BytesMut;
+use bytes::{Bytes, BytesMut};
 
 /// 1.
 mod paths;
@@ -97,6 +97,8 @@ pub struct Connection {
     zero_rtt_crypto: Option<ZeroRttCrypto>,
     /// 8. Transport parameters set by the peer
     peer_params: TransportParameters,
+    /// 9.
+    state: State,
 }
 
 impl Connection {
@@ -128,6 +130,11 @@ impl Connection {
             crypto: Some(crypto.initial_keys(&init_cid, side)),
             ..PacketSpace::new(now)
         };
+        let state = State::Handshake(state::Handshake {
+            rem_cid_set: side.is_server(),
+            expected_token: Bytes::new(),
+            client_hello: None,
+        });
 
         let mut this = Self {
             path: PathData::new(remote, allow_mtud, None, now, path_validated, &config),
@@ -143,6 +150,7 @@ impl Connection {
             timers: TimerTable::default(),
             zero_rtt_crypto: None,
             peer_params: TransportParameters::default(),
+            state,
         };
         this
     }
@@ -262,6 +270,59 @@ impl Connection {
         packet: Option<Packet>,
         stateless_reset: bool,
     ) {
+        self.stats.udp_rx.ios += 1;
+        if let Some(ref packet) = packet {
+            // todo: add trace!
+        }
+
+        if self.is_handshaking() && remote != self.path.remote {
+            // debug!("discarding packet with unexpected remote during handshake");
+            return;
+        }
         todo!()
+    }
+
+    /// 8. Whether the connection is in the process of being established
+    ///
+    /// If this returns `false`, the connection may be either established or closed, signaled by the
+    /// emission of a `Connected` or `ConnectionLost` message respectively.
+    pub fn is_handshaking(&self) -> bool {
+        self.state.is_handshake()
+    }
+}
+
+#[allow(unreachable_pub)] // fuzzing only
+#[derive(Clone)]
+pub enum State {
+    /// 1.
+    Handshake(state::Handshake),
+}
+
+impl State {
+    fn is_handshake(&self) -> bool {
+        matches!(*self, Self::Handshake(_))
+    }
+}
+
+mod state {
+    use bytes::Bytes;
+
+    use super::*;
+
+    #[allow(unreachable_pub)] // fuzzing only
+    #[derive(Clone)]
+    pub struct Handshake {
+        /// Whether the remote CID has been set by the peer yet
+        ///
+        /// Always set for servers
+        pub(super) rem_cid_set: bool,
+        /// Stateless retry token received in the first Initial by a server.
+        ///
+        /// Must be present in every Initial. Always empty for clients.
+        pub(super) expected_token: Bytes,
+        /// First cryptographic message
+        ///
+        /// Only set for clients
+        pub(super) client_hello: Option<Bytes>,
     }
 }
