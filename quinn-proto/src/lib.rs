@@ -37,6 +37,9 @@ mod constant_time;
 
 /// 13
 mod frame;
+/// 14
+mod transport_error;
+pub use crate::transport_error::Error as TransportError;
 
 /// 1
 const MAX_CID_SIZE: usize = 20;

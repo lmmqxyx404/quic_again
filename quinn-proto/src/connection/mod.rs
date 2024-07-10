@@ -14,7 +14,7 @@ use crate::{
         ConnectionEvent, ConnectionEventInner, ConnectionId, DatagramConnectionEvent, EcnCodepoint,
     },
     transport_parameters::TransportParameters,
-    ConnectionIdGenerator, Side,
+    ConnectionIdGenerator, Side, TransportError,
 };
 use bytes::{Bytes, BytesMut};
 
@@ -282,6 +282,13 @@ impl Connection {
 
         let was_closed = self.state.is_closed();
         let was_drained = self.state.is_drained();
+
+        let decrypted = match packet {
+            None => Err(None),
+            Some(mut packet) => self
+                .decrypt_packet(now, &mut packet)
+                .map(move |number| (packet, number)),
+        };
         todo!()
     }
 
@@ -291,6 +298,14 @@ impl Connection {
     /// emission of a `Connected` or `ConnectionLost` message respectively.
     pub fn is_handshaking(&self) -> bool {
         self.state.is_handshake()
+    }
+    /// 9.
+    fn decrypt_packet(
+        &mut self,
+        now: Instant,
+        packet: &mut Packet,
+    ) -> Result<Option<u64>, Option<TransportError>> {
+        todo!()
     }
 }
 
