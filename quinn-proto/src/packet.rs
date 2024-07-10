@@ -192,6 +192,10 @@ impl Header {
             _ => SpaceId::Initial,
         }
     }
+    /// 4.
+    pub(crate) fn is_short(&self) -> bool {
+        matches!(*self, Self::Short { .. })
+    }
 }
 
 /// Decodes a QUIC packet's invariant header

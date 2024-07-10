@@ -9,7 +9,7 @@ use crate::{
     config::{EndpointConfig, ServerConfig},
     crypto::{self, KeyPair, PacketKey},
     endpoint::TransportConfig,
-    packet::{Packet, PartialDecode, SpaceId},
+    packet::{Header, InitialHeader, Packet, PartialDecode, SpaceId},
     shared::{
         ConnectionEvent, ConnectionEventInner, ConnectionId, DatagramConnectionEvent, EcnCodepoint,
     },
@@ -35,7 +35,7 @@ use spaces::PacketSpace;
 mod timer;
 use thiserror::Error;
 use timer::{Timer, TimerTable};
-use tracing::{debug, trace_span, warn};
+use tracing::{debug, trace, trace_span, warn};
 /// 6.
 mod packet_crypto;
 
@@ -110,6 +110,8 @@ pub struct Connection {
     /// These are generated in advance to prevent timing attacks and/or DoS by third-party attackers
     /// spoofing key updates.
     next_crypto: Option<KeyPair<Box<dyn PacketKey>>>,
+    /// 13.
+    side: Side,
 }
 
 impl Connection {
@@ -165,6 +167,7 @@ impl Connection {
             key_phase: false,
             prev_crypto: None,
             next_crypto: None,
+            side,
         };
         this
     }
@@ -325,7 +328,27 @@ impl Connection {
 
                 let is_duplicate = |n| self.spaces[packet.header.space() as usize].dedup.insert(n);
 
-                todo!()
+                if number.map_or(false, is_duplicate) {
+                    debug!("discarding possible duplicate packet");
+                    return;
+                } else if self.state.is_handshake() && packet.header.is_short() {
+                    // TODO: SHOULD buffer these to improve reordering tolerance.
+                    trace!("dropping short packet during handshake");
+                    return;
+                } else {
+                    if let Header::Initial(InitialHeader { ref token, .. }) = packet.header {
+                        if let State::Handshake(ref hs) = self.state {
+                            if self.side.is_server() && token != &hs.expected_token {
+                                // Clients must send the same retry token in every Initial. Initial
+                                // packets can be spoofed, so we discard rather than killing the
+                                // connection.
+                                warn!("discarding Initial with invalid retry token");
+                                return;
+                            }
+                        }
+                    }
+                    self.process_decrypted_packet(now, remote, number, packet)
+                }
             }
         };
         todo!()
@@ -368,6 +391,16 @@ impl Connection {
     }
     /// 10
     fn set_key_discard_timer(&mut self, now: Instant, space: SpaceId) {
+        todo!()
+    }
+    /// 11
+    fn process_decrypted_packet(
+        &mut self,
+        now: Instant,
+        remote: SocketAddr,
+        number: Option<u64>,
+        packet: Packet,
+    ) -> Result<(), ConnectionError> {
         todo!()
     }
 }
