@@ -33,6 +33,7 @@ mod spaces;
 use spaces::PacketSpace;
 /// 5.
 mod timer;
+use thiserror::Error;
 use timer::{Timer, TimerTable};
 /// 6.
 mod packet_crypto;
@@ -301,6 +302,23 @@ impl Connection {
                 .decrypt_packet(now, &mut packet)
                 .map(move |number| (packet, number)),
         };
+
+        let result: Result<(), ConnectionError> = match decrypted {
+            _ if stateless_reset => {
+                //debug!("got stateless reset");
+                Err(ConnectionError::Reset)
+            }
+            Err(Some(e)) => {
+                // warn!("illegal packet: {}", e);
+                Err(e.into())
+            }
+            Err(None) => {
+                todo!()
+            }
+            Ok((packet, number)) => {
+                todo!()
+            }
+        };
         todo!()
     }
 
@@ -402,4 +420,15 @@ mod state {
     pub struct Closed {
         pub(super) reason: Close,
     }
+}
+
+/// Reasons why a connection might be lost
+#[derive(Debug, Error, Clone, PartialEq, Eq)]
+pub enum ConnectionError {
+    /// 1. The peer is unable to continue processing this connection, usually due to having restarted
+    #[error("reset by peer")]
+    Reset,
+    /// 2. The peer violated the QUIC specification as understood by this implementation
+    #[error(transparent)]
+    TransportError(#[from] TransportError),
 }

@@ -27,3 +27,10 @@ connectionId
 # todo
 ## need to optimize
 TransportParameters
+
+# dev skills
+## about transport_error::Error
+实现 `Display` 是为了实现 `std::error::Error`
+而 `std::error::Error ` 是为了 `ConnectionError::TransportError`
+而 `ConnectionError::TransportError` 是为了 `Err(e.into())`
+注意其中的联系
