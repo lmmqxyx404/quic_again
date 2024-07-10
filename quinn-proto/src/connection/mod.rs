@@ -401,6 +401,39 @@ impl Connection {
         number: Option<u64>,
         packet: Packet,
     ) -> Result<(), ConnectionError> {
+        let state = match self.state {
+            State::Established => {
+                match packet.header.space() {
+                    SpaceId::Data => self.process_payload(now, remote, number.unwrap(), packet)?,
+                    _ => self.process_early_payload(now, packet)?,
+                }
+                return Ok(());
+            }
+            State::Closed(_) => {
+                // todo
+                return Ok(());
+            }
+            State::Draining | State::Drained => return Ok(()),
+            State::Handshake(ref mut state) => state,
+        };
+        todo!()
+    }
+    /// 12
+    fn process_payload(
+        &mut self,
+        now: Instant,
+        remote: SocketAddr,
+        number: u64,
+        packet: Packet,
+    ) -> Result<(), TransportError> {
+        todo!()
+    }
+    /// 13. Process an Initial or Handshake packet payload
+    fn process_early_payload(
+        &mut self,
+        now: Instant,
+        packet: Packet,
+    ) -> Result<(), TransportError> {
         todo!()
     }
 }
@@ -416,6 +449,8 @@ pub enum State {
     Draining,
     /// 4. Waiting for application to call close so we can dispose of the resources
     Drained,
+    /// 5.
+    Established,
 }
 
 impl State {
