@@ -323,6 +323,8 @@ impl Connection {
                 };
                 let _guard = span.enter();
 
+                let is_duplicate = |n| self.spaces[packet.header.space() as usize].dedup.insert(n);
+
                 todo!()
             }
         };
