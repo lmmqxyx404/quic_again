@@ -35,6 +35,7 @@ use spaces::PacketSpace;
 mod timer;
 use thiserror::Error;
 use timer::{Timer, TimerTable};
+use tracing::{debug, trace_span, warn};
 /// 6.
 mod packet_crypto;
 
@@ -305,17 +306,23 @@ impl Connection {
 
         let result: Result<(), ConnectionError> = match decrypted {
             _ if stateless_reset => {
-                //debug!("got stateless reset");
+                debug!("got stateless reset");
                 Err(ConnectionError::Reset)
             }
             Err(Some(e)) => {
-                // warn!("illegal packet: {}", e);
+                warn!("illegal packet: {}", e);
                 Err(e.into())
             }
             Err(None) => {
                 todo!()
             }
             Ok((packet, number)) => {
+                let span = match number {
+                    Some(pn) => trace_span!("recv", space = ?packet.header.space(), pn),
+                    None => trace_span!("recv", space = ?packet.header.space()),
+                };
+                let _guard = span.enter();
+
                 todo!()
             }
         };
