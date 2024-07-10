@@ -1,7 +1,7 @@
 use std::ops::Range;
 use std::{cmp::Ordering, io};
 
-use bytes::{Buf, BufMut, BytesMut};
+use bytes::{Buf, BufMut, Bytes, BytesMut};
 use thiserror::Error;
 
 // use crate::coding::BufMutExt;
@@ -131,11 +131,16 @@ impl From<coding::UnexpectedEnd> for PacketDecodeError {
 }
 
 pub(crate) struct Packet {
+    /// 1
     pub(crate) header: Header,
+    /// 2
+    pub(crate) header_data: Bytes,
+    /// 3
+    pub(crate) payload: BytesMut,
 }
 
 pub(crate) enum Header {
-    Initial,
+    Initial(InitialHeader),
     Long,
     Retry,
     Short,
@@ -246,6 +251,45 @@ impl PartialDecode {
         self,
         header_crypto: Option<&dyn crypto::HeaderKey>,
     ) -> Result<Packet, PacketDecodeError> {
+        use self::ProtectedHeader::*;
+        let Self {
+            plain_header,
+            mut buf,
+        } = self;
+        if let Initial(ProtectedInitialHeader {
+            dst_cid,
+            src_cid,
+            token_pos,
+            version,
+            ..
+        }) = plain_header
+        {
+            let number = Self::decrypt_header(&mut buf, header_crypto.unwrap())?;
+            let header_len = buf.position() as usize;
+            let mut bytes = buf.into_inner();
+
+            let header_data = bytes.split_to(header_len).freeze();
+            let token = header_data.slice(token_pos.start..token_pos.end);
+            return Ok(Packet {
+                header: Header::Initial(InitialHeader {
+                    dst_cid,
+                    src_cid,
+                    token,
+                    number,
+                    version,
+                }),
+                header_data,
+                payload: bytes,
+            });
+        }
+        
+        todo!()
+    }
+    /// 9.
+    fn decrypt_header(
+        buf: &mut io::Cursor<BytesMut>,
+        header_crypto: &dyn crypto::HeaderKey,
+    ) -> Result<PacketNumber, PacketDecodeError> {
         todo!()
     }
 }
@@ -488,6 +532,15 @@ impl SpaceId {
     pub fn iter() -> impl Iterator<Item = Self> {
         [Self::Initial, Self::Handshake, Self::Data].iter().cloned()
     }
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct InitialHeader {
+    pub(crate) dst_cid: ConnectionId,
+    pub(crate) src_cid: ConnectionId,
+    pub(crate) token: Bytes,
+    pub(crate) number: PacketNumber,
+    pub(crate) version: u32,
 }
 
 pub(crate) const FIXED_BIT: u8 = 0x40;
