@@ -7,7 +7,7 @@ use std::{
 
 use crate::{
     config::{EndpointConfig, ServerConfig},
-    crypto,
+    crypto::{self, KeyPair, PacketKey},
     endpoint::TransportConfig,
     packet::{Packet, PartialDecode, SpaceId},
     shared::{
@@ -20,7 +20,7 @@ use bytes::{Bytes, BytesMut};
 
 /// 1.
 mod paths;
-use packet_crypto::ZeroRttCrypto;
+use packet_crypto::{PrevCrypto, ZeroRttCrypto};
 use paths::PathData;
 /// 2.
 mod stats;
@@ -99,6 +99,15 @@ pub struct Connection {
     peer_params: TransportParameters,
     /// 9.
     state: State,
+    /// 10.
+    key_phase: bool,
+    /// 11. 1-RTT keys used prior to a key update
+    prev_crypto: Option<PrevCrypto>,
+    /// 12. 1-RTT keys to be used for the next key update
+    ///
+    /// These are generated in advance to prevent timing attacks and/or DoS by third-party attackers
+    /// spoofing key updates.
+    next_crypto: Option<KeyPair<Box<dyn PacketKey>>>,
 }
 
 impl Connection {
@@ -151,6 +160,9 @@ impl Connection {
             zero_rtt_crypto: None,
             peer_params: TransportParameters::default(),
             state,
+            key_phase: false,
+            prev_crypto: None,
+            next_crypto: None,
         };
         this
     }
@@ -305,6 +317,14 @@ impl Connection {
         now: Instant,
         packet: &mut Packet,
     ) -> Result<Option<u64>, Option<TransportError>> {
+        let result = packet_crypto::decrypt_packet_body(
+            packet,
+            &self.spaces,
+            self.zero_rtt_crypto.as_ref(),
+            self.key_phase,
+            self.prev_crypto.as_ref(),
+            self.next_crypto.as_ref(),
+        )?;
         todo!()
     }
 }

@@ -4,8 +4,7 @@ use crate::connection::spaces::PacketSpace;
 use crate::crypto::{HeaderKey, KeyPair, PacketKey};
 use crate::packet::{Packet, PartialDecode, SpaceId};
 use crate::token::ResetToken;
-use crate::RESET_TOKEN_SIZE;
-// use crate::{TransportError, RESET_TOKEN_SIZE};
+use crate::{TransportError, RESET_TOKEN_SIZE};
 
 /// Removes header protection of a packet, or returns `None` if the packet was dropped
 pub(super) fn unprotect_header(
@@ -59,6 +58,22 @@ pub(super) struct UnprotectHeaderResult {
     /// Whether the packet was a stateless reset packet
     pub(super) stateless_reset: bool,
 }
+
+/// Decrypts a packet's body in-place
+pub(super) fn decrypt_packet_body(
+    packet: &mut Packet,
+    spaces: &[PacketSpace; 3],
+    zero_rtt_crypto: Option<&ZeroRttCrypto>,
+    conn_key_phase: bool,
+    prev_crypto: Option<&PrevCrypto>,
+    next_crypto: Option<&KeyPair<Box<dyn PacketKey>>>,
+) -> Result<Option<DecryptPacketResult>, Option<TransportError>> {
+    todo!()
+}
+/// 4.
+pub(super) struct DecryptPacketResult {}
+/// 3.
+pub(super) struct PrevCrypto {}
 /// 2.
 pub(super) struct ZeroRttCrypto {
     pub(super) header: Box<dyn HeaderKey>,
