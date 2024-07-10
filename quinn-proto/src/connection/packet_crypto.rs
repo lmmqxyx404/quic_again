@@ -68,6 +68,10 @@ pub(super) fn decrypt_packet_body(
     prev_crypto: Option<&PrevCrypto>,
     next_crypto: Option<&KeyPair<Box<dyn PacketKey>>>,
 ) -> Result<Option<DecryptPacketResult>, Option<TransportError>> {
+    if !packet.header.is_protected() {
+        // Unprotected packets also don't have packet numbers
+        return Ok(None);
+    }
     todo!()
 }
 /// 4.

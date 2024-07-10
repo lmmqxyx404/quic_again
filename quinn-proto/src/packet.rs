@@ -167,8 +167,14 @@ pub(crate) enum Header {
 }
 
 impl Header {
+    /// 1.
     pub(crate) fn encode(&self, w: &mut Vec<u8>) -> PartialEncode {
         todo!()
+    }
+
+    /// 2. Whether the packet is encrypted on the wire
+    pub(crate) fn is_protected(&self) -> bool {
+        !matches!(*self, Self::Retry { .. } | Self::VersionNegotiate { .. })
     }
 }
 
