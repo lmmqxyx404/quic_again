@@ -8,7 +8,7 @@ use std::{
 
 use crate::{
     config::{EndpointConfig, ServerConfig},
-    crypto::{self, KeyPair, PacketKey},
+    crypto::{self, KeyPair, Keys, PacketKey},
     endpoint::TransportConfig,
     frame::{self, Close, Frame},
     packet::{Header, InitialHeader, LongType, Packet, PartialDecode, SpaceId},
@@ -131,6 +131,8 @@ pub struct Connection {
     highest_space: SpaceId,
     /// 20. ACK frequency
     ack_frequency: AckFrequencyState,
+    /// 21.
+    crypto: Box<dyn crypto::Session>,
 }
 
 impl Connection {
@@ -196,7 +198,14 @@ impl Connection {
             ack_frequency: AckFrequencyState::new(get_max_ack_delay(
                 &TransportParameters::default(),
             )),
+            crypto,
         };
+
+        if side.is_client() {
+            // Kick off the connection
+            this.write_crypto();
+            this.init_0rtt();
+        }
         this
     }
 
@@ -585,6 +594,43 @@ impl Connection {
         };
 
         self.path.rtt.pto_base() + max_ack_delay
+    }
+    /// 17 first called by client
+    fn write_crypto(&mut self) {
+        loop {
+            let space = self.highest_space;
+            let mut outgoing = Vec::new();
+            if let Some(crypto) = self.crypto.write_handshake(&mut outgoing) {
+                match space {
+                    SpaceId::Initial => {
+                        self.upgrade_crypto(SpaceId::Handshake, crypto);
+                    }
+                    SpaceId::Handshake => {
+                        self.upgrade_crypto(SpaceId::Data, crypto);
+                    }
+                    _ => unreachable!("got updated secrets during 1-RTT"),
+                }
+            }
+            if outgoing.is_empty() {
+                if space == self.highest_space {
+                    break;
+                } else {
+                    // Keys updated, check for more data to send
+                    continue;
+                }
+            }
+            todo!()
+        }
+    }
+
+    /// 18
+    fn init_0rtt(&mut self) {
+        todo!()
+    }
+
+    /// 19. Switch to stronger cryptography during handshake
+    fn upgrade_crypto(&mut self, space: SpaceId, crypto: Keys) {
+        todo!()
     }
 }
 

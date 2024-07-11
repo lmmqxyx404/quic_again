@@ -4,7 +4,7 @@ use bytes::BytesMut;
 use rustls::{
     client::danger::ServerCertVerifier,
     pki_types::ServerName,
-    quic::{Connection, HeaderProtectionKey, PacketKey, Secrets, Suite, Version},
+    quic::{Connection, HeaderProtectionKey, KeyChange, PacketKey, Secrets, Suite, Version},
 };
 
 use crate::{
@@ -149,6 +149,27 @@ pub struct TlsSession {
 impl crypto::Session for TlsSession {
     fn initial_keys(&self, dst_cid: &ConnectionId, side: Side) -> Keys {
         initial_keys(self.version, dst_cid, side, &self.suite)
+    }
+
+    fn write_handshake(&mut self, buf: &mut Vec<u8>) -> Option<Keys> {
+        let keys = match self.inner.write_hs(buf)? {
+            KeyChange::Handshake { keys } => keys,
+            KeyChange::OneRtt { keys, next } => {
+                self.next_secrets = Some(next);
+                keys
+            }
+        };
+
+        Some(Keys {
+            header: KeyPair {
+                local: Box::new(keys.local.header),
+                remote: Box::new(keys.remote.header),
+            },
+            packet: KeyPair {
+                local: Box::new(keys.local.packet),
+                remote: Box::new(keys.remote.packet),
+            },
+        })
     }
 }
 

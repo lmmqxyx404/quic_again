@@ -2,7 +2,9 @@ use std::sync::Arc;
 
 use bytes::BytesMut;
 
-use crate::{endpoint::ConnectError, shared::ConnectionId, transport_parameters::TransportParameters, Side};
+use crate::{
+    endpoint::ConnectError, shared::ConnectionId, transport_parameters::TransportParameters, Side,
+};
 
 /// 1. Cryptography interface based on *ring*
 #[cfg(feature = "ring")]
@@ -13,8 +15,13 @@ pub mod rustls;
 
 /// 3. A cryptographic session (commonly TLS)
 pub trait Session: Send + Sync + 'static {
-    /// Create the initial set of keys given the client's initial destination ConnectionId
+    /// 1. Create the initial set of keys given the client's initial destination ConnectionId
     fn initial_keys(&self, dst_cid: &ConnectionId, side: Side) -> Keys;
+    /// 2. Writes handshake bytes into the given buffer and optionally returns the negotiated keys
+    ///
+    /// When the handshake proceeds to the next phase, this method will return a new set of
+    /// keys to encrypt data with.
+    fn write_handshake(&mut self, buf: &mut Vec<u8>) -> Option<Keys>;
 }
 
 /// 1. A key for signing with HMAC-based algorithms
