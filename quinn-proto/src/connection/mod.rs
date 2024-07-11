@@ -9,6 +9,7 @@ use crate::{
     config::{EndpointConfig, ServerConfig},
     crypto::{self, KeyPair, PacketKey},
     endpoint::TransportConfig,
+    frame::{self, Frame},
     packet::{Header, InitialHeader, Packet, PartialDecode, SpaceId},
     shared::{
         ConnectionEvent, ConnectionEventInner, ConnectionId, DatagramConnectionEvent, EcnCodepoint,
@@ -410,7 +411,21 @@ impl Connection {
                 return Ok(());
             }
             State::Closed(_) => {
-                // todo
+                for result in frame::Iter::new(packet.payload.freeze())? {
+                    let frame = match result {
+                        Ok(frame) => frame,
+                        Err(err) => {
+                            debug!("frame decoding error: {err:?}");
+                            continue;
+                        }
+                    };
+
+                    if let Frame::Padding = frame {
+                        continue;
+                    };
+
+                    todo!()
+                }
                 return Ok(());
             }
             State::Draining | State::Drained => return Ok(()),

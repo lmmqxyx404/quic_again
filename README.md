@@ -28,6 +28,9 @@ connectionId
 ## need to optimize
 TransportParameters
 
+## about `State::Closed(_)`
+有许多细节需要去查看
+
 # dev skills
 ## about transport_error::Error
 实现 `Display` 是为了实现 `std::error::Error`
