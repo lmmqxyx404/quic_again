@@ -1,9 +1,10 @@
 use std::{
+    cmp,
     net::SocketAddr,
     time::{Duration, Instant},
 };
 
-use crate::endpoint::TransportConfig;
+use crate::{endpoint::TransportConfig, TIMER_GRANULARITY};
 
 /// Description of a particular network path
 pub(super) struct PathData {
@@ -49,17 +50,32 @@ impl PathData {
 
 /// RTT estimation for a particular network path
 #[derive(Copy, Clone)]
-pub struct RttEstimator {}
+pub struct RttEstimator {
+    /// 1. The most recent RTT measurement made when receiving an ack for a previously unacked packet
+    latest: Duration,
+    /// 2. The smoothed RTT of the connection, computed as described in RFC6298
+    smoothed: Option<Duration>,
+    /// 3. The RTT variance, computed as described in RFC6298
+    var: Duration,
+}
 
 impl RttEstimator {
     /// 1
     fn new(initial_rtt: Duration) -> Self {
-        todo!()
+        Self {
+            latest: initial_rtt,
+            smoothed: None,
+            var: initial_rtt / 2,
+        }
     }
 
     /// 2.PTO computed as described in RFC9002#6.2.1
     pub(crate) fn pto_base(&self) -> Duration {
-        todo!()
-        // self.get() + cmp::max(4 * self.var, TIMER_GRANULARITY)
+        self.get() + cmp::max(4 * self.var, TIMER_GRANULARITY)
+    }
+
+    /// 3.The current best RTT estimation.
+    pub fn get(&self) -> Duration {
+        self.smoothed.unwrap_or(self.latest)
     }
 }

@@ -37,3 +37,14 @@ TransportParameters
 而 `std::error::Error ` 是为了 `ConnectionError::TransportError`
 而 `ConnectionError::TransportError` 是为了 `Err(e.into())`
 注意其中的联系
+
+## about `[dev-dependencies]` in `Cargo.toml`
+```Rust
+#[cfg(all(test, feature = "rustls"))]
+mod tests;
+```
+以上代码如果缺少相关 cfg 设置，那么就会报错，无法识别`[dev-dependencies]` 配置的 crate
+
+# dev history
+## 在 `4c8ab712de949a` 之后一个 commit
+就让 `fn version_negotiate_client` 通过test了

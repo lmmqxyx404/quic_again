@@ -1,3 +1,4 @@
+#[cfg(all(test, feature = "rustls"))]
 mod tests;
 // 1. basic components of quic
 mod packet;
@@ -5,6 +6,8 @@ mod packet;
 pub mod coding;
 // 3. because 2 needs the varint.
 mod varint;
+
+use std::time::Duration;
 
 pub use varint::{VarInt, VarIntBoundsExceeded};
 
@@ -45,6 +48,8 @@ pub use crate::transport_error::Error as TransportError;
 const MAX_CID_SIZE: usize = 20;
 /// 2
 const RESET_TOKEN_SIZE: usize = 16;
+/// 3.
+const TIMER_GRANULARITY: Duration = Duration::from_millis(1);
 
 /// Whether an endpoint was the initiator of a connection
 #[cfg_attr(feature = "arbitrary", derive(Arbitrary))]

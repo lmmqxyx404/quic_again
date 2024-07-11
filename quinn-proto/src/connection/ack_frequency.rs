@@ -6,7 +6,7 @@ pub(super) struct AckFrequencyState {}
 impl AckFrequencyState {
     /// 1
     pub(super) fn new(default_max_ack_delay: Duration) -> Self {
-        todo!()
+        Self {}
     }
 
     /// 2. Returns the `max_ack_delay` for the purposes of calculating the PTO
