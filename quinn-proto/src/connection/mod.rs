@@ -10,7 +10,7 @@ use crate::{
     crypto::{self, KeyPair, PacketKey},
     endpoint::TransportConfig,
     frame::{self, Frame},
-    packet::{Header, InitialHeader, Packet, PartialDecode, SpaceId},
+    packet::{Header, InitialHeader, LongType, Packet, PartialDecode, SpaceId},
     shared::{
         ConnectionEvent, ConnectionEventInner, ConnectionId, DatagramConnectionEvent, EcnCodepoint,
     },
@@ -431,7 +431,38 @@ impl Connection {
             State::Draining | State::Drained => return Ok(()),
             State::Handshake(ref mut state) => state,
         };
-        todo!()
+
+        match packet.header {
+            Header::Retry {
+                src_cid: rem_cid, ..
+            } => {
+                todo!()
+            }
+            Header::Long {
+                ty: LongType::Handshake,
+                src_cid: rem_cid,
+                ..
+            } => {
+                todo!()
+            }
+            Header::Initial(InitialHeader {
+                src_cid: rem_cid, ..
+            }) => {
+                todo!()
+            }
+            Header::Long {
+                ty: LongType::ZeroRtt,
+                ..
+            } => {
+                todo!()
+            }
+            Header::VersionNegotiate { .. } => {
+                todo!()
+            }
+            Header::Short { .. } => unreachable!(
+                "short packets received during handshake are discarded in handle_packet"
+            ),
+        }
     }
     /// 12
     fn process_payload(
