@@ -1,4 +1,4 @@
-use std::io;
+use std::{fmt, io};
 
 use bytes::Bytes;
 
@@ -6,6 +6,12 @@ use crate::TransportError;
 /// 1
 #[derive(Clone, Debug)]
 pub enum Close {}
+
+impl From<ConnectionClose> for Close {
+    fn from(x: ConnectionClose) -> Self {
+        todo!()
+    }
+}
 
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub struct Type(u64);
@@ -62,4 +68,20 @@ impl From<InvalidFrame> for TransportError {
 pub(crate) enum Frame {
     Padding,
     Ping,
+}
+
+/// Reason given by the transport for closing the connection
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ConnectionClose {}
+
+impl fmt::Display for ConnectionClose {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        todo!()
+    }
+}
+
+impl From<TransportError> for ConnectionClose {
+    fn from(x: TransportError) -> Self {
+        todo!()
+    }
 }
