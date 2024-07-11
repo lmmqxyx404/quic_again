@@ -39,9 +39,11 @@ mod timer;
 use thiserror::Error;
 use timer::{Timer, TimerTable};
 use tracing::{debug, trace, trace_span, warn};
+/// 7.
+mod ack_frequency;
 /// 6.
 mod packet_crypto;
-
+use ack_frequency::AckFrequencyState;
 // #[cfg(fuzzing)]
 // pub use spaces::Retransmits;
 
@@ -127,6 +129,8 @@ pub struct Connection {
     close: bool,
     /// 19. Highest usable packet number space
     highest_space: SpaceId,
+    /// 20. ACK frequency
+    ack_frequency: AckFrequencyState,
 }
 
 impl Connection {
@@ -189,6 +193,9 @@ impl Connection {
             endpoint_events: VecDeque::new(),
             close: false,
             highest_space: SpaceId::Initial,
+            ack_frequency: AckFrequencyState::new(get_max_ack_delay(
+                &TransportParameters::default(),
+            )),
         };
         this
     }
@@ -572,7 +579,12 @@ impl Connection {
     }
     /// 16. Probe Timeout
     fn pto(&self, space: SpaceId) -> Duration {
-        todo!()
+        let max_ack_delay = match space {
+            SpaceId::Initial | SpaceId::Handshake => Duration::new(0, 0),
+            SpaceId::Data => self.ack_frequency.max_ack_delay_for_pto(),
+        };
+
+        self.path.rtt.pto_base() + max_ack_delay
     }
 }
 
@@ -676,4 +688,8 @@ pub enum ConnectionError {
     /// Try using longer connection IDs.
     #[error("CIDs exhausted")]
     CidsExhausted,
+}
+/// used for AckFrequencyState::new
+fn get_max_ack_delay(params: &TransportParameters) -> Duration {
+    Duration::from_micros(params.max_ack_delay.0 * 1000)
 }

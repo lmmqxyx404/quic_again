@@ -2,7 +2,7 @@ use std::{
     collections::{hash_map, HashMap},
     net::{IpAddr, SocketAddr},
     sync::Arc,
-    time::Instant,
+    time::{Duration, Instant},
 };
 
 use bytes::BytesMut;
@@ -17,7 +17,9 @@ use crate::{
     connection::Connection,
     crypto,
     packet::{FixedLengthConnectionIdParser, Header, PacketDecodeError, PartialDecode},
-    shared::{ConnectionEvent, ConnectionEventInner, ConnectionId, DatagramConnectionEvent, EcnCodepoint},
+    shared::{
+        ConnectionEvent, ConnectionEventInner, ConnectionId, DatagramConnectionEvent, EcnCodepoint,
+    },
     token::ResetToken,
     transport_parameters::TransportParameters,
     ConnectionIdGenerator, Side, RESET_TOKEN_SIZE,
@@ -436,7 +438,9 @@ impl ConnectionIndex {
 /// for higher bandwidths and latencies increases worst-case memory consumption, but does not impair
 /// performance at lower bandwidths and latencies. The default configuration is tuned for a 100Mbps
 /// link with a 100ms round trip time.
-pub struct TransportConfig {}
+pub struct TransportConfig {
+    pub(crate) initial_rtt: Duration,
+}
 
 impl Default for TransportConfig {
     fn default() -> Self {
@@ -446,7 +450,9 @@ impl Default for TransportConfig {
                                                         // stalls
         const STREAM_RWND: u32 = MAX_STREAM_BANDWIDTH / 1000 * EXPECTED_RTT;
 
-        Self {}
+        Self {
+            initial_rtt: Duration::from_millis(333), // per spec, intentionally distinct from EXPECTED_RTT
+        }
     }
 }
 
