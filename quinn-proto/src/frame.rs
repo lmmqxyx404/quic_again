@@ -7,6 +7,12 @@ use crate::TransportError;
 #[derive(Clone, Debug)]
 pub enum Close {}
 
+impl From<TransportError> for Close {
+    fn from(x: TransportError) -> Self {
+        todo!()
+    }
+}
+
 impl From<ConnectionClose> for Close {
     fn from(x: ConnectionClose) -> Self {
         todo!()
