@@ -113,6 +113,10 @@ pub struct Connection {
     next_crypto: Option<KeyPair<Box<dyn PacketKey>>>,
     /// 13.
     side: Side,
+    /// 14. Number of packets authenticated
+    total_authed_packets: u64,
+    /// 15. QUIC version used for the connection.
+    version: u32,
 }
 
 impl Connection {
@@ -169,6 +173,8 @@ impl Connection {
             prev_crypto: None,
             next_crypto: None,
             side,
+            total_authed_packets: 0,
+            version,
         };
         this
     }
@@ -457,7 +463,22 @@ impl Connection {
                 todo!()
             }
             Header::VersionNegotiate { .. } => {
-                todo!()
+                if self.total_authed_packets > 1 {
+                    return Ok(());
+                }
+
+                let supported = packet
+                    .payload
+                    .chunks(4)
+                    .any(|x| match <[u8; 4]>::try_from(x) {
+                        Ok(version) => self.version == u32::from_be_bytes(version),
+                        Err(_) => false,
+                    });
+                if supported {
+                    return Ok(());
+                }
+                debug!("remote doesn't support our version");
+                Err(ConnectionError::VersionMismatch)
             }
             Header::Short { .. } => unreachable!(
                 "short packets received during handshake are discarded in handle_packet"
@@ -554,4 +575,7 @@ pub enum ConnectionError {
     /// 2. The peer violated the QUIC specification as understood by this implementation
     #[error(transparent)]
     TransportError(#[from] TransportError),
+    /// 3. The peer doesn't implement any supported version
+    #[error("peer doesn't implement any supported version")]
+    VersionMismatch,
 }
