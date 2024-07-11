@@ -10,6 +10,7 @@ use rand::{rngs::StdRng, Rng, RngCore, SeedableRng};
 use rustc_hash::FxHashMap;
 use slab::Slab;
 use thiserror::Error;
+use tracing::{debug, trace};
 
 use crate::{
     coding::BufMutExt,
@@ -90,6 +91,8 @@ impl Endpoint {
         server_name: &str,
     ) -> Result<(ConnectionHandle, Connection), ConnectError> {
         let remote_id = (config.initial_dst_cid_provider)();
+        trace!(initial_dcid = %remote_id);
+
         let ch = ConnectionHandle(self.connections.vacant_key());
         let loc_cid = self.new_cid(ch);
 
@@ -228,10 +231,10 @@ impl Endpoint {
                 version,
             }) => {
                 if self.server_config.is_none() {
-                    // debug!("dropping packet with unsupported version");
+                    debug!("dropping packet with unsupported version");
                     return None;
                 }
-                // trace!("sending version negotiation");
+                trace!("sending version negotiation");
                 // Negotiate versions
                 Header::VersionNegotiate {
                     random: self.rng.gen::<u8>() | 0x40,
@@ -257,7 +260,7 @@ impl Endpoint {
                 }));
             }
             Err(e) => {
-                // trace!("malformed header: {}", e);
+                trace!("malformed header: {}", e);
                 return None;
             }
         };

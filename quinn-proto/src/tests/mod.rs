@@ -1,6 +1,9 @@
 use std::{sync::Arc, time::Instant};
 
-use crate::{config::EndpointConfig, endpoint::DatagramEvent, ConnectionIdGenerator, Endpoint, RandomConnectionIdGenerator};
+use crate::{
+    config::EndpointConfig, endpoint::DatagramEvent, ConnectionIdGenerator, Endpoint,
+    RandomConnectionIdGenerator, DEFAULT_SUPPORTED_VERSIONS,
+};
 
 mod util;
 use hex_literal::hex;
@@ -8,7 +11,7 @@ use util::*;
 
 #[test]
 fn version_negotiate_client() {
-    // let _guard = subscribe();
+    let _guard = subscribe();
     let server_addr = "[::2]:7890".parse().unwrap();
     // Configure client to use empty CIDs so we can easily hardcode a server version negotiation
     // packet
@@ -45,5 +48,10 @@ fn version_negotiate_client() {
     if let Some(DatagramEvent::ConnectionEvent(_, event)) = opt_event {
         client_ch.handle_event(event);
     }
-    println!("hello world");
+
+    assert_ne!(buf[0] & 0x80, 0);
+    assert_eq!(&buf[1..15], hex!("00000000 04 00000000 04 00000000"));
+    assert!(buf[15..].chunks(4).any(|x| {
+        DEFAULT_SUPPORTED_VERSIONS.contains(&u32::from_be_bytes(x.try_into().unwrap()))
+    }));
 }

@@ -67,6 +67,11 @@ impl Side {
     pub fn is_server(self) -> bool {
         self == Self::Server
     }
+    #[inline]
+    /// 2. Shorthand for `self == Side::Client`
+    pub fn is_client(self) -> bool {
+        self == Self::Client
+    }
 }
 
 /// The QUIC protocol version implemented.

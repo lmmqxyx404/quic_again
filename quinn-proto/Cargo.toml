@@ -24,6 +24,6 @@ tracing = { workspace = true }
 
 [dev-dependencies]
 hex-literal = "0.4.0"
-
+tracing-subscriber = { workspace = true }
 rcgen = "0.13"
 lazy_static = "1"
