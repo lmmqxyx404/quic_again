@@ -1,4 +1,5 @@
 use std::{
+    collections::VecDeque,
     fmt,
     net::{IpAddr, SocketAddr},
     sync::Arc,
@@ -13,6 +14,7 @@ use crate::{
     packet::{Header, InitialHeader, LongType, Packet, PartialDecode, SpaceId},
     shared::{
         ConnectionEvent, ConnectionEventInner, ConnectionId, DatagramConnectionEvent, EcnCodepoint,
+        EndpointEventInner,
     },
     transport_parameters::TransportParameters,
     ConnectionIdGenerator, Side, TransportError,
@@ -119,6 +121,10 @@ pub struct Connection {
     version: u32,
     /// 16. Why the connection was lost, if it has been
     error: Option<ConnectionError>,
+    /// 17.
+    endpoint_events: VecDeque<EndpointEventInner>,
+    /// 18.
+    close: bool,
 }
 
 impl Connection {
@@ -178,6 +184,8 @@ impl Connection {
             total_authed_packets: 0,
             version,
             error: None,
+            endpoint_events: VecDeque::new(),
+            close: false,
         };
         this
     }
@@ -386,7 +394,23 @@ impl Connection {
                 }
             };
         }
-        todo!()
+        if !was_closed && self.state.is_closed() {
+            self.close_common();
+            if !self.state.is_drained() {
+                self.set_close_timer(now);
+            }
+        }
+
+        if !was_drained && self.state.is_drained() {
+            self.endpoint_events.push_back(EndpointEventInner::Drained);
+            // Close timer may have been started previously, e.g. if we sent a close and got a
+            // stateless reset in response
+            self.timers.stop(Timer::Close);
+        }
+        // Transmit CONNECTION_CLOSE if necessary
+        if let State::Closed(_) = self.state {
+            self.close = remote == self.path.remote;
+        }
     }
 
     /// 8. Whether the connection is in the process of being established
@@ -529,6 +553,17 @@ impl Connection {
         now: Instant,
         packet: Packet,
     ) -> Result<(), TransportError> {
+        todo!()
+    }
+    /// 14
+    fn close_common(&mut self) {
+        trace!("connection closed");
+        for &timer in &Timer::VALUES {
+            self.timers.stop(timer);
+        }
+    }
+    /// 15
+    fn set_close_timer(&mut self, now: Instant) {
         todo!()
     }
 }

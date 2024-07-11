@@ -125,3 +125,9 @@ pub(crate) struct IssuedCid {
     pub(crate) id: ConnectionId,
     pub(crate) reset_token: ResetToken,
 }
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum EndpointEventInner {
+    /// 1. The connection has been drained
+    Drained,
+}
