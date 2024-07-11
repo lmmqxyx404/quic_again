@@ -619,7 +619,22 @@ impl Connection {
                     continue;
                 }
             }
-            todo!()
+            let offset = self.spaces[space as usize].crypto_offset;
+            let outgoing = Bytes::from(outgoing);
+            if let State::Handshake(ref mut state) = self.state {
+                if space == SpaceId::Initial && offset == 0 && self.side.is_client() {
+                    state.client_hello = Some(outgoing.clone());
+                }
+            }
+            self.spaces[space as usize].crypto_offset += outgoing.len() as u64;
+            trace!("wrote {} {:?} CRYPTO bytes", outgoing.len(), space);
+            self.spaces[space as usize]
+                .pending
+                .crypto
+                .push_back(frame::Crypto {
+                    offset,
+                    data: outgoing,
+                });
         }
     }
 

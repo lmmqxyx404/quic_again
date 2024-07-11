@@ -1,4 +1,6 @@
+use crate::frame;
 use crate::{crypto::Keys, shared::IssuedCid};
+use std::collections::VecDeque;
 use std::time::Instant;
 use std::{cmp, mem};
 
@@ -10,6 +12,8 @@ pub(super) struct PacketSpace {
     pub(super) pending: Retransmits,
     /// 3.
     pub(super) dedup: Dedup,
+    /// 4. Current offset of outgoing cryptographic handshake stream
+    pub(super) crypto_offset: u64,
 }
 
 impl PacketSpace {
@@ -18,6 +22,8 @@ impl PacketSpace {
             crypto: None,
             pending: Retransmits::default(),
             dedup: Dedup::new(),
+
+            crypto_offset: 0,
         }
     }
 }
@@ -26,7 +32,10 @@ impl PacketSpace {
 #[allow(unreachable_pub)] // fuzzing only
 #[derive(Debug, Default, Clone)]
 pub struct Retransmits {
+    /// 1
     pub(super) new_cids: Vec<IssuedCid>,
+    /// 2
+    pub(super) crypto: VecDeque<frame::Crypto>,
 }
 
 /// RFC4303-style sliding window packet number deduplicator.
