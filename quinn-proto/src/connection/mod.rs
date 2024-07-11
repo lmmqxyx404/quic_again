@@ -3,7 +3,7 @@ use std::{
     fmt,
     net::{IpAddr, SocketAddr},
     sync::Arc,
-    time::Instant,
+    time::{Duration, Instant},
 };
 
 use crate::{
@@ -125,6 +125,8 @@ pub struct Connection {
     endpoint_events: VecDeque<EndpointEventInner>,
     /// 18.
     close: bool,
+    /// 19. Highest usable packet number space
+    highest_space: SpaceId,
 }
 
 impl Connection {
@@ -186,6 +188,7 @@ impl Connection {
             error: None,
             endpoint_events: VecDeque::new(),
             close: false,
+            highest_space: SpaceId::Initial,
         };
         this
     }
@@ -564,6 +567,11 @@ impl Connection {
     }
     /// 15
     fn set_close_timer(&mut self, now: Instant) {
+        self.timers
+            .set(Timer::Close, now + 3 * self.pto(self.highest_space));
+    }
+    /// 16. Probe Timeout
+    fn pto(&self, space: SpaceId) -> Duration {
         todo!()
     }
 }
