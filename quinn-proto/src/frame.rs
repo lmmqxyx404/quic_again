@@ -13,6 +13,11 @@ impl From<ConnectionClose> for Close {
     }
 }
 
+impl From<ApplicationClose> for Close {
+    fn from(x: ApplicationClose) -> Self {
+        todo!()
+    }
+}
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub struct Type(u64);
 
@@ -80,8 +85,12 @@ impl fmt::Display for ConnectionClose {
     }
 }
 
-impl From<TransportError> for ConnectionClose {
-    fn from(x: TransportError) -> Self {
+/// Reason given by an application for closing the connection
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ApplicationClose {}
+
+impl fmt::Display for ApplicationClose {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         todo!()
     }
 }
