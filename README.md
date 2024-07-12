@@ -14,6 +14,16 @@ RFC 12.1
 受保护的包
 
 0rtt包
+
+一个packet 就是一个 datagram
+
+## stream
+有序子节流
+
+## connection
+可以进行迁移
+
+
 ## real rust code
 ### 1. PacketNumber (atom)
 - fn encode() completed
