@@ -22,6 +22,14 @@ pub trait Session: Send + Sync + 'static {
     /// When the handshake proceeds to the next phase, this method will return a new set of
     /// keys to encrypt data with.
     fn write_handshake(&mut self, buf: &mut Vec<u8>) -> Option<Keys>;
+    /// 3. Get the 0-RTT keys if available (clients only)
+    ///
+    /// On the client side, this method can be used to see if 0-RTT key material is available
+    /// to start sending data before the protocol handshake has completed.
+    ///
+    /// Returns `None` if the key material is not available. This might happen if you have
+    /// not connected to this server before.
+    fn early_crypto(&self) -> Option<(Box<dyn HeaderKey>, Box<dyn PacketKey>)>;
 }
 
 /// 1. A key for signing with HMAC-based algorithms

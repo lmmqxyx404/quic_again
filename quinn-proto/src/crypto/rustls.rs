@@ -12,7 +12,7 @@ use crate::{
     transport_parameters::TransportParameters, Side,
 };
 
-use super::{CryptoError, KeyPair, Keys, UnsupportedVersion};
+use super::{CryptoError, HeaderKey, KeyPair, Keys, UnsupportedVersion};
 
 impl From<Side> for rustls::Side {
     fn from(s: Side) -> Self {
@@ -170,6 +170,11 @@ impl crypto::Session for TlsSession {
                 remote: Box::new(keys.remote.packet),
             },
         })
+    }
+
+    fn early_crypto(&self) -> Option<(Box<dyn HeaderKey>, Box<dyn crypto::PacketKey>)> {
+        let keys = self.inner.zero_rtt_keys()?;
+        Some((Box::new(keys.header), Box::new(keys.packet)))
     }
 }
 

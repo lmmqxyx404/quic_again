@@ -1,11 +1,11 @@
 use std::{sync::Arc, time::Instant};
 
 use crate::{
-    config::EndpointConfig, endpoint::DatagramEvent, ConnectionIdGenerator, Endpoint,
-    RandomConnectionIdGenerator, DEFAULT_SUPPORTED_VERSIONS,
+    config::EndpointConfig, connection::{ConnectionError, Event}, endpoint::DatagramEvent, ConnectionIdGenerator, Endpoint, RandomConnectionIdGenerator
 };
 
 mod util;
+use assert_matches::assert_matches;
 use hex_literal::hex;
 use util::*;
 
@@ -49,9 +49,10 @@ fn version_negotiate_client() {
         client_ch.handle_event(event);
     }
 
-    assert_ne!(buf[0] & 0x80, 0);
-    assert_eq!(&buf[1..15], hex!("00000000 04 00000000 04 00000000"));
-    assert!(buf[15..].chunks(4).any(|x| {
-        DEFAULT_SUPPORTED_VERSIONS.contains(&u32::from_be_bytes(x.try_into().unwrap()))
-    }));
+    assert_matches!(
+        client_ch.poll(),
+        Some(Event::ConnectionLost {
+            reason: ConnectionError::VersionMismatch,
+        })
+    );
 }

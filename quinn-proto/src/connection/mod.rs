@@ -1,6 +1,7 @@
 use std::{
     collections::VecDeque,
     fmt,
+    io::Read,
     net::{IpAddr, SocketAddr},
     sync::Arc,
     time::{Duration, Instant},
@@ -326,7 +327,13 @@ impl Connection {
     ) {
         self.stats.udp_rx.ios += 1;
         if let Some(ref packet) = packet {
-            // todo: add trace!
+            trace!(
+                "got {:?} packet ({} bytes) from {} using id {}",
+                packet.header.space(),
+                packet.payload.len() + packet.header_data.len(),
+                remote,
+                packet.header.dst_cid(),
+            );
         }
 
         if self.is_handshaking() && remote != self.path.remote {
@@ -603,10 +610,14 @@ impl Connection {
             if let Some(crypto) = self.crypto.write_handshake(&mut outgoing) {
                 match space {
                     SpaceId::Initial => {
+                        trace!("ini 1{:?}", outgoing);
                         self.upgrade_crypto(SpaceId::Handshake, crypto);
+                        trace!("ini 2{:?}", outgoing);
                     }
                     SpaceId::Handshake => {
+                        trace!("Handshake 1{:?}", outgoing);
                         self.upgrade_crypto(SpaceId::Data, crypto);
+                        trace!("Handshake 2{:?}", outgoing);
                     }
                     _ => unreachable!("got updated secrets during 1-RTT"),
                 }
@@ -626,8 +637,15 @@ impl Connection {
                     state.client_hello = Some(outgoing.clone());
                 }
             }
+
             self.spaces[space as usize].crypto_offset += outgoing.len() as u64;
-            trace!("wrote {} {:?} CRYPTO bytes", outgoing.len(), space);
+            trace!(
+                "wrote {} {:?} CRYPTO bytes {:?}",
+                outgoing.len(),
+                space,
+                outgoing.clone().bytes()
+            );
+
             self.spaces[space as usize]
                 .pending
                 .crypto
@@ -640,11 +658,26 @@ impl Connection {
 
     /// 18
     fn init_0rtt(&mut self) {
+        // 最开始的时候，直接就是返回None
+        let (header, packet) = match self.crypto.early_crypto() {
+            Some(x) => x,
+            None => return,
+        };
         todo!()
     }
 
     /// 19. Switch to stronger cryptography during handshake
     fn upgrade_crypto(&mut self, space: SpaceId, crypto: Keys) {
+        todo!()
+    }
+
+    /// 20. Returns application-facing events
+    ///
+    /// Connections should be polled for events after:
+    /// - a call was made to `handle_event`
+    /// - a call was made to `handle_timeout`
+    #[must_use]
+    pub fn poll(&mut self) -> Option<Event> {
         todo!()
     }
 }
@@ -753,4 +786,16 @@ pub enum ConnectionError {
 /// used for AckFrequencyState::new
 fn get_max_ack_delay(params: &TransportParameters) -> Duration {
     Duration::from_micros(params.max_ack_delay.0 * 1000)
+}
+
+/// Events of interest to the application
+#[derive(Debug)]
+pub enum Event {
+    /// The connection was lost
+    ///
+    /// Emitted if the peer closes the connection or an error is encountered.
+    ConnectionLost {
+        /// Reason that the connection was closed
+        reason: ConnectionError,
+    },
 }
