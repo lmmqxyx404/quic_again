@@ -304,6 +304,20 @@ impl QuicServerConfig {
     }
 }
 
+impl TryFrom<rustls::ServerConfig> for QuicServerConfig {
+    type Error = NoInitialCipherSuite;
 
+    fn try_from(inner: rustls::ServerConfig) -> Result<Self, Self::Error> {
+        Arc::new(inner).try_into()
+    }
+}
+
+impl TryFrom<Arc<rustls::ServerConfig>> for QuicServerConfig {
+    type Error = NoInitialCipherSuite;
+
+    fn try_from(inner: Arc<rustls::ServerConfig>) -> Result<Self, Self::Error> {
+        Ok(Self {})
+    }
+}
 
 impl crypto::ServerConfig for QuicServerConfig {}
