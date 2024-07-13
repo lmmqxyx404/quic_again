@@ -3,7 +3,7 @@ use std::sync::Arc;
 use bytes::BytesMut;
 use rustls::{
     client::danger::ServerCertVerifier,
-    pki_types::ServerName,
+    pki_types::{CertificateDer, PrivateKeyDer, ServerName},
     quic::{Connection, HeaderProtectionKey, KeyChange, PacketKey, Secrets, Suite, Version},
 };
 
@@ -279,5 +279,31 @@ impl crypto::PacketKey for Box<dyn PacketKey> {
 ///
 /// [single]: crate::config::ServerConfig::with_single_cert()
 pub struct QuicServerConfig {}
+
+impl QuicServerConfig {
+    /// Initialize a sane QUIC-compatible TLS server configuration
+    ///
+    /// QUIC requires that TLS 1.3 be enabled, and that the maximum early data size is either 0 or
+    /// `u32::MAX`. Advanced users can use any [`rustls::ServerConfig`] that satisfies these
+    /// requirements.
+    pub(crate) fn inner(
+        cert_chain: Vec<CertificateDer<'static>>,
+        key: PrivateKeyDer<'static>,
+    ) -> rustls::ServerConfig {
+        let mut inner = rustls::ServerConfig::builder_with_provider(
+            rustls::crypto::ring::default_provider().into(),
+        )
+        .with_protocol_versions(&[&rustls::version::TLS13])
+        .unwrap() // The *ring* default provider supports TLS 1.3
+        .with_no_client_auth()
+        .with_single_cert(cert_chain, key)
+        .unwrap();
+
+        inner.max_early_data_size = u32::MAX;
+        inner
+    }
+}
+
+
 
 impl crypto::ServerConfig for QuicServerConfig {}

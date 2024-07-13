@@ -5,7 +5,11 @@ use std::{
 };
 
 use lazy_static::lazy_static;
-use rustls::{client::WebPkiServerVerifier, pki_types::CertificateDer, KeyLogFile};
+use rustls::{
+    client::WebPkiServerVerifier,
+    pki_types::{CertificateDer, PrivateKeyDer},
+    KeyLogFile,
+};
 
 use crate::{
     config::{ClientConfig, ServerConfig},
@@ -71,6 +75,25 @@ pub(super) fn server_config() -> ServerConfig {
 }
 
 pub(super) fn server_crypto() -> QuicServerConfig {
+    server_crypto_inner(None, None)
+}
+
+fn server_crypto_inner(
+    identity: Option<(CertificateDer<'static>, PrivateKeyDer<'static>)>,
+    alpn: Option<Vec<Vec<u8>>>,
+) -> QuicServerConfig {
+    let (cert, key) = identity.unwrap_or_else(|| {
+        (
+            CERTIFIED_KEY.cert.der().clone(),
+            PrivateKeyDer::Pkcs8(CERTIFIED_KEY.key_pair.serialize_der().into()),
+        )
+    });
+
+    let mut config = QuicServerConfig::inner(vec![cert], key);
+    if let Some(alpn) = alpn {
+        config.alpn_protocols = alpn;
+    }
+
     todo!()
-    // server_crypto_inner(None, None)
+    // config.try_into().unwrap()
 }
