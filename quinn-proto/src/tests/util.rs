@@ -7,7 +7,10 @@ use std::{
 use lazy_static::lazy_static;
 use rustls::{client::WebPkiServerVerifier, pki_types::CertificateDer, KeyLogFile};
 
-use crate::{config::ClientConfig, crypto::rustls::QuicClientConfig};
+use crate::{
+    config::{ClientConfig, ServerConfig},
+    crypto::rustls::{QuicClientConfig, QuicServerConfig},
+};
 
 pub(super) fn client_config() -> ClientConfig {
     ClientConfig::new(Arc::new(client_crypto()))
@@ -61,4 +64,13 @@ impl Write for TestWriter {
     fn flush(&mut self) -> io::Result<()> {
         io::stdout().flush()
     }
+}
+
+pub(super) fn server_config() -> ServerConfig {
+    ServerConfig::with_crypto(Arc::new(server_crypto()))
+}
+
+pub(super) fn server_crypto() -> QuicServerConfig {
+    todo!()
+    // server_crypto_inner(None, None)
 }

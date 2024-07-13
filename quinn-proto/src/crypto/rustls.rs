@@ -269,3 +269,15 @@ impl crypto::PacketKey for Box<dyn PacketKey> {
         (**self).integrity_limit()
     }
 }
+
+/// A QUIC-compatible TLS server configuration
+///
+/// Can be constructed via [`ServerConfig::with_single_cert()`][single] or by using the
+/// [`TryFrom`] implementation with a custom [`rustls::ServerConfig`]. A pre-existing
+/// `ServerConfig` must have TLS 1.3 support enabled for this to work. 0-RTT support is
+/// available to clients if `max_early_data_size` is set to `u32::MAX`.
+///
+/// [single]: crate::config::ServerConfig::with_single_cert()
+pub struct QuicServerConfig {}
+
+impl crypto::ServerConfig for QuicServerConfig {}

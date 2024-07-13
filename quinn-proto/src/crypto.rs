@@ -112,3 +112,6 @@ pub trait HeaderKey: Send + Sync {
     /// The sample size used for this key's algorithm
     fn sample_size(&self) -> usize;
 }
+
+/// 6. Server-side configuration for the crypto protocol
+pub trait ServerConfig: Send + Sync {}

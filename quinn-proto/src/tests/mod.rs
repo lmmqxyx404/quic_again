@@ -1,13 +1,29 @@
 use std::{sync::Arc, time::Instant};
 
 use crate::{
-    config::EndpointConfig, connection::{ConnectionError, Event}, endpoint::DatagramEvent, ConnectionIdGenerator, Endpoint, RandomConnectionIdGenerator
+    config::EndpointConfig,
+    connection::{ConnectionError, Event},
+    endpoint::DatagramEvent,
+    ConnectionIdGenerator, Endpoint, RandomConnectionIdGenerator,
 };
 
 mod util;
 use assert_matches::assert_matches;
 use hex_literal::hex;
 use util::*;
+
+#[test]
+fn version_negotiate_server() {
+    let _guard = subscribe();
+    // let client_addr = "[::2]:7890".parse().unwrap();
+    let mut server = Endpoint::new(
+        Default::default(),
+        Some(Arc::new(server_config())),
+        true,
+        None,
+    );
+    todo!()
+}
 
 #[test]
 fn version_negotiate_client() {

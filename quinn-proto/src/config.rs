@@ -76,6 +76,16 @@ pub struct ServerConfig {
 }
 
 #[cfg(feature = "ring")]
+impl ServerConfig {
+    /// Create a server config with the given [`crypto::ServerConfig`]
+    ///
+    /// Uses a randomized handshake token key.
+    pub fn with_crypto(crypto: Arc<dyn crypto::ServerConfig>) -> Self {
+        todo!()
+    }
+}
+
+#[cfg(feature = "ring")]
 impl Default for EndpointConfig {
     fn default() -> Self {
         let mut reset_key = [0; 64];
