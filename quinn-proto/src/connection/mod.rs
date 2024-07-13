@@ -45,6 +45,14 @@ mod ack_frequency;
 /// 6.
 mod packet_crypto;
 use ack_frequency::AckFrequencyState;
+/* /// 8.
+mod streams;
+#[cfg(fuzzing)]
+pub use streams::StreamsState;
+#[cfg(not(fuzzing))]
+use streams::StreamsState;
+use streams::StreamEvent;
+ */
 // #[cfg(fuzzing)]
 // pub use spaces::Retransmits;
 
@@ -134,6 +142,10 @@ pub struct Connection {
     ack_frequency: AckFrequencyState,
     /// 21.
     crypto: Box<dyn crypto::Session>,
+    /// 22
+    events: VecDeque<Event>,
+    // 23.
+    // streams: StreamsState,
 }
 
 impl Connection {
@@ -200,6 +212,15 @@ impl Connection {
                 &TransportParameters::default(),
             )),
             crypto,
+            events: VecDeque::new(),
+            /* streams: StreamsState::new(
+                side,
+                config.max_concurrent_uni_streams,
+                config.max_concurrent_bidi_streams,
+                config.send_window,
+                config.receive_window,
+                config.stream_receive_window,
+            ), */
         };
 
         if side.is_client() {
@@ -678,7 +699,19 @@ impl Connection {
     /// - a call was made to `handle_timeout`
     #[must_use]
     pub fn poll(&mut self) -> Option<Event> {
+        if let Some(x) = self.events.pop_front() {
+            return Some(x);
+        }
         todo!()
+        /* if let Some(event) = self.streams.poll() {
+            return Some(Event::Stream(event));
+        }
+
+        if let Some(err) = self.error.take() {
+            return Some(Event::ConnectionLost { reason: err });
+        }
+
+        None */
     }
 }
 
@@ -791,11 +824,13 @@ fn get_max_ack_delay(params: &TransportParameters) -> Duration {
 /// Events of interest to the application
 #[derive(Debug)]
 pub enum Event {
-    /// The connection was lost
+    /// 1. The connection was lost
     ///
     /// Emitted if the peer closes the connection or an error is encountered.
     ConnectionLost {
         /// Reason that the connection was closed
         reason: ConnectionError,
     },
+    // Stream events
+    //Stream(StreamEvent),
 }
