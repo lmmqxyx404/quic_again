@@ -23,7 +23,7 @@ use crate::{
     },
     token::ResetToken,
     transport_parameters::TransportParameters,
-    ConnectionIdGenerator, Side, RESET_TOKEN_SIZE,
+    ConnectionIdGenerator, Side, VarInt, RESET_TOKEN_SIZE,
 };
 
 /// 1. The main entry point to the library
@@ -442,7 +442,18 @@ impl ConnectionIndex {
 /// performance at lower bandwidths and latencies. The default configuration is tuned for a 100Mbps
 /// link with a 100ms round trip time.
 pub struct TransportConfig {
+    /// 1
     pub(crate) initial_rtt: Duration,
+    /// 2
+    pub(crate) max_concurrent_bidi_streams: VarInt,
+    /// 3
+    pub(crate) max_concurrent_uni_streams: VarInt,
+    /// 4
+    pub(crate) stream_receive_window: VarInt,
+    /// 5
+    pub(crate) receive_window: VarInt,
+    /// 6
+    pub(crate) send_window: u64,
 }
 
 impl Default for TransportConfig {
@@ -455,6 +466,11 @@ impl Default for TransportConfig {
 
         Self {
             initial_rtt: Duration::from_millis(333), // per spec, intentionally distinct from EXPECTED_RTT
+            max_concurrent_bidi_streams: 100u32.into(),
+            max_concurrent_uni_streams: 100u32.into(),
+            stream_receive_window: STREAM_RWND.into(),
+            receive_window: VarInt::MAX,
+            send_window: (8 * STREAM_RWND).into(),
         }
     }
 }

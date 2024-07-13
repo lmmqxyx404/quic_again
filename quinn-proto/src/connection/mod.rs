@@ -45,14 +45,14 @@ mod ack_frequency;
 /// 6.
 mod packet_crypto;
 use ack_frequency::AckFrequencyState;
-/* /// 8.
+/// 8.
 mod streams;
+use streams::StreamEvent;
 #[cfg(fuzzing)]
 pub use streams::StreamsState;
 #[cfg(not(fuzzing))]
 use streams::StreamsState;
-use streams::StreamEvent;
- */
+
 // #[cfg(fuzzing)]
 // pub use spaces::Retransmits;
 
@@ -144,8 +144,8 @@ pub struct Connection {
     crypto: Box<dyn crypto::Session>,
     /// 22
     events: VecDeque<Event>,
-    // 23.
-    // streams: StreamsState,
+    /// 23.
+    streams: StreamsState,
 }
 
 impl Connection {
@@ -213,14 +213,14 @@ impl Connection {
             )),
             crypto,
             events: VecDeque::new(),
-            /* streams: StreamsState::new(
+            streams: StreamsState::new(
                 side,
                 config.max_concurrent_uni_streams,
                 config.max_concurrent_bidi_streams,
                 config.send_window,
                 config.receive_window,
                 config.stream_receive_window,
-            ), */
+            ),
         };
 
         if side.is_client() {
@@ -702,8 +702,8 @@ impl Connection {
         if let Some(x) = self.events.pop_front() {
             return Some(x);
         }
-        todo!()
-        /* if let Some(event) = self.streams.poll() {
+
+        if let Some(event) = self.streams.poll() {
             return Some(Event::Stream(event));
         }
 
@@ -711,7 +711,7 @@ impl Connection {
             return Some(Event::ConnectionLost { reason: err });
         }
 
-        None */
+        None
     }
 }
 
@@ -831,6 +831,6 @@ pub enum Event {
         /// Reason that the connection was closed
         reason: ConnectionError,
     },
-    // Stream events
-    //Stream(StreamEvent),
+    /// 2. Stream events
+    Stream(StreamEvent),
 }

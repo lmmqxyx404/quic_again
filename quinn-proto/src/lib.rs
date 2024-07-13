@@ -84,3 +84,24 @@ pub const DEFAULT_SUPPORTED_VERSIONS: &[u32] = &[
     0xff00_0021,
     0xff00_0022,
 ];
+
+/// Whether a stream communicates data in both directions or only from the initiator
+#[cfg_attr(feature = "arbitrary", derive(Arbitrary))]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+pub enum Dir {
+    /// Data flows in both directions
+    Bi = 0,
+    /// Data flows only from the stream's initiator
+    Uni = 1,
+}
+
+impl Dir {
+    fn iter() -> impl Iterator<Item = Self> {
+        [Self::Bi, Self::Uni].iter().cloned()
+    }
+}
+
+/// Identifier for a stream within a particular connection
+#[cfg_attr(feature = "arbitrary", derive(Arbitrary))]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+pub struct StreamId(#[doc(hidden)] pub u64);

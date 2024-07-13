@@ -15,6 +15,8 @@ use crate::coding::{self, Codec, UnexpectedEnd};
 pub struct VarInt(pub(crate) u64);
 
 impl VarInt {
+    /// The largest representable value
+    pub const MAX: Self = Self((1 << 62) - 1);
     /// 1
     pub fn from_u64(x: u64) -> Result<Self, VarIntBoundsExceeded> {
         if x < 2u64.pow(62) {
