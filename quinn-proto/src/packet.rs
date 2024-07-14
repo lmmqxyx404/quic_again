@@ -73,7 +73,7 @@ impl PacketNumber {
             panic!("packet number too large to encode")
         }
     }
-
+    /// 5
     pub(crate) fn expand(self, expected: u64) -> u64 {
         use self::PacketNumber::*;
         let truncated = match self {
@@ -101,6 +101,16 @@ impl PacketNumber {
             candidate - win
         } else {
             candidate
+        }
+    }
+    /// 6
+    fn tag(self) -> u8 {
+        use self::PacketNumber::*;
+        match self {
+            U8(_) => 0b00,
+            U16(_) => 0b01,
+            U24(_) => 0b10,
+            U32(_) => 0b11,
         }
     }
 }
@@ -169,7 +179,100 @@ pub(crate) enum Header {
 impl Header {
     /// 1.
     pub(crate) fn encode(&self, w: &mut Vec<u8>) -> PartialEncode {
-        todo!()
+        use self::Header::*;
+        let start = w.len();
+        match *self {
+            Initial(InitialHeader {
+                ref dst_cid,
+                ref src_cid,
+                ref token,
+                number,
+                version,
+            }) => {
+                w.write(u8::from(LongHeaderType::Initial) | number.tag());
+                w.write(version);
+                dst_cid.encode_long(w);
+                src_cid.encode_long(w);
+                w.write_var(token.len() as u64);
+                w.put_slice(token);
+                w.write::<u16>(0); // Placeholder for payload length; see `set_payload_length`
+                number.encode(w);
+                PartialEncode {
+                    start,
+                    header_len: w.len() - start,
+                    pn: Some((number.len(), true)),
+                }
+            }
+            Long {
+                ty,
+                ref dst_cid,
+                ref src_cid,
+                number,
+                version,
+            } => {
+                w.write(u8::from(LongHeaderType::Standard(ty)) | number.tag());
+                w.write(version);
+                dst_cid.encode_long(w);
+                src_cid.encode_long(w);
+                w.write::<u16>(0); // Placeholder for payload length; see `set_payload_length`
+                number.encode(w);
+                PartialEncode {
+                    start,
+                    header_len: w.len() - start,
+                    pn: Some((number.len(), true)),
+                }
+            }
+            Retry {
+                ref dst_cid,
+                ref src_cid,
+                version,
+            } => {
+                w.write(u8::from(LongHeaderType::Retry));
+                w.write(version);
+                dst_cid.encode_long(w);
+                src_cid.encode_long(w);
+                PartialEncode {
+                    start,
+                    header_len: w.len() - start,
+                    pn: None,
+                }
+            }
+            Short {
+                spin,
+                key_phase,
+                ref dst_cid,
+                number,
+            } => {
+                w.write(
+                    FIXED_BIT
+                        | if key_phase { KEY_PHASE_BIT } else { 0 }
+                        | if spin { SPIN_BIT } else { 0 }
+                        | number.tag(),
+                );
+                w.put_slice(dst_cid);
+                number.encode(w);
+                PartialEncode {
+                    start,
+                    header_len: w.len() - start,
+                    pn: Some((number.len(), false)),
+                }
+            }
+            VersionNegotiate {
+                ref random,
+                ref dst_cid,
+                ref src_cid,
+            } => {
+                w.write(0x80u8 | random);
+                w.write::<u32>(0);
+                dst_cid.encode_long(w);
+                src_cid.encode_long(w);
+                PartialEncode {
+                    start,
+                    header_len: w.len() - start,
+                    pn: None,
+                }
+            }
+        }
     }
 
     /// 2. Whether the packet is encrypted on the wire
@@ -587,6 +690,18 @@ impl LongHeaderType {
             0x3 => Retry,
             _ => unreachable!(),
         })
+    }
+}
+
+impl From<LongHeaderType> for u8 {
+    fn from(ty: LongHeaderType) -> Self {
+        use self::{LongHeaderType::*, LongType::*};
+        match ty {
+            Initial => LONG_HEADER_FORM | FIXED_BIT,
+            Standard(ZeroRtt) => LONG_HEADER_FORM | FIXED_BIT | (0x1 << 4),
+            Standard(Handshake) => LONG_HEADER_FORM | FIXED_BIT | (0x2 << 4),
+            Retry => LONG_HEADER_FORM | FIXED_BIT | (0x3 << 4),
+        }
     }
 }
 
