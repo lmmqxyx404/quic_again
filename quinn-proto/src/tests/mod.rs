@@ -15,13 +15,25 @@ use util::*;
 #[test]
 fn version_negotiate_server() {
     let _guard = subscribe();
-    // let client_addr = "[::2]:7890".parse().unwrap();
+    let client_addr = "[::2]:7890".parse().unwrap();
     let mut server = Endpoint::new(
         Default::default(),
         Some(Arc::new(server_config())),
         true,
         None,
     );
+    let now = Instant::now();
+    let mut buf = Vec::with_capacity(server.config().get_max_udp_payload_size() as usize);
+    let event = server.handle(
+        now,
+        client_addr,
+        None,
+        None,
+        // Long-header packet with reserved version number
+        hex!("80 0a1a2a3a 04 00000000 04 00000000 00")[..].into(),
+        &mut buf,
+    );
+
     todo!()
 }
 

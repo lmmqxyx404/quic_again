@@ -115,10 +115,13 @@ impl ConnectionIdGenerator for HashedConnectionIdGenerator {
     }
 
     fn cid_len(&self) -> usize {
-        todo!()
+        NONCE_LEN + SIGNATURE_LEN
     }
 
     fn cid_lifetime(&self) -> Option<Duration> {
         todo!()
     }
 }
+
+const NONCE_LEN: usize = 3; // Good for more than 16 million connections
+const SIGNATURE_LEN: usize = 8 - NONCE_LEN; // 8-byte total CID length
