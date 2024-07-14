@@ -454,6 +454,8 @@ pub struct TransportConfig {
     pub(crate) receive_window: VarInt,
     /// 6
     pub(crate) send_window: u64,
+    /// 7.
+    pub(crate) enable_segmentation_offload: bool,
 }
 
 impl Default for TransportConfig {
@@ -471,6 +473,8 @@ impl Default for TransportConfig {
             stream_receive_window: STREAM_RWND.into(),
             receive_window: VarInt::MAX,
             send_window: (8 * STREAM_RWND).into(),
+
+            enable_segmentation_offload: true,
         }
     }
 }

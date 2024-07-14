@@ -8,10 +8,17 @@ use std::{
 };
 
 use crate::{
-    config::{EndpointConfig, ServerConfig}, crypto::{self, KeyPair, Keys, PacketKey}, endpoint::TransportConfig, frame::{self, Close, Frame}, packet::{Header, InitialHeader, LongType, Packet, PartialDecode, SpaceId}, shared::{
+    config::{EndpointConfig, ServerConfig},
+    crypto::{self, KeyPair, Keys, PacketKey},
+    endpoint::TransportConfig,
+    frame::{self, Close, Frame},
+    packet::{Header, InitialHeader, LongType, Packet, PartialDecode, SpaceId},
+    shared::{
         ConnectionEvent, ConnectionEventInner, ConnectionId, DatagramConnectionEvent, EcnCodepoint,
         EndpointEvent, EndpointEventInner,
-    }, transport_parameters::TransportParameters, ConnectionIdGenerator, Side, Transmit, TransportError
+    },
+    transport_parameters::TransportParameters,
+    ConnectionIdGenerator, Side, Transmit, TransportError,
 };
 use bytes::{Bytes, BytesMut};
 
@@ -139,6 +146,8 @@ pub struct Connection {
     events: VecDeque<Event>,
     /// 23.
     streams: StreamsState,
+    /// 24.
+    config: Arc<TransportConfig>,
 }
 
 impl Connection {
@@ -214,6 +223,7 @@ impl Connection {
                 config.receive_window,
                 config.stream_receive_window,
             ),
+            config,
         };
 
         if side.is_client() {
@@ -752,6 +762,11 @@ impl Connection {
         max_datagrams: usize,
         buf: &mut Vec<u8>,
     ) -> Option<Transmit> {
+        assert!(max_datagrams != 0);
+        let max_datagrams = match self.config.enable_segmentation_offload {
+            false => 1,
+            true => max_datagrams.min(MAX_TRANSMIT_SEGMENTS),
+        };
         todo!()
     }
 }
@@ -875,3 +890,10 @@ pub enum Event {
     /// 2. Stream events
     Stream(StreamEvent),
 }
+
+/// The maximum amount of datagrams that are sent in a single transmit
+///
+/// This can be lower than the maximum platform capabilities, to avoid excessive
+/// memory allocations when calling `poll_transmit()`. Benchmarks have shown
+/// that numbers around 10 are a good compromise.
+const MAX_TRANSMIT_SEGMENTS: usize = 10;
