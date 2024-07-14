@@ -115,3 +115,12 @@ pub trait HeaderKey: Send + Sync {
 
 /// 6. Server-side configuration for the crypto protocol
 pub trait ServerConfig: Send + Sync {}
+
+/// 7. A pseudo random key for HKDF
+pub trait HandshakeTokenKey: Send + Sync {
+    /// Derive AEAD using hkdf
+    fn aead_from_hkdf(&self, random_bytes: &[u8]) -> Box<dyn AeadKey>;
+}
+
+/// 8. A key for sealing data with AEAD-based algorithms
+pub trait AeadKey {}

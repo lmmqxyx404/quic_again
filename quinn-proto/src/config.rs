@@ -4,7 +4,7 @@ use rand::RngCore;
 
 use crate::{
     cid_generator::HashedConnectionIdGenerator,
-    crypto::{self, HmacKey},
+    crypto::{self, HandshakeTokenKey, HmacKey},
     endpoint::TransportConfig,
     shared::ConnectionId,
     ConnectionIdGenerator, RandomConnectionIdGenerator, VarInt, DEFAULT_SUPPORTED_VERSIONS,
@@ -81,7 +81,25 @@ impl ServerConfig {
     ///
     /// Uses a randomized handshake token key.
     pub fn with_crypto(crypto: Arc<dyn crypto::ServerConfig>) -> Self {
-        todo!()
+        let rng = &mut rand::thread_rng();
+        let mut master_key = [0u8; 64];
+        rng.fill_bytes(&mut master_key);
+        let master_key = ring::hkdf::Salt::new(ring::hkdf::HKDF_SHA256, &[]).extract(&master_key);
+
+        Self::new(crypto, Arc::new(master_key))
+    }
+
+    /// Create a default config with a particular handshake token key
+    pub fn new(
+        crypto: Arc<dyn crypto::ServerConfig>,
+        token_key: Arc<dyn HandshakeTokenKey>,
+    ) -> Self {
+        Self {
+            migration: true,
+
+            incoming_buffer_size: 10 << 20,
+            incoming_buffer_size_total: 100 << 20,
+        }
     }
 }
 

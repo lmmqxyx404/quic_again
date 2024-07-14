@@ -21,3 +21,17 @@ impl From<ring::error::Unspecified> for CryptoError {
         Self
     }
 }
+
+impl crypto::HandshakeTokenKey for hkdf::Prk {
+    fn aead_from_hkdf(&self, random_bytes: &[u8]) -> Box<dyn crypto::AeadKey> {
+        let mut key_buffer = [0u8; 32];
+        let info = [random_bytes];
+        let okm = self.expand(&info, hkdf::HKDF_SHA256).unwrap();
+
+        okm.fill(&mut key_buffer).unwrap();
+
+        let key = aead::UnboundKey::new(&aead::AES_256_GCM, &key_buffer).unwrap();
+        todo!()
+        // Box::new(aead::LessSafeKey::new(key))
+    }
+}
