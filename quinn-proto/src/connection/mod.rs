@@ -8,17 +8,10 @@ use std::{
 };
 
 use crate::{
-    config::{EndpointConfig, ServerConfig},
-    crypto::{self, KeyPair, Keys, PacketKey},
-    endpoint::TransportConfig,
-    frame::{self, Close, Frame},
-    packet::{Header, InitialHeader, LongType, Packet, PartialDecode, SpaceId},
-    shared::{
+    config::{EndpointConfig, ServerConfig}, crypto::{self, KeyPair, Keys, PacketKey}, endpoint::TransportConfig, frame::{self, Close, Frame}, packet::{Header, InitialHeader, LongType, Packet, PartialDecode, SpaceId}, shared::{
         ConnectionEvent, ConnectionEventInner, ConnectionId, DatagramConnectionEvent, EcnCodepoint,
         EndpointEvent, EndpointEventInner,
-    },
-    transport_parameters::TransportParameters,
-    ConnectionIdGenerator, Side, TransportError,
+    }, transport_parameters::TransportParameters, ConnectionIdGenerator, Side, Transmit, TransportError
 };
 use bytes::{Bytes, BytesMut};
 
@@ -742,6 +735,24 @@ impl Connection {
     #[must_use]
     pub fn poll_endpoint_events(&mut self) -> Option<EndpointEvent> {
         self.endpoint_events.pop_front().map(EndpointEvent)
+    }
+    /// 24. Returns packets to transmit
+    ///
+    /// Connections should be polled for transmit after:
+    /// - the application performed some I/O on the connection
+    /// - a call was made to `handle_event`
+    /// - a call was made to `handle_timeout`
+    ///
+    /// `max_datagrams` specifies how many datagrams can be returned inside a
+    /// single Transmit using GSO. This must be at least 1.
+    #[must_use]
+    pub fn poll_transmit(
+        &mut self,
+        now: Instant,
+        max_datagrams: usize,
+        buf: &mut Vec<u8>,
+    ) -> Option<Transmit> {
+        todo!()
     }
 }
 

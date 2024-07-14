@@ -9,7 +9,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use bytes::BytesMut;
+use bytes::{Bytes, BytesMut};
 use lazy_static::lazy_static;
 use rustls::{
     client::WebPkiServerVerifier,
@@ -24,7 +24,7 @@ use crate::{
     crypto::rustls::{QuicClientConfig, QuicServerConfig},
     endpoint::{ConnectionHandle, DatagramEvent},
     shared::{ConnectionEvent, EcnCodepoint, EndpointEvent},
-    Endpoint,
+    Endpoint, Transmit,
 };
 
 pub(super) fn client_config() -> ClientConfig {
@@ -229,6 +229,8 @@ pub(super) struct TestEndpoint {
     timeout: Option<Instant>,
     /// 7
     conn_events: HashMap<ConnectionHandle, VecDeque<ConnectionEvent>>,
+    /// 8.
+    pub(super) outbound: VecDeque<(Transmit, Bytes)>,
 }
 
 impl TestEndpoint {
@@ -251,6 +253,7 @@ impl TestEndpoint {
             inbound: VecDeque::new(),
             timeout: None,
             conn_events: HashMap::default(),
+            outbound: VecDeque::new(),
         }
     }
     /// 2
@@ -321,6 +324,11 @@ impl TestEndpoint {
                     endpoint_events.push((*ch, event));
                 }
 
+                while let Some(transmit) = conn.poll_transmit(now, MAX_DATAGRAMS, &mut buf) {
+                    let size = transmit.size;
+                    self.outbound.extend(split_transmit(transmit, &buf[..size]));
+                    buf.clear();
+                }
                 todo!()
             }
         }
@@ -338,4 +346,34 @@ impl ::std::ops::DerefMut for TestEndpoint {
     fn deref_mut(&mut self) -> &mut Endpoint {
         &mut self.endpoint
     }
+}
+
+/// The maximum of datagrams TestEndpoint will produce via `poll_transmit`
+const MAX_DATAGRAMS: usize = 10;
+
+fn split_transmit(transmit: Transmit, buffer: &[u8]) -> Vec<(Transmit, Bytes)> {
+    let mut buffer = Bytes::copy_from_slice(buffer);
+    let segment_size = match transmit.segment_size {
+        Some(segment_size) => segment_size,
+        _ => return vec![(transmit, buffer)],
+    };
+
+    let mut transmits = Vec::new();
+    while !buffer.is_empty() {
+        let end = segment_size.min(buffer.len());
+
+        let contents = buffer.split_to(end);
+        transmits.push((
+            Transmit {
+                destination: transmit.destination,
+                size: contents.len(),
+                ecn: transmit.ecn,
+                segment_size: None,
+                src_ip: transmit.src_ip,
+            },
+            contents,
+        ));
+    }
+
+    transmits
 }
