@@ -4,7 +4,8 @@ use crate::{
     config::EndpointConfig,
     connection::{ConnectionError, Event},
     endpoint::DatagramEvent,
-    ConnectionIdGenerator, Endpoint, RandomConnectionIdGenerator,
+    ConnectionIdGenerator, Endpoint, RandomConnectionIdGenerator, Transmit,
+    DEFAULT_SUPPORTED_VERSIONS,
 };
 
 mod util;
@@ -34,7 +35,15 @@ fn version_negotiate_server() {
         &mut buf,
     );
 
-    todo!()
+    let Some(DatagramEvent::Response(Transmit { .. })) = event else {
+        panic!("expected a response");
+    };
+
+    assert_ne!(buf[0] & 0x80, 0);
+    assert_eq!(&buf[1..15], hex!("00000000 04 00000000 04 00000000"));
+    assert!(buf[15..].chunks(4).any(|x| {
+        DEFAULT_SUPPORTED_VERSIONS.contains(&u32::from_be_bytes(x.try_into().unwrap()))
+    }));
 }
 
 #[test]

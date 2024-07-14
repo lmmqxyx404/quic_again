@@ -7,8 +7,10 @@ pub mod coding;
 // 3. because 2 needs the varint.
 mod varint;
 
+use std::net::{IpAddr, SocketAddr};
 use std::time::Duration;
 
+use shared::EcnCodepoint;
 pub use varint::{VarInt, VarIntBoundsExceeded};
 
 // 4. generate connection id
@@ -105,3 +107,20 @@ impl Dir {
 #[cfg_attr(feature = "arbitrary", derive(Arbitrary))]
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct StreamId(#[doc(hidden)] pub u64);
+
+/// An outgoing packet
+#[derive(Debug)]
+#[must_use]
+pub struct Transmit {
+    /// The socket this datagram should be sent to
+    pub destination: SocketAddr,
+    /// Explicit congestion notification bits to set on the packet
+    pub ecn: Option<EcnCodepoint>,
+    /// Amount of data written to the caller-supplied buffer
+    pub size: usize,
+    /// The segment size if this transmission contains multiple datagrams.
+    /// This is `None` if the transmit only contains a single datagram
+    pub segment_size: Option<usize>,
+    /// Optional source IP address for the datagram
+    pub src_ip: Option<IpAddr>,
+}

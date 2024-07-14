@@ -23,7 +23,7 @@ use crate::{
     },
     token::ResetToken,
     transport_parameters::TransportParameters,
-    ConnectionIdGenerator, Side, VarInt, RESET_TOKEN_SIZE,
+    ConnectionIdGenerator, Side, Transmit, VarInt, RESET_TOKEN_SIZE,
 };
 
 /// 1. The main entry point to the library
@@ -495,23 +495,6 @@ pub enum DatagramEvent {
     // NewConnection(Incoming),
     /// 1. Response generated directly by the endpoint
     Response(Transmit),
-}
-
-/// An outgoing packet
-#[derive(Debug)]
-#[must_use]
-pub struct Transmit {
-    /// The socket this datagram should be sent to
-    pub destination: SocketAddr,
-    /// Explicit congestion notification bits to set on the packet
-    pub ecn: Option<EcnCodepoint>,
-    /// Amount of data written to the caller-supplied buffer
-    pub size: usize,
-    /// The segment size if this transmission contains multiple datagrams.
-    /// This is `None` if the transmit only contains a single datagram
-    pub segment_size: Option<usize>,
-    /// Optional source IP address for the datagram
-    pub src_ip: Option<IpAddr>,
 }
 
 /// Part of protocol state incoming datagrams can be routed to
