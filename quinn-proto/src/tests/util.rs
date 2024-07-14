@@ -1,7 +1,10 @@
 use std::{
     io::{self, Write},
+    net::{Ipv6Addr, SocketAddr},
+    ops::RangeFrom,
     str,
-    sync::Arc,
+    sync::{Arc, Mutex},
+    time::Instant,
 };
 
 use lazy_static::lazy_static;
@@ -12,8 +15,9 @@ use rustls::{
 };
 
 use crate::{
-    config::{ClientConfig, ServerConfig},
+    config::{ClientConfig, EndpointConfig, ServerConfig},
     crypto::rustls::{QuicClientConfig, QuicServerConfig},
+    Endpoint,
 };
 
 pub(super) fn client_config() -> ClientConfig {
@@ -45,6 +49,8 @@ fn client_crypto_inner(
 }
 
 lazy_static! {
+    pub static ref SERVER_PORTS: Mutex<RangeFrom<u16>> = Mutex::new(4433..);
+    pub static ref CLIENT_PORTS: Mutex<RangeFrom<u16>> = Mutex::new(44433..);
     pub(crate) static ref CERTIFIED_KEY: rcgen::CertifiedKey =
         rcgen::generate_simple_self_signed(vec!["localhost".into()]).unwrap();
 }
@@ -95,4 +101,39 @@ fn server_crypto_inner(
     }
 
     config.try_into().unwrap()
+}
+
+pub(super) struct Pair {}
+
+impl Pair {
+    pub(super) fn new(endpoint_config: Arc<EndpointConfig>, server_config: ServerConfig) -> Self {
+        let server = Endpoint::new(
+            endpoint_config.clone(),
+            Some(Arc::new(server_config)),
+            true,
+            None,
+        );
+        let client = Endpoint::new(endpoint_config, None, true, None);
+
+        Self::new_from_endpoint(client, server)
+    }
+
+    pub(super) fn new_from_endpoint(client: Endpoint, server: Endpoint) -> Self {
+        let server_addr = SocketAddr::new(
+            Ipv6Addr::LOCALHOST.into(),
+            SERVER_PORTS.lock().unwrap().next().unwrap(),
+        );
+        let client_addr = SocketAddr::new(
+            Ipv6Addr::LOCALHOST.into(),
+            CLIENT_PORTS.lock().unwrap().next().unwrap(),
+        );
+        let now = Instant::now();
+        Self {}
+    }
+}
+
+impl Default for Pair {
+    fn default() -> Self {
+        Self::new(Default::default(), server_config())
+    }
 }

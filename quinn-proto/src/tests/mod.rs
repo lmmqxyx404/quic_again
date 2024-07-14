@@ -93,3 +93,12 @@ fn version_negotiate_client() {
         })
     );
 }
+
+
+#[test]
+fn lifecycle() {
+    let _guard = subscribe();
+    let mut pair = Pair::default();
+
+    todo!()
+}
