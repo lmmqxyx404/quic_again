@@ -713,6 +713,17 @@ impl Connection {
 
         None
     }
+
+    /// Whether no timers but keepalive, idle, rtt and pushnewcid are running
+    #[cfg(test)]
+    pub(crate) fn is_idle(&self) -> bool {
+        Timer::VALUES
+            .iter()
+            .filter(|&&t| t != Timer::KeepAlive && t != Timer::PushNewCid)
+            .filter_map(|&t| Some((t, self.timers.get(t)?)))
+            .min_by_key(|&(_, time)| time)
+            .map_or(true, |(timer, _)| timer == Timer::Idle)
+    }
 }
 
 #[allow(unreachable_pub)] // fuzzing only

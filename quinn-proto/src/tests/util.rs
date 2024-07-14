@@ -181,10 +181,24 @@ impl Pair {
     }
     /// 7. Returns whether the connection is not idle
     pub(super) fn step(&mut self) -> bool {
+        self.drive_client();
+        self.drive_server();
+        if self.client.is_idle() && self.server.is_idle() {
+            return false;
+        }
+
         todo!()
     }
     /// 8.
     fn finish_connect(&mut self, client_ch: ConnectionHandle, server_ch: ConnectionHandle) {
+        todo!()
+    }
+    /// 9
+    pub(super) fn drive_client(&mut self) {
+        todo!()
+    }
+    /// 10
+    pub(super) fn drive_server(&mut self) {
         todo!()
     }
 }
@@ -225,6 +239,10 @@ impl TestEndpoint {
     /// 2
     pub(super) fn assert_accept(&mut self) -> ConnectionHandle {
         todo!()
+    }
+    /// 3
+    fn is_idle(&self) -> bool {
+        self.connections.values().all(|x| x.is_idle())
     }
 }
 
