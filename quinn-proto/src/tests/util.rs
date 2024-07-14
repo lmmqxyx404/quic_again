@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     env,
     io::{self, Write},
     net::{Ipv6Addr, SocketAddr, UdpSocket},
@@ -18,6 +19,7 @@ use tracing::{info, info_span};
 
 use crate::{
     config::{ClientConfig, EndpointConfig, ServerConfig},
+    connection::Connection,
     crypto::rustls::{QuicClientConfig, QuicServerConfig},
     endpoint::ConnectionHandle,
     Endpoint,
@@ -109,6 +111,8 @@ fn server_crypto_inner(
 pub(super) struct Pair {
     pub(super) server: TestEndpoint,
     pub(super) client: TestEndpoint,
+    /// Current time
+    pub(super) time: Instant,
 }
 
 impl Pair {
@@ -138,6 +142,7 @@ impl Pair {
         Self {
             server: TestEndpoint::new(server, server_addr),
             client: TestEndpoint::new(client, client_addr),
+            time: now,
         }
     }
     /// 3
@@ -161,13 +166,13 @@ impl Pair {
     pub(super) fn begin_connect(&mut self, config: ClientConfig) -> ConnectionHandle {
         let span = info_span!("client");
         let _guard = span.enter();
-        todo!()
-        /* let (client_ch, client_conn) = self
+
+        let (client_ch, client_conn) = self
             .client
             .connect(self.time, config, self.server.addr, "localhost")
             .unwrap();
         self.client.connections.insert(client_ch, client_conn);
-        client_ch  */
+        client_ch
     }
 
     /// 6.Advance time until both connections are idle
@@ -190,7 +195,14 @@ impl Default for Pair {
     }
 }
 
-pub(super) struct TestEndpoint {}
+pub(super) struct TestEndpoint {
+    /// 1
+    pub(super) endpoint: Endpoint,
+    /// 2
+    pub(super) addr: SocketAddr,
+    /// 3
+    pub(super) connections: HashMap<ConnectionHandle, Connection>,
+}
 
 impl TestEndpoint {
     /// 1
@@ -204,10 +216,27 @@ impl TestEndpoint {
         } else {
             None
         };
-        Self {}
+        Self {
+            endpoint,
+            addr,
+            connections: HashMap::default(),
+        }
     }
     /// 2
     pub(super) fn assert_accept(&mut self) -> ConnectionHandle {
         todo!()
+    }
+}
+
+impl ::std::ops::Deref for TestEndpoint {
+    type Target = Endpoint;
+    fn deref(&self) -> &Endpoint {
+        &self.endpoint
+    }
+}
+
+impl ::std::ops::DerefMut for TestEndpoint {
+    fn deref_mut(&mut self) -> &mut Endpoint {
+        &mut self.endpoint
     }
 }

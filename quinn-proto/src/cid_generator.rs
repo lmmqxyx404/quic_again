@@ -1,3 +1,4 @@
+use std::hash::Hasher;
 use std::time::Duration;
 
 use rand::{Rng, RngCore};
@@ -111,7 +112,13 @@ impl Default for HashedConnectionIdGenerator {
 
 impl ConnectionIdGenerator for HashedConnectionIdGenerator {
     fn generate_cid(&mut self) -> ConnectionId {
-        todo!()
+        let mut bytes_arr = [0; NONCE_LEN + SIGNATURE_LEN];
+        rand::thread_rng().fill_bytes(&mut bytes_arr[..NONCE_LEN]);
+        let mut hasher = rustc_hash::FxHasher::default();
+        hasher.write_u64(self.key);
+        hasher.write(&bytes_arr[..NONCE_LEN]);
+        bytes_arr[NONCE_LEN..].copy_from_slice(&hasher.finish().to_le_bytes()[..SIGNATURE_LEN]);
+        ConnectionId::new(&bytes_arr)
     }
 
     fn cid_len(&self) -> usize {
@@ -119,7 +126,7 @@ impl ConnectionIdGenerator for HashedConnectionIdGenerator {
     }
 
     fn cid_lifetime(&self) -> Option<Duration> {
-        todo!()
+        self.lifetime
     }
 }
 
