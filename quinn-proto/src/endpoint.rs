@@ -14,7 +14,7 @@ use tracing::{debug, trace};
 
 use crate::{
     coding::BufMutExt,
-    config::{ClientConfig, EndpointConfig, ServerConfig},
+    config::{ClientConfig, EndpointConfig, MtuDiscoveryConfig, ServerConfig},
     connection::Connection,
     crypto,
     packet::{FixedLengthConnectionIdParser, Header, PacketDecodeError, PartialDecode},
@@ -23,7 +23,7 @@ use crate::{
     },
     token::ResetToken,
     transport_parameters::TransportParameters,
-    ConnectionIdGenerator, Side, Transmit, VarInt, RESET_TOKEN_SIZE,
+    ConnectionIdGenerator, Side, Transmit, VarInt, INITIAL_MTU, RESET_TOKEN_SIZE,
 };
 
 /// 1. The main entry point to the library
@@ -456,6 +456,17 @@ pub struct TransportConfig {
     pub(crate) send_window: u64,
     /// 7.
     pub(crate) enable_segmentation_offload: bool,
+    /// 8.
+    pub(crate) mtu_discovery_config: Option<MtuDiscoveryConfig>,
+    /// 9.
+    pub(crate) min_mtu: u16,
+}
+
+impl TransportConfig {
+    pub(crate) fn get_initial_mtu(&self) -> u16 {
+        todo!()
+        // self.initial_mtu.max(self.min_mtu)
+    }
 }
 
 impl Default for TransportConfig {
@@ -475,6 +486,9 @@ impl Default for TransportConfig {
             send_window: (8 * STREAM_RWND).into(),
 
             enable_segmentation_offload: true,
+
+            min_mtu: INITIAL_MTU,
+            mtu_discovery_config: Some(MtuDiscoveryConfig::default()),
         }
     }
 }

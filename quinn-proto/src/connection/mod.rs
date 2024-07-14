@@ -53,6 +53,9 @@ pub use streams::StreamsState;
 #[cfg(not(fuzzing))]
 use streams::StreamsState;
 
+/// 9
+mod mtud;
+
 // #[cfg(fuzzing)]
 // pub use spaces::Retransmits;
 
@@ -767,6 +770,11 @@ impl Connection {
             false => 1,
             true => max_datagrams.min(MAX_TRANSMIT_SEGMENTS),
         };
+        let mut num_datagrams = 0;
+        // Position in `buf` of the first byte of the current UDP datagram. When coalescing QUIC
+        // packets, this can be earlier than the start of the current QUIC packet.
+        let mut datagram_start = 0;
+        let mut segment_size = usize::from(self.path.current_mtu());
         todo!()
     }
 }

@@ -52,6 +52,8 @@ const MAX_CID_SIZE: usize = 20;
 const RESET_TOKEN_SIZE: usize = 16;
 /// 3.
 const TIMER_GRANULARITY: Duration = Duration::from_millis(1);
+/// 4. <https://www.rfc-editor.org/rfc/rfc9000.html#name-datagram-size>
+const INITIAL_MTU: u16 = 1200;
 
 /// Whether an endpoint was the initiator of a connection
 #[cfg_attr(feature = "arbitrary", derive(Arbitrary))]
