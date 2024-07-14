@@ -195,6 +195,9 @@ impl Pair {
     }
     /// 9
     pub(super) fn drive_client(&mut self) {
+        let span = info_span!("client");
+        let _guard = span.enter();
+        self.client.drive(self.time, self.server.addr);
         todo!()
     }
     /// 10
@@ -243,6 +246,19 @@ impl TestEndpoint {
     /// 3
     fn is_idle(&self) -> bool {
         self.connections.values().all(|x| x.is_idle())
+    }
+    /// 4
+    pub(super) fn drive(&mut self, now: Instant, remote: SocketAddr) {
+        self.drive_incoming(now, remote);
+        self.drive_outgoing(now);
+    }
+    /// 5
+    pub(super) fn drive_incoming(&mut self, now: Instant, remote: SocketAddr) {
+        todo!()
+    }
+    /// 6
+    pub(super) fn drive_outgoing(&mut self, now: Instant) {
+        todo!()
     }
 }
 
