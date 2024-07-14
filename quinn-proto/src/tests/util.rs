@@ -1,10 +1,11 @@
 use std::{
+    env,
     io::{self, Write},
-    net::{Ipv6Addr, SocketAddr},
+    net::{Ipv6Addr, SocketAddr, UdpSocket},
     ops::RangeFrom,
     str,
     sync::{Arc, Mutex},
-    time::Instant,
+    time::{Duration, Instant},
 };
 
 use lazy_static::lazy_static;
@@ -13,10 +14,12 @@ use rustls::{
     pki_types::{CertificateDer, PrivateKeyDer},
     KeyLogFile,
 };
+use tracing::{info, info_span};
 
 use crate::{
     config::{ClientConfig, EndpointConfig, ServerConfig},
     crypto::rustls::{QuicClientConfig, QuicServerConfig},
+    endpoint::ConnectionHandle,
     Endpoint,
 };
 
@@ -103,9 +106,13 @@ fn server_crypto_inner(
     config.try_into().unwrap()
 }
 
-pub(super) struct Pair {}
+pub(super) struct Pair {
+    pub(super) server: TestEndpoint,
+    pub(super) client: TestEndpoint,
+}
 
 impl Pair {
+    /// 1
     pub(super) fn new(endpoint_config: Arc<EndpointConfig>, server_config: ServerConfig) -> Self {
         let server = Endpoint::new(
             endpoint_config.clone(),
@@ -117,7 +124,7 @@ impl Pair {
 
         Self::new_from_endpoint(client, server)
     }
-
+    /// 2
     pub(super) fn new_from_endpoint(client: Endpoint, server: Endpoint) -> Self {
         let server_addr = SocketAddr::new(
             Ipv6Addr::LOCALHOST.into(),
@@ -128,12 +135,79 @@ impl Pair {
             CLIENT_PORTS.lock().unwrap().next().unwrap(),
         );
         let now = Instant::now();
-        Self {}
+        Self {
+            server: TestEndpoint::new(server, server_addr),
+            client: TestEndpoint::new(client, client_addr),
+        }
+    }
+    /// 3
+    pub(super) fn connect(&mut self) -> (ConnectionHandle, ConnectionHandle) {
+        self.connect_with(client_config())
+    }
+    /// 4
+    pub(super) fn connect_with(
+        &mut self,
+        config: ClientConfig,
+    ) -> (ConnectionHandle, ConnectionHandle) {
+        info!("connecting");
+        let client_ch = self.begin_connect(config);
+        self.drive();
+        let server_ch = self.server.assert_accept();
+        self.finish_connect(client_ch, server_ch);
+        (client_ch, server_ch)
+    }
+
+    /// 5. Just start connecting the client
+    pub(super) fn begin_connect(&mut self, config: ClientConfig) -> ConnectionHandle {
+        let span = info_span!("client");
+        let _guard = span.enter();
+        todo!()
+        /* let (client_ch, client_conn) = self
+            .client
+            .connect(self.time, config, self.server.addr, "localhost")
+            .unwrap();
+        self.client.connections.insert(client_ch, client_conn);
+        client_ch  */
+    }
+
+    /// 6.Advance time until both connections are idle
+    pub(super) fn drive(&mut self) {
+        while self.step() {}
+    }
+    /// 7. Returns whether the connection is not idle
+    pub(super) fn step(&mut self) -> bool {
+        todo!()
+    }
+    /// 8.
+    fn finish_connect(&mut self, client_ch: ConnectionHandle, server_ch: ConnectionHandle) {
+        todo!()
     }
 }
 
 impl Default for Pair {
     fn default() -> Self {
         Self::new(Default::default(), server_config())
+    }
+}
+
+pub(super) struct TestEndpoint {}
+
+impl TestEndpoint {
+    /// 1
+    fn new(endpoint: Endpoint, addr: SocketAddr) -> Self {
+        let socket = if env::var_os("SSLKEYLOGFILE").is_some() {
+            let socket = UdpSocket::bind(addr).expect("failed to bind UDP socket");
+            socket
+                .set_read_timeout(Some(Duration::new(0, 10_000_000)))
+                .unwrap();
+            Some(socket)
+        } else {
+            None
+        };
+        Self {}
+    }
+    /// 2
+    pub(super) fn assert_accept(&mut self) -> ConnectionHandle {
+        todo!()
     }
 }

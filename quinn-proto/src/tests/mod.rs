@@ -99,6 +99,7 @@ fn version_negotiate_client() {
 fn lifecycle() {
     let _guard = subscribe();
     let mut pair = Pair::default();
+    let (client_ch, server_ch) = pair.connect();
 
     todo!()
 }
