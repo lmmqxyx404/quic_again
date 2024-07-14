@@ -15,7 +15,7 @@ use crate::{
     packet::{Header, InitialHeader, LongType, Packet, PartialDecode, SpaceId},
     shared::{
         ConnectionEvent, ConnectionEventInner, ConnectionId, DatagramConnectionEvent, EcnCodepoint,
-        EndpointEventInner,
+        EndpointEvent, EndpointEventInner,
     },
     transport_parameters::TransportParameters,
     ConnectionIdGenerator, Side, TransportError,
@@ -736,6 +736,12 @@ impl Connection {
     /// no-op and therefore are safe.
     pub fn handle_timeout(&mut self, now: Instant) {
         todo!()
+    }
+
+    /// 23. Return endpoint-facing events
+    #[must_use]
+    pub fn poll_endpoint_events(&mut self) -> Option<EndpointEvent> {
+        self.endpoint_events.pop_front().map(EndpointEvent)
     }
 }
 

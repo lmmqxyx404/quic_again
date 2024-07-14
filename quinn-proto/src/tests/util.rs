@@ -23,7 +23,7 @@ use crate::{
     connection::Connection,
     crypto::rustls::{QuicClientConfig, QuicServerConfig},
     endpoint::{ConnectionHandle, DatagramEvent},
-    shared::{EcnCodepoint, EndpointEvent},
+    shared::{ConnectionEvent, EcnCodepoint, EndpointEvent},
     Endpoint,
 };
 
@@ -227,6 +227,8 @@ pub(super) struct TestEndpoint {
     pub(super) inbound: VecDeque<(Instant, Option<EcnCodepoint>, BytesMut)>,
     /// 6.
     timeout: Option<Instant>,
+    /// 7
+    conn_events: HashMap<ConnectionHandle, VecDeque<ConnectionEvent>>,
 }
 
 impl TestEndpoint {
@@ -248,6 +250,7 @@ impl TestEndpoint {
             socket,
             inbound: VecDeque::new(),
             timeout: None,
+            conn_events: HashMap::default(),
         }
     }
     /// 2
@@ -307,6 +310,17 @@ impl TestEndpoint {
                     self.timeout = None;
                     conn.handle_timeout(now);
                 }
+
+                for (_, mut events) in self.conn_events.drain() {
+                    for event in events.drain(..) {
+                        conn.handle_event(event);
+                    }
+                }
+
+                while let Some(event) = conn.poll_endpoint_events() {
+                    endpoint_events.push((*ch, event));
+                }
+
                 todo!()
             }
         }
