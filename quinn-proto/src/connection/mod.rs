@@ -714,7 +714,7 @@ impl Connection {
         None
     }
 
-    /// Whether no timers but keepalive, idle, rtt and pushnewcid are running
+    /// 21. Whether no timers but keepalive, idle, rtt and pushnewcid are running
     #[cfg(test)]
     pub(crate) fn is_idle(&self) -> bool {
         Timer::VALUES
@@ -723,6 +723,19 @@ impl Connection {
             .filter_map(|&t| Some((t, self.timers.get(t)?)))
             .min_by_key(|&(_, time)| time)
             .map_or(true, |(timer, _)| timer == Timer::Idle)
+    }
+
+    /// 22. Process timer expirations
+    ///
+    /// Executes protocol logic, potentially preparing signals (including application `Event`s,
+    /// `EndpointEvent`s and outgoing datagrams) that should be extracted through the relevant
+    /// methods.
+    ///
+    /// It is most efficient to call this immediately after the system clock reaches the latest
+    /// `Instant` that was output by `poll_timeout`; however spurious extra calls will simply
+    /// no-op and therefore are safe.
+    pub fn handle_timeout(&mut self, now: Instant) {
+        todo!()
     }
 }
 

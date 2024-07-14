@@ -23,7 +23,7 @@ use crate::{
     connection::Connection,
     crypto::rustls::{QuicClientConfig, QuicServerConfig},
     endpoint::{ConnectionHandle, DatagramEvent},
-    shared::EcnCodepoint,
+    shared::{EcnCodepoint, EndpointEvent},
     Endpoint,
 };
 
@@ -225,6 +225,8 @@ pub(super) struct TestEndpoint {
     socket: Option<UdpSocket>,
     /// 5
     pub(super) inbound: VecDeque<(Instant, Option<EcnCodepoint>, BytesMut)>,
+    /// 6.
+    timeout: Option<Instant>,
 }
 
 impl TestEndpoint {
@@ -245,6 +247,7 @@ impl TestEndpoint {
             connections: HashMap::default(),
             socket,
             inbound: VecDeque::new(),
+            timeout: None,
         }
     }
     /// 2
@@ -294,7 +297,19 @@ impl TestEndpoint {
     }
     /// 6
     pub(super) fn drive_outgoing(&mut self, now: Instant) {
-        todo!()
+        let buffer_size = self.endpoint.config().get_max_udp_payload_size() as usize;
+        let mut buf: Vec<u8> = Vec::with_capacity(buffer_size);
+
+        loop {
+            let mut endpoint_events: Vec<(ConnectionHandle, EndpointEvent)> = vec![];
+            for (ch, conn) in self.connections.iter_mut() {
+                if self.timeout.map_or(false, |x| x <= now) {
+                    self.timeout = None;
+                    conn.handle_timeout(now);
+                }
+                todo!()
+            }
+        }
     }
 }
 

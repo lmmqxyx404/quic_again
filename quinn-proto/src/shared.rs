@@ -131,3 +131,7 @@ pub(crate) enum EndpointEventInner {
     /// 1. The connection has been drained
     Drained,
 }
+
+/// Events sent from a Connection to an Endpoint
+#[derive(Debug)]
+pub struct EndpointEvent(pub(crate) EndpointEventInner);
