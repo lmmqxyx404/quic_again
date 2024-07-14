@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, VecDeque},
     env,
     io::{self, Write},
     net::{Ipv6Addr, SocketAddr, UdpSocket},
@@ -9,6 +9,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+use bytes::BytesMut;
 use lazy_static::lazy_static;
 use rustls::{
     client::WebPkiServerVerifier,
@@ -21,7 +22,8 @@ use crate::{
     config::{ClientConfig, EndpointConfig, ServerConfig},
     connection::Connection,
     crypto::rustls::{QuicClientConfig, QuicServerConfig},
-    endpoint::ConnectionHandle,
+    endpoint::{ConnectionHandle, DatagramEvent},
+    shared::EcnCodepoint,
     Endpoint,
 };
 
@@ -219,6 +221,10 @@ pub(super) struct TestEndpoint {
     pub(super) addr: SocketAddr,
     /// 3
     pub(super) connections: HashMap<ConnectionHandle, Connection>,
+    /// 4.
+    socket: Option<UdpSocket>,
+    /// 5
+    pub(super) inbound: VecDeque<(Instant, Option<EcnCodepoint>, BytesMut)>,
 }
 
 impl TestEndpoint {
@@ -237,6 +243,8 @@ impl TestEndpoint {
             endpoint,
             addr,
             connections: HashMap::default(),
+            socket,
+            inbound: VecDeque::new(),
         }
     }
     /// 2
@@ -254,7 +262,35 @@ impl TestEndpoint {
     }
     /// 5
     pub(super) fn drive_incoming(&mut self, now: Instant, remote: SocketAddr) {
-        todo!()
+        if let Some(ref socket) = self.socket {
+            loop {
+                let mut buf = [0; 8192];
+                if socket.recv_from(&mut buf).is_err() {
+                    break;
+                }
+            }
+        }
+        let buffer_size = self.endpoint.config().get_max_udp_payload_size() as usize;
+        let mut buf = Vec::with_capacity(buffer_size);
+        while self.inbound.front().map_or(false, |x| x.0 <= now) {
+            let (recv_time, ecn, packet) = self.inbound.pop_front().unwrap();
+            if let Some(event) = self
+                .endpoint
+                .handle(recv_time, remote, None, ecn, packet, &mut buf)
+            {
+                match event {
+                    DatagramEvent::NewConnection(incoming) => {
+                        todo!()
+                    }
+                    DatagramEvent::ConnectionEvent(ch, event) => {
+                        todo!()
+                    }
+                    DatagramEvent::Response(transmit) => {
+                        todo!()
+                    }
+                }
+            }
+        }
     }
     /// 6
     pub(super) fn drive_outgoing(&mut self, now: Instant) {

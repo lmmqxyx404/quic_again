@@ -491,8 +491,8 @@ struct FourTuple {
 pub enum DatagramEvent {
     /// 2. The datagram is redirected to its `Connection`
     ConnectionEvent(ConnectionHandle, ConnectionEvent),
-    // The datagram may result in starting a new `Connection`
-    // NewConnection(Incoming),
+    /// 3. The datagram may result in starting a new `Connection`
+    NewConnection(Incoming),
     /// 1. Response generated directly by the endpoint
     Response(Transmit),
 }
@@ -524,3 +524,6 @@ impl ResetTokenTable {
         self.0.get(&remote)?.get(&token)
     }
 }
+
+/// An incoming connection for which the server has not yet begun its part of the handshake.
+pub struct Incoming {}
