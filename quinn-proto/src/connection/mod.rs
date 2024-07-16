@@ -27,13 +27,14 @@ use packet_crypto::{PrevCrypto, ZeroRttCrypto};
 use paths::PathData;
 /// 2.
 mod stats;
+use rand::{rngs::StdRng, SeedableRng};
 pub use stats::ConnectionStats;
 /// 3.
 mod cid_state;
 use cid_state::CidState;
 /// 4.
 mod spaces;
-use spaces::PacketSpace;
+use spaces::{PacketNumberFilter, PacketSpace};
 /// 5.
 mod timer;
 use thiserror::Error;
@@ -159,6 +160,8 @@ pub struct Connection {
     /// 26. Whether the last `poll_transmit` call yielded no data because there was
     /// no outgoing application data.
     app_limited: bool,
+    /// 27. Identifies Data-space packet numbers to skip. Not used in earlier spaces.
+    packet_number_filter: PacketNumberFilter,
 }
 
 impl Connection {
@@ -196,7 +199,15 @@ impl Connection {
             client_hello: None,
         });
 
+        let mut rng = StdRng::from_seed(rng_seed);
         let mut this = Self {
+            #[cfg(test)]
+            packet_number_filter: match config.deterministic_packet_numbers {
+                false => PacketNumberFilter::new(&mut rng),
+                true => PacketNumberFilter::disabled(),
+            },
+            #[cfg(not(test))]
+            packet_number_filter: PacketNumberFilter::new(&mut rng),
             path: PathData::new(remote, allow_mtud, None, now, path_validated, &config),
             server_config,
             stats: ConnectionStats::default(),
@@ -843,6 +854,18 @@ impl Connection {
         // This loop will potentially spend multiple iterations in the same `SpaceId`,
         // so we cannot trivially rewrite it to take advantage of `SpaceId::iter()`.
         while space_idx < spaces.len() {
+            let space_id = spaces[space_idx];
+            // Number of bytes available for frames if this is a 1-RTT packet. We're guaranteed to
+            // be able to send an individual frame at least this large in the next 1-RTT
+            // packet. This could be generalized to support every space, but it's only needed to
+            // handle large fixed-size frames, which only exist in 1-RTT (application datagrams). We
+            // don't account for coalesced packets potentially occupying space because frames can
+            // always spill into the next datagram.
+            let pn = self
+                .packet_number_filter
+                .peek(&self.spaces[SpaceId::Data as usize]);
+            let frame_space_1rtt =
+                segment_size.saturating_sub(self.predict_1rtt_overhead(Some(pn)));
             todo!()
         }
 
@@ -851,6 +874,16 @@ impl Connection {
     /// 25
     fn peer_supports_ack_frequency(&self) -> bool {
         self.peer_params.min_ack_delay.is_some()
+    }
+
+    /// 26 Size of non-frame data for a 1-RTT packet
+    ///
+    /// Quantifies space consumed by the QUIC header and AEAD tag. All other bytes in a packet are
+    /// frames. Changes if the length of the remote connection ID changes, which is expected to be
+    /// rare. If `pn` is specified, may additionally change unpredictably due to variations in
+    /// latency and packet loss.
+    fn predict_1rtt_overhead(&self, pn: Option<u64>) -> usize {
+        todo!()
     }
 }
 

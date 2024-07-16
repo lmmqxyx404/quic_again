@@ -1,3 +1,5 @@
+use rand::Rng;
+
 use crate::frame;
 use crate::{crypto::Keys, shared::IssuedCid};
 use std::collections::VecDeque;
@@ -20,6 +22,9 @@ pub(super) struct PacketSpace {
     pub(super) loss_probes: u32,
     /// 6.
     pub(super) immediate_ack_pending: bool,
+    /// 7. The packet number of the next packet that will be sent, if any. In the Data space, the
+    /// packet number stored here is sometimes skipped by [`PacketNumberFilter`] logic.
+    pub(super) next_packet_number: u64,
 }
 
 impl PacketSpace {
@@ -33,6 +38,7 @@ impl PacketSpace {
             crypto_offset: 0,
             loss_probes: 0,
             immediate_ack_pending: false,
+            next_packet_number: 0,
         }
     }
 
@@ -154,5 +160,51 @@ impl Dedup {
     /// 3. Highest packet number authenticated.
     fn highest(&self) -> u64 {
         self.next - 1
+    }
+}
+
+/// Helper for mitigating [optimistic ACK attacks]
+///
+/// A malicious peer could prompt the local application to begin a large data transfer, and then
+/// send ACKs without first waiting for data to be received. This could defeat congestion control,
+/// allowing the connection to consume disproportionate resources. We therefore occasionally skip
+/// packet numbers, and classify any ACK referencing a skipped packet number as a transport error.
+///
+/// Skipped packet numbers occur only in the application data space (where costly transfers might
+/// take place) and are distributed exponentially to reflect the reduced likelihood and impact of
+/// bad behavior from a peer that has been well-behaved for an extended period.
+///
+/// ACKs for packet numbers that have not yet been allocated are also a transport error, but an
+/// attacker with knowledge of the congestion control algorithm in use could time falsified ACKs to
+/// arrive after the packets they reference are sent.
+///
+/// [optimistic ACK attacks]: https://www.rfc-editor.org/rfc/rfc9000.html#name-optimistic-ack-attack
+pub(super) struct PacketNumberFilter {
+    /// Next outgoing packet number to skip
+    next_skipped_packet_number: u64,
+}
+
+impl PacketNumberFilter {
+    pub(super) fn new(rng: &mut (impl Rng + ?Sized)) -> Self {
+        // First skipped PN is in 0..64
+        let exponent = 6;
+        Self {
+            next_skipped_packet_number: rng.gen_range(0..2u64.saturating_pow(exponent)),
+        }
+    }
+
+    #[cfg(test)]
+    pub(super) fn disabled() -> Self {
+        Self {
+            next_skipped_packet_number: u64::MAX,
+        }
+    }
+
+    pub(super) fn peek(&self, space: &PacketSpace) -> u64 {
+        let n = space.next_packet_number;
+        if n != self.next_skipped_packet_number {
+            return n;
+        }
+        n + 1
     }
 }

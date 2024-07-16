@@ -245,6 +245,9 @@ pub struct TransportConfig {
     pub(crate) initial_mtu: u16,
     /// 11.
     pub(crate) ack_frequency_config: Option<AckFrequencyConfig>,
+    /// 12.
+    #[cfg(test)]
+    pub(crate) deterministic_packet_numbers: bool,
 }
 
 impl TransportConfig {
@@ -276,6 +279,8 @@ impl Default for TransportConfig {
 
             initial_mtu: INITIAL_MTU,
             ack_frequency_config: None,
+            #[cfg(test)]
+            deterministic_packet_numbers: false,
         }
     }
 }
