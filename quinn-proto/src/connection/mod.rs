@@ -8,10 +8,11 @@ use std::{
 };
 
 use crate::{
+    cid_queue::CidQueue,
     config::{EndpointConfig, ServerConfig, TransportConfig},
     crypto::{self, KeyPair, Keys, PacketKey},
     frame::{self, Close, Frame},
-    packet::{Header, InitialHeader, LongType, Packet, PartialDecode, SpaceId},
+    packet::{Header, InitialHeader, LongType, Packet, PacketNumber, PartialDecode, SpaceId},
     shared::{
         ConnectionEvent, ConnectionEventInner, ConnectionId, DatagramConnectionEvent, EcnCodepoint,
         EndpointEvent, EndpointEventInner,
@@ -162,6 +163,8 @@ pub struct Connection {
     app_limited: bool,
     /// 27. Identifies Data-space packet numbers to skip. Not used in earlier spaces.
     packet_number_filter: PacketNumberFilter,
+    /// 28. Surplus remote CIDs for future use on new paths
+    rem_cids: CidQueue,
 }
 
 impl Connection {
@@ -249,6 +252,8 @@ impl Connection {
 
             prev_path: None,
             app_limited: false,
+
+            rem_cids: CidQueue::new(rem_cid),
         };
 
         if side.is_client() {
@@ -883,7 +888,31 @@ impl Connection {
     /// rare. If `pn` is specified, may additionally change unpredictably due to variations in
     /// latency and packet loss.
     fn predict_1rtt_overhead(&self, pn: Option<u64>) -> usize {
-        todo!()
+        let pn_len = match pn {
+            Some(pn) => PacketNumber::new(
+                pn,
+                self.spaces[SpaceId::Data as usize]
+                    .largest_acked_packet
+                    .unwrap_or(0),
+            )
+            .len(),
+            // Upper bound
+            None => 4,
+        };
+
+        // 1 byte for flags
+        1 + self.rem_cids.active().len() + pn_len + self.tag_len_1rtt()
+    }
+    /// 27
+    fn tag_len_1rtt(&self) -> usize {
+        let key = match self.spaces[SpaceId::Data as usize].crypto.as_ref() {
+            Some(crypto) => Some(&*crypto.packet.local),
+            None => self.zero_rtt_crypto.as_ref().map(|x| &*x.packet),
+        };
+        // If neither Data nor 0-RTT keys are available, make a reasonable tag length guess. As of
+        // this writing, all QUIC cipher suites use 16-byte tags. We could return `None` instead,
+        // but that would needlessly prevent sending datagrams during 0-RTT.
+        key.map_or(16, |x| x.tag_len())
     }
 }
 

@@ -25,6 +25,8 @@ pub(super) struct PacketSpace {
     /// 7. The packet number of the next packet that will be sent, if any. In the Data space, the
     /// packet number stored here is sometimes skipped by [`PacketNumberFilter`] logic.
     pub(super) next_packet_number: u64,
+    /// 8. The largest packet number the remote peer acknowledged in an ACK frame.
+    pub(super) largest_acked_packet: Option<u64>,
 }
 
 impl PacketSpace {
@@ -39,6 +41,7 @@ impl PacketSpace {
             loss_probes: 0,
             immediate_ack_pending: false,
             next_packet_number: 0,
+            largest_acked_packet: None,
         }
     }
 
