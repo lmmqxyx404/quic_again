@@ -16,6 +16,10 @@ pub(super) struct PacketSpace {
     pub(super) dedup: Dedup,
     /// 4. Current offset of outgoing cryptographic handshake stream
     pub(super) crypto_offset: u64,
+    /// 5. Number of tail loss probes to send
+    pub(super) loss_probes: u32,
+    /// 6.
+    pub(super) immediate_ack_pending: bool,
 }
 
 impl PacketSpace {
@@ -27,6 +31,8 @@ impl PacketSpace {
             dedup: Dedup::new(),
 
             crypto_offset: 0,
+            loss_probes: 0,
+            immediate_ack_pending: false,
         }
     }
 
@@ -47,6 +53,21 @@ impl PacketSpace {
         request_immediate_ack: bool,
         streams: &StreamsState,
     ) {
+        if self.loss_probes == 0 {
+            return;
+        }
+
+        if request_immediate_ack {
+            // The probe should be ACKed without delay (should only be used in the Data space and
+            // when the peer supports the acknowledgement frequency extension)
+            self.immediate_ack_pending = true;
+        }
+
+        // Retransmit the data of the oldest in-flight packet
+        if !self.pending.is_empty(streams) {
+            // There's real data to send here, no need to make something up
+            return;
+        }
         todo!()
     }
 }
@@ -59,6 +80,14 @@ pub struct Retransmits {
     pub(super) new_cids: Vec<IssuedCid>,
     /// 2
     pub(super) crypto: VecDeque<frame::Crypto>,
+}
+
+impl Retransmits {
+    /// todo: change the fn
+    pub(super) fn is_empty(&self, streams: &StreamsState) -> bool {
+        tracing::error!("to delete is_empty");
+        self.crypto.is_empty() && self.new_cids.is_empty()
+    }
 }
 
 /// RFC4303-style sliding window packet number deduplicator.
