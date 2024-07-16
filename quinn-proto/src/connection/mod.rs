@@ -55,6 +55,10 @@ use streams::StreamsState;
 /// 9
 mod mtud;
 
+/// 10
+mod packet_builder;
+use packet_builder::PacketBuilder;
+
 // #[cfg(fuzzing)]
 // pub use spaces::Retransmits;
 
@@ -822,6 +826,26 @@ impl Connection {
                 && self.peer_supports_ack_frequency();
         }
 
+        // Reserving capacity can provide more capacity than we asked for. However, we are not
+        // allowed to write more than `segment_size`. Therefore the maximum capacity is tracked
+        // separately.
+        let mut buf_capacity = 0;
+
+        let mut coalesce = true;
+        let mut builder_storage: Option<PacketBuilder> = None;
+        let mut sent_frames: Option<SentFrames> = None;
+        let mut pad_datagram = false;
+        let mut congestion_blocked = false;
+
+        // Iterate over all spaces and find data to send
+        let mut space_idx = 0;
+        let spaces = [SpaceId::Initial, SpaceId::Handshake, SpaceId::Data];
+        // This loop will potentially spend multiple iterations in the same `SpaceId`,
+        // so we cannot trivially rewrite it to take advantage of `SpaceId::iter()`.
+        while space_idx < spaces.len() {
+            todo!()
+        }
+
         todo!()
     }
     /// 25
@@ -956,3 +980,6 @@ pub enum Event {
 /// memory allocations when calling `poll_transmit()`. Benchmarks have shown
 /// that numbers around 10 are a good compromise.
 const MAX_TRANSMIT_SEGMENTS: usize = 10;
+
+#[derive(Default)]
+struct SentFrames {}
