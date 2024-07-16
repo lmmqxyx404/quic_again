@@ -8,9 +8,8 @@ use std::{
 };
 
 use crate::{
-    config::{EndpointConfig, ServerConfig},
+    config::{EndpointConfig, ServerConfig, TransportConfig},
     crypto::{self, KeyPair, Keys, PacketKey},
-    endpoint::TransportConfig,
     frame::{self, Close, Frame},
     packet::{Header, InitialHeader, LongType, Packet, PartialDecode, SpaceId},
     shared::{

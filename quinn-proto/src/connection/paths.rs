@@ -4,7 +4,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::{endpoint::TransportConfig, TIMER_GRANULARITY};
+use crate::{config::TransportConfig, TIMER_GRANULARITY};
 
 use super::mtud::MtuDiscovery;
 

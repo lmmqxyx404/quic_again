@@ -14,7 +14,7 @@ use tracing::{debug, trace};
 
 use crate::{
     coding::BufMutExt,
-    config::{ClientConfig, EndpointConfig, MtuDiscoveryConfig, ServerConfig},
+    config::{ClientConfig, EndpointConfig, ServerConfig, TransportConfig},
     connection::Connection,
     crypto,
     packet::{FixedLengthConnectionIdParser, Header, PacketDecodeError, PartialDecode},
@@ -23,7 +23,7 @@ use crate::{
     },
     token::ResetToken,
     transport_parameters::TransportParameters,
-    ConnectionIdGenerator, Side, Transmit, VarInt, INITIAL_MTU, RESET_TOKEN_SIZE,
+    ConnectionIdGenerator, Side, Transmit, RESET_TOKEN_SIZE,
 };
 
 /// 1. The main entry point to the library
@@ -427,69 +427,6 @@ impl ConnectionIndex {
             .get(addresses.remote, &data[data.len() - RESET_TOKEN_SIZE..])
             .cloned()
             .map(RouteDatagramTo::Connection)
-    }
-}
-/// 6. Parameters governing the core QUIC state machine
-///
-/// Default values should be suitable for most internet applications. Applications protocols which
-/// forbid remotely-initiated streams should set `max_concurrent_bidi_streams` and
-/// `max_concurrent_uni_streams` to zero.
-///
-/// In some cases, performance or resource requirements can be improved by tuning these values to
-/// suit a particular application and/or network connection. In particular, data window sizes can be
-/// tuned for a particular expected round trip time, link capacity, and memory availability. Tuning
-/// for higher bandwidths and latencies increases worst-case memory consumption, but does not impair
-/// performance at lower bandwidths and latencies. The default configuration is tuned for a 100Mbps
-/// link with a 100ms round trip time.
-pub struct TransportConfig {
-    /// 1
-    pub(crate) initial_rtt: Duration,
-    /// 2
-    pub(crate) max_concurrent_bidi_streams: VarInt,
-    /// 3
-    pub(crate) max_concurrent_uni_streams: VarInt,
-    /// 4
-    pub(crate) stream_receive_window: VarInt,
-    /// 5
-    pub(crate) receive_window: VarInt,
-    /// 6
-    pub(crate) send_window: u64,
-    /// 7.
-    pub(crate) enable_segmentation_offload: bool,
-    /// 8.
-    pub(crate) mtu_discovery_config: Option<MtuDiscoveryConfig>,
-    /// 9.
-    pub(crate) min_mtu: u16,
-}
-
-impl TransportConfig {
-    pub(crate) fn get_initial_mtu(&self) -> u16 {
-        todo!()
-        // self.initial_mtu.max(self.min_mtu)
-    }
-}
-
-impl Default for TransportConfig {
-    fn default() -> Self {
-        const EXPECTED_RTT: u32 = 100; // ms
-        const MAX_STREAM_BANDWIDTH: u32 = 12500 * 1000; // bytes/s
-                                                        // Window size needed to avoid pipeline
-                                                        // stalls
-        const STREAM_RWND: u32 = MAX_STREAM_BANDWIDTH / 1000 * EXPECTED_RTT;
-
-        Self {
-            initial_rtt: Duration::from_millis(333), // per spec, intentionally distinct from EXPECTED_RTT
-            max_concurrent_bidi_streams: 100u32.into(),
-            max_concurrent_uni_streams: 100u32.into(),
-            stream_receive_window: STREAM_RWND.into(),
-            receive_window: VarInt::MAX,
-            send_window: (8 * STREAM_RWND).into(),
-
-            enable_segmentation_offload: true,
-
-            min_mtu: INITIAL_MTU,
-            mtu_discovery_config: Some(MtuDiscoveryConfig::default()),
-        }
     }
 }
 
