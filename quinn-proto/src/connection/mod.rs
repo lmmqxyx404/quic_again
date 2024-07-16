@@ -152,6 +152,9 @@ pub struct Connection {
     config: Arc<TransportConfig>,
     /// 25.
     prev_path: Option<(ConnectionId, PathData)>,
+    /// 26. Whether the last `poll_transmit` call yielded no data because there was
+    /// no outgoing application data.
+    app_limited: bool,
 }
 
 impl Connection {
@@ -230,6 +233,7 @@ impl Connection {
             config,
 
             prev_path: None,
+            app_limited: false,
         };
 
         if side.is_client() {
@@ -789,6 +793,33 @@ impl Connection {
             let request_immediate_ack =
                 space == SpaceId::Data && self.peer_supports_ack_frequency();
             self.spaces[space as usize].maybe_queue_probe(request_immediate_ack, &self.streams);
+        }
+
+        // Check whether we need to send a close message
+        let close = match self.state {
+            State::Drained => {
+                self.app_limited = true;
+                return None;
+            }
+            State::Draining | State::Closed(_) => {
+                // self.close is only reset once the associated packet had been
+                // encoded successfully
+                if !self.close {
+                    self.app_limited = true;
+                    return None;
+                }
+                true
+            }
+            _ => false,
+        };
+
+        // Check whether we need to send an ACK_FREQUENCY frame
+        if let Some(config) = &self.config.ack_frequency_config {
+            self.spaces[SpaceId::Data as usize].pending.ack_frequency = self
+                .ack_frequency
+                .should_send_ack_frequency(self.path.rtt.get(), config, &self.peer_params)
+                && self.highest_space == SpaceId::Data
+                && self.peer_supports_ack_frequency();
         }
 
         todo!()

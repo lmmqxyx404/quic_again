@@ -1,5 +1,7 @@
 use std::time::Duration;
 
+use crate::{config::AckFrequencyConfig, transport_parameters::TransportParameters};
+
 /// State associated to ACK frequency
 pub(super) struct AckFrequencyState {}
 
@@ -16,6 +18,16 @@ impl AckFrequencyState {
     /// might be already in use by the peer).
     pub(super) fn max_ack_delay_for_pto(&self) -> Duration {
         // Note: we have at most one in-flight ACK_FREQUENCY frame
+        todo!()
+    }
+
+    /// Returns true if we should send an ACK_FREQUENCY frame
+    pub(super) fn should_send_ack_frequency(
+        &self,
+        rtt: Duration,
+        config: &AckFrequencyConfig,
+        peer_params: &TransportParameters,
+    ) -> bool {
         todo!()
     }
 }

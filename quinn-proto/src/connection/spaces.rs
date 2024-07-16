@@ -80,13 +80,15 @@ pub struct Retransmits {
     pub(super) new_cids: Vec<IssuedCid>,
     /// 2
     pub(super) crypto: VecDeque<frame::Crypto>,
+    /// 3.
+    pub(super) ack_frequency: bool,
 }
 
 impl Retransmits {
     /// todo: change the fn
     pub(super) fn is_empty(&self, streams: &StreamsState) -> bool {
         tracing::error!("to delete is_empty");
-        self.crypto.is_empty() && self.new_cids.is_empty()
+        self.crypto.is_empty() && self.new_cids.is_empty() && !self.ack_frequency
     }
 }
 

@@ -243,6 +243,8 @@ pub struct TransportConfig {
     pub(crate) min_mtu: u16,
     /// 10.
     pub(crate) initial_mtu: u16,
+    /// 11.
+    pub(crate) ack_frequency_config: Option<AckFrequencyConfig>,
 }
 
 impl TransportConfig {
@@ -273,6 +275,21 @@ impl Default for TransportConfig {
             mtu_discovery_config: Some(MtuDiscoveryConfig::default()),
 
             initial_mtu: INITIAL_MTU,
+            ack_frequency_config: None,
         }
     }
 }
+
+/// Parameters for controlling the peer's acknowledgement frequency
+///
+/// The parameters provided in this config will be sent to the peer at the beginning of the
+/// connection, so it can take them into account when sending acknowledgements (see each parameter's
+/// description for details on how it influences acknowledgement frequency).
+///
+/// Quinn's implementation follows the fourth draft of the
+/// [QUIC Acknowledgement Frequency extension](https://datatracker.ietf.org/doc/html/draft-ietf-quic-ack-frequency-04).
+/// The defaults produce behavior slightly different than the behavior without this extension,
+/// because they change the way reordered packets are handled (see
+/// [`AckFrequencyConfig::reordering_threshold`] for details).
+#[derive(Clone, Debug)]
+pub struct AckFrequencyConfig {}
