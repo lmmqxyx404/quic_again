@@ -150,6 +150,8 @@ pub struct Connection {
     streams: StreamsState,
     /// 24.
     config: Arc<TransportConfig>,
+    /// 25.
+    prev_path: Option<(ConnectionId, PathData)>,
 }
 
 impl Connection {
@@ -226,6 +228,8 @@ impl Connection {
                 config.stream_receive_window,
             ),
             config,
+
+            prev_path: None,
         };
 
         if side.is_client() {
@@ -774,6 +778,12 @@ impl Connection {
         // packets, this can be earlier than the start of the current QUIC packet.
         let mut datagram_start = 0;
         let mut segment_size = usize::from(self.path.current_mtu());
+
+        // Send PATH_CHALLENGE for a previous path if necessary
+        if let Some((prev_cid, ref mut prev_path)) = self.prev_path {
+            todo!()
+        }
+
         todo!()
     }
 }
