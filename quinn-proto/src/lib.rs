@@ -54,6 +54,8 @@ const RESET_TOKEN_SIZE: usize = 16;
 const TIMER_GRANULARITY: Duration = Duration::from_millis(1);
 /// 4. <https://www.rfc-editor.org/rfc/rfc9000.html#name-datagram-size>
 const INITIAL_MTU: u16 = 1200;
+/// 5.
+const MAX_UDP_PAYLOAD: u16 = 65527;
 
 /// Whether an endpoint was the initiator of a connection
 #[cfg_attr(feature = "arbitrary", derive(Arbitrary))]
