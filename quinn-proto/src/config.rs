@@ -241,12 +241,13 @@ pub struct TransportConfig {
     pub(crate) mtu_discovery_config: Option<MtuDiscoveryConfig>,
     /// 9.
     pub(crate) min_mtu: u16,
+    /// 10.
+    pub(crate) initial_mtu: u16,
 }
 
 impl TransportConfig {
     pub(crate) fn get_initial_mtu(&self) -> u16 {
-        todo!()
-        // self.initial_mtu.max(self.min_mtu)
+        self.initial_mtu.max(self.min_mtu)
     }
 }
 
@@ -270,6 +271,8 @@ impl Default for TransportConfig {
 
             min_mtu: INITIAL_MTU,
             mtu_discovery_config: Some(MtuDiscoveryConfig::default()),
+
+            initial_mtu: INITIAL_MTU,
         }
     }
 }
