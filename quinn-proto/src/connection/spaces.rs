@@ -4,6 +4,8 @@ use std::collections::VecDeque;
 use std::time::Instant;
 use std::{cmp, mem};
 
+use super::streams::StreamsState;
+
 /// 1.
 pub(super) struct PacketSpace {
     /// 1.
@@ -17,6 +19,7 @@ pub(super) struct PacketSpace {
 }
 
 impl PacketSpace {
+    /// 1.
     pub(super) fn new(now: Instant) -> Self {
         Self {
             crypto: None,
@@ -25,6 +28,26 @@ impl PacketSpace {
 
             crypto_offset: 0,
         }
+    }
+
+    /// 2. Queue data for a tail loss probe (or anti-amplification deadlock prevention) packet
+    ///
+    /// Probes are sent similarly to normal packets when an expect ACK has not arrived. We never
+    /// deem a packet lost until we receive an ACK that should have included it, but if a trailing
+    /// run of packets (or their ACKs) are lost, this might not happen in a timely fashion. We send
+    /// probe packets to force an ACK, and exempt them from congestion control to prevent a deadlock
+    /// when the congestion window is filled with lost tail packets.
+    ///
+    /// We prefer to send new data, to make the most efficient use of bandwidth. If there's no data
+    /// waiting to be sent, then we retransmit in-flight data to reduce odds of loss. If there's no
+    /// in-flight data either, we're probably a client guarding against a handshake
+    /// anti-amplification deadlock and we just make something up.
+    pub(super) fn maybe_queue_probe(
+        &mut self,
+        request_immediate_ack: bool,
+        streams: &StreamsState,
+    ) {
+        todo!()
     }
 }
 

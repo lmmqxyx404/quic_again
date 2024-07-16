@@ -784,7 +784,18 @@ impl Connection {
             todo!()
         }
 
+        // If we need to send a probe, make sure we have something to send.
+        for space in SpaceId::iter() {
+            let request_immediate_ack =
+                space == SpaceId::Data && self.peer_supports_ack_frequency();
+            self.spaces[space as usize].maybe_queue_probe(request_immediate_ack, &self.streams);
+        }
+
         todo!()
+    }
+    /// 25
+    fn peer_supports_ack_frequency(&self) -> bool {
+        self.peer_params.min_ack_delay.is_some()
     }
 }
 
