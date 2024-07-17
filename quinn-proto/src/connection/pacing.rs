@@ -1,5 +1,7 @@
 use std::time::{Duration, Instant};
 
+use tracing::warn;
+
 /// A simple token-bucket pacer
 ///
 /// The pacer's capacity is derived on a fraction of the congestion window
@@ -8,13 +10,30 @@ use std::time::{Duration, Instant};
 /// The bucket refills at a rate slightly faster
 /// than one congestion window per RTT, as recommended in
 /// <https://tools.ietf.org/html/draft-ietf-quic-recovery-34#section-7.7>
-pub(super) struct Pacer {}
+pub(super) struct Pacer {
+    /// 1
+    capacity: u64,
+    /// 2
+    last_window: u64,
+    /// 3
+    last_mtu: u16,
+    /// 4
+    tokens: u64,
+    /// 5
+    prev: Instant,
+}
 
 impl Pacer {
     /// 1. Obtains a new [`Pacer`].
     pub(super) fn new(smoothed_rtt: Duration, window: u64, mtu: u16, now: Instant) -> Self {
         let capacity = optimal_capacity(smoothed_rtt, window, mtu);
-        Self {}
+        Self {
+            capacity,
+            last_window: window,
+            last_mtu: mtu,
+            tokens: capacity,
+            prev: now,
+        }
     }
 
     /// 2. Return how long we need to wait before sending `bytes_to_send`
@@ -32,7 +51,62 @@ impl Pacer {
         window: u64,
         now: Instant,
     ) -> Option<Instant> {
-        todo!()
+        debug_assert_ne!(
+            window, 0,
+            "zero-sized congestion control window is nonsense"
+        );
+
+        if window != self.last_window || mtu != self.last_mtu {
+            self.capacity = optimal_capacity(smoothed_rtt, window, mtu);
+
+            // Clamp the tokens
+            self.tokens = self.capacity.min(self.tokens);
+            self.last_window = window;
+            self.last_mtu = mtu;
+        }
+        // if we can already send a packet, there is no need for delay
+        if self.tokens >= bytes_to_send {
+            return None;
+        }
+
+        // we disable pacing for extremely large windows
+        if window > u32::MAX.into() {
+            return None;
+        }
+
+        let window = window as u32;
+
+        let time_elapsed = now.checked_duration_since(self.prev).unwrap_or_else(|| {
+            warn!("received a timestamp early than a previous recorded time, ignoring");
+            Default::default()
+        });
+
+        if smoothed_rtt.as_nanos() == 0 {
+            return None;
+        }
+
+        let elapsed_rtts = time_elapsed.as_secs_f64() / smoothed_rtt.as_secs_f64();
+        let new_tokens = window as f64 * 1.25 * elapsed_rtts;
+        self.tokens = self
+            .tokens
+            .saturating_add(new_tokens as _)
+            .min(self.capacity);
+
+        self.prev = now;
+
+        // if we can already send a packet, there is no need for delay
+        if self.tokens >= bytes_to_send {
+            return None;
+        }
+
+        let unscaled_delay = smoothed_rtt
+            .checked_mul((bytes_to_send.max(self.capacity) - self.tokens) as _)
+            .unwrap_or_else(|| Duration::new(u64::MAX, 999_999_999))
+            / window;
+
+        // divisions come before multiplications to prevent overflow
+        // this is the time at which the pacing window becomes empty
+        Some(self.prev + (unscaled_delay / 5) * 4)
     }
 }
 
