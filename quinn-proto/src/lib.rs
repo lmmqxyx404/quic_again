@@ -62,6 +62,8 @@ const TIMER_GRANULARITY: Duration = Duration::from_millis(1);
 const INITIAL_MTU: u16 = 1200;
 /// 5.
 const MAX_UDP_PAYLOAD: u16 = 65527;
+/// 6.
+const MIN_INITIAL_SIZE: u16 = 1200;
 
 /// Whether an endpoint was the initiator of a connection
 #[cfg_attr(feature = "arbitrary", derive(Arbitrary))]

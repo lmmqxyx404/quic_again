@@ -1,4 +1,5 @@
 use std::{
+    cmp,
     collections::VecDeque,
     fmt,
     io::Read,
@@ -18,7 +19,7 @@ use crate::{
         EndpointEvent, EndpointEventInner,
     },
     transport_parameters::TransportParameters,
-    ConnectionIdGenerator, Side, Transmit, TransportError,
+    ConnectionIdGenerator, Side, Transmit, TransportError, MIN_INITIAL_SIZE,
 };
 use bytes::{Bytes, BytesMut};
 
@@ -950,8 +951,99 @@ impl Connection {
                     }
                 }
 
-                todo!()
+                // Finish current packet
+                if let Some(mut builder) = builder_storage.take() {
+                    if pad_datagram {
+                        builder.pad_to(MIN_INITIAL_SIZE);
+                    }
+
+                    if num_datagrams > 1 {
+                        // If too many padding bytes would be required to continue the GSO batch
+                        // after this packet, end the GSO batch here. Ensures that fixed-size frames
+                        // with heterogeneous sizes (e.g. application datagrams) won't inadvertently
+                        // waste large amounts of bandwidth. The exact threshold is a bit arbitrary
+                        // and might benefit from further tuning, though there's no universally
+                        // optimal value.
+                        const MAX_PADDING: usize = 16;
+                        let packet_len_unpadded = cmp::max(builder.min_size, buf.len())
+                            - datagram_start
+                            + builder.tag_len;
+                        if packet_len_unpadded + MAX_PADDING < segment_size {
+                            trace!(
+                                "GSO truncated by demand for {} padding bytes",
+                                segment_size - packet_len_unpadded
+                            );
+                            builder_storage = Some(builder);
+                            break;
+                        }
+
+                        // Pad the current packet to GSO segment size so it can be included in the
+                        // GSO batch.
+                        builder.pad_to(segment_size as u16);
+                    }
+
+                    builder.finish_and_track(now, self, sent_frames.take(), buf);
+
+                    if num_datagrams == 1 {
+                        // Set the segment size for this GSO batch to the size of the first UDP
+                        // datagram in the batch. Larger data that cannot be fragmented
+                        // (e.g. application datagrams) will be included in a future batch. When
+                        // sending large enough volumes of data for GSO to be useful, we expect
+                        // packet sizes to usually be consistent, e.g. populated by max-size STREAM
+                        // frames or uniformly sized datagrams.
+                        segment_size = buf.len();
+                        // Clip the unused capacity out of the buffer so future packets don't
+                        // overrun
+                        buf_capacity = buf.len();
+
+                        // Check whether the data we planned to send will fit in the reduced segment
+                        // size. If not, bail out and leave it for the next GSO batch so we don't
+                        // end up trying to send an empty packet. We can't easily compute the right
+                        // segment size before the original call to `space_can_send`, because at
+                        // that time we haven't determined whether we're going to coalesce with the
+                        // first datagram or potentially pad it to `MIN_INITIAL_SIZE`.
+                        if space_id == SpaceId::Data {
+                            let frame_space_1rtt =
+                                segment_size.saturating_sub(self.predict_1rtt_overhead(Some(pn)));
+                            if self.space_can_send(space_id, frame_space_1rtt).is_empty() {
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                // Allocate space for another datagram
+                buf_capacity += segment_size;
+                if buf.capacity() < buf_capacity {
+                    // We reserve the maximum space for sending `max_datagrams` upfront
+                    // to avoid any reallocations if more datagrams have to be appended later on.
+                    // Benchmarks have shown shown a 5-10% throughput improvement
+                    // compared to continuously resizing the datagram buffer.
+                    // While this will lead to over-allocation for small transmits
+                    // (e.g. purely containing ACKs), modern memory allocators
+                    // (e.g. mimalloc and jemalloc) will pool certain allocation sizes
+                    // and therefore this is still rather efficient.
+                    buf.reserve(max_datagrams * segment_size);
+                }
+                num_datagrams += 1;
+                coalesce = true;
+                pad_datagram = false;
+                datagram_start = buf.len();
+                debug_assert_eq!(
+                    datagram_start % segment_size,
+                    0,
+                    "datagrams in a GSO batch must be aligned to the segment size"
+                );
+            } else {
+                // We can append/coalesce the next packet into the current
+                // datagram.
+                // Finish current packet without adding extra padding
+                if let Some(builder) = builder_storage.take() {
+                    builder.finish_and_track(now, self, sent_frames.take(), buf);
+                }
             }
+
+            debug_assert!(buf_capacity - buf.len() >= MIN_PACKET_SPACE);
             todo!()
         }
 
