@@ -871,6 +871,61 @@ impl Connection {
                 continue;
             }
 
+            let mut ack_eliciting = !self.spaces[space_id].pending.is_empty(&self.streams)
+                || self.spaces[space_id].ping_pending
+                || self.spaces[space_id].immediate_ack_pending;
+            if space_id == SpaceId::Data {
+                ack_eliciting |= self.can_send_1rtt(frame_space_1rtt);
+            }
+
+            // Can we append more data into the current buffer?
+            // It is not safe to assume that `buf.len()` is the end of the data,
+            // since the last packet might not have been finished.
+            let buf_end = if let Some(builder) = &builder_storage {
+                buf.len().max(builder.min_size) + builder.tag_len
+            } else {
+                buf.len()
+            };
+
+            if !coalesce || buf_capacity - buf_end < MIN_PACKET_SPACE {
+                // We need to send 1 more datagram and extend the buffer for that.
+
+                // Is 1 more datagram allowed?
+                if buf_capacity >= segment_size * max_datagrams {
+                    // No more datagrams allowed
+                    break;
+                }
+                // Anti-amplification is only based on `total_sent`, which gets
+                // updated at the end of this method. Therefore we pass the amount
+                // of bytes for datagrams that are already created, as well as 1 byte
+                // for starting another datagram. If there is any anti-amplification
+                // budget left, we always allow a full MTU to be sent
+                // (see https://github.com/quinn-rs/quinn/issues/1082)
+                if self
+                    .path
+                    .anti_amplification_blocked(segment_size as u64 * num_datagrams + 1)
+                {
+                    trace!("blocked by anti-amplification");
+                    break;
+                }
+
+                // Congestion control and pacing checks
+                // Tail loss probes must not be blocked by congestion, or a deadlock could arise
+                if ack_eliciting && self.spaces[space_id].loss_probes == 0 {
+                    // Assume the current packet will get padded to fill the segment
+                    let untracked_bytes = if let Some(builder) = &builder_storage {
+                        buf_capacity - builder.partial_encode.start
+                    } else {
+                        0
+                    } as u64;
+                    debug_assert!(untracked_bytes <= segment_size as u64);
+
+                    let bytes_to_send = segment_size as u64 + untracked_bytes;
+                    todo!()
+                }
+
+                todo!()
+            }
             todo!()
         }
 
@@ -1058,12 +1113,14 @@ pub enum Event {
     Stream(StreamEvent),
 }
 
-/// The maximum amount of datagrams that are sent in a single transmit
+/// 1. The maximum amount of datagrams that are sent in a single transmit
 ///
 /// This can be lower than the maximum platform capabilities, to avoid excessive
 /// memory allocations when calling `poll_transmit()`. Benchmarks have shown
 /// that numbers around 10 are a good compromise.
 const MAX_TRANSMIT_SEGMENTS: usize = 10;
+// 2. Minimal remaining size to allow packet coalescing
+const MIN_PACKET_SPACE: usize = 40;
 
 #[derive(Default)]
 struct SentFrames {}
