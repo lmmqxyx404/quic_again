@@ -106,7 +106,12 @@ impl PacketSpace {
     /// In the Data space, the connection's [`PacketNumberFilter`] must be used rather than calling
     /// this directly.
     pub(super) fn get_tx_number(&mut self) -> u64 {
-        todo!()
+        // TODO: Handle packet number overflow gracefully
+        assert!(self.next_packet_number < 2u64.pow(62));
+        let x = self.next_packet_number;
+        self.next_packet_number += 1;
+        self.sent_with_keys += 1;
+        x
     }
 }
 
