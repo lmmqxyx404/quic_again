@@ -9,6 +9,8 @@ pub use cubic::CubicConfig;
 pub trait Controller: Send + Sync {
     /// 1. Number of ack-eliciting bytes that may be in flight,first used for `self.path.congestion.window()`
     fn window(&self) -> u64;
+    /// 2. Initial congestion window
+    fn initial_window(&self) -> u64;
 }
 
 /// Constructs controllers on demand

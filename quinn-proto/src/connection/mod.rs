@@ -60,6 +60,8 @@ mod mtud;
 /// 10
 mod packet_builder;
 use packet_builder::PacketBuilder;
+/// 11
+mod pacing;
 
 // #[cfg(fuzzing)]
 // pub use spaces::Retransmits;
@@ -929,7 +931,23 @@ impl Connection {
                         trace!("blocked by congestion control");
                         continue;
                     }
-                    todo!()
+
+                    // Check whether the next datagram is blocked by pacing
+                    let smoothed_rtt = self.path.rtt.get();
+                    if let Some(delay) = self.path.pacing.delay(
+                        smoothed_rtt,
+                        bytes_to_send,
+                        self.path.current_mtu(),
+                        self.path.congestion.window(),
+                        now,
+                    ) {
+                        self.timers.set(Timer::Pacing, delay);
+                        congestion_blocked = true;
+                        // Loss probes should be subject to pacing, even though
+                        // they are not congestion controlled.
+                        trace!("blocked by pacing");
+                        break;
+                    }
                 }
 
                 todo!()

@@ -6,7 +6,7 @@ use std::{
 
 use crate::{config::TransportConfig, congestion, TIMER_GRANULARITY};
 
-use super::mtud::MtuDiscovery;
+use super::{mtud::MtuDiscovery, pacing::Pacer};
 
 /// Description of a particular network path
 pub(super) struct PathData {
@@ -29,6 +29,8 @@ pub(super) struct PathData {
     pub(super) in_flight: InFlight,
     /// 8. Congestion controller state
     pub(super) congestion: Box<dyn congestion::Controller>,
+    /// 9. Pacing state
+    pub(super) pacing: Pacer,
 }
 
 impl PathData {
@@ -68,6 +70,12 @@ impl PathData {
                 ),
 
             in_flight: InFlight::new(),
+            pacing: Pacer::new(
+                config.initial_rtt,
+                congestion.initial_window(),
+                config.get_initial_mtu(),
+                now,
+            ),
             congestion,
         }
     }

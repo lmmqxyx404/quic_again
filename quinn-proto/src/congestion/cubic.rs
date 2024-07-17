@@ -8,6 +8,8 @@ use super::{Controller, ControllerFactory, BASE_DATAGRAM_SIZE};
 pub struct Cubic {
     /// 1. Maximum number of bytes in flight that may be sent.
     window: u64,
+    /// 2.
+    config: Arc<CubicConfig>,
 }
 
 impl Cubic {
@@ -15,12 +17,17 @@ impl Cubic {
     pub fn new(config: Arc<CubicConfig>, _now: Instant, current_mtu: u16) -> Self {
         Self {
             window: config.initial_window,
+            config,
         }
     }
 }
 impl Controller for Cubic {
     fn window(&self) -> u64 {
         self.window
+    }
+
+    fn initial_window(&self) -> u64 {
+        self.config.initial_window
     }
 }
 
