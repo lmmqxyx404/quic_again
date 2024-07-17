@@ -138,3 +138,13 @@ impl InFlight {
         Self { bytes: 0 }
     }
 }
+
+#[derive(Default)]
+pub(crate) struct PathResponses {}
+
+impl PathResponses {
+    /// 1
+    pub(crate) fn pop_off_path(&mut self, remote: &SocketAddr) -> Option<(u64, SocketAddr)> {
+        todo!()
+    }
+}

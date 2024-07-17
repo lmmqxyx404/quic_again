@@ -10,6 +10,7 @@ use std::{
 
 use crate::{
     cid_queue::CidQueue,
+    coding::BufMutExt,
     config::{EndpointConfig, ServerConfig, TransportConfig},
     crypto::{self, KeyPair, Keys, PacketKey},
     frame::{self, Close, Frame, FrameStruct},
@@ -26,7 +27,7 @@ use bytes::{Bytes, BytesMut};
 /// 1.
 mod paths;
 use packet_crypto::{PrevCrypto, ZeroRttCrypto};
-use paths::PathData;
+use paths::{PathData, PathResponses};
 /// 2.
 mod stats;
 use rand::{rngs::StdRng, Rng, SeedableRng};
@@ -182,6 +183,11 @@ pub struct Connection {
     retry_token: Bytes,
     /// 35. Congestion Control: Whether the most recently received packet had an ECN codepoint set
     receiving_ecn: bool,
+    /// 36. Queued non-retransmittable 1-RTT data: Responses to PATH_CHALLENGE frames
+    path_responses: PathResponses,
+    /// 37. The "real" local IP address which was was used to receive the initial packet.
+    /// This is only populated for the server case, and if known
+    local_ip: Option<IpAddr>,
 }
 
 impl Connection {
@@ -285,6 +291,8 @@ impl Connection {
             handshake_cid: loc_cid,
             retry_token: Bytes::new(),
             receiving_ecn: false,
+            path_responses: PathResponses::default(),
+            local_ip,
         };
 
         if side.is_client() {
@@ -1136,6 +1144,65 @@ impl Connection {
                     buf.len() + frame::ConnectionClose::SIZE_BOUND < builder.max_size,
                     "ACKs should leave space for ConnectionClose"
                 );
+                if buf.len() + frame::ConnectionClose::SIZE_BOUND < builder.max_size {
+                    let max_frame_size = builder.max_size - buf.len();
+                    match self.state {
+                        State::Closed(state::Closed { ref reason }) => {
+                            todo!()
+                        }
+                        State::Draining => {
+                            todo!()
+                        }
+                        _ => unreachable!(
+                            "tried to make a close packet when the connection wasn't closed"
+                        ),
+                    }
+                }
+
+                if space_id == self.highest_space {
+                    // Don't send another close packet
+                    self.close = false;
+                    // `CONNECTION_CLOSE` is the final packet
+                    break;
+                } else {
+                    // Send a close frame in every possible space for robustness, per RFC9000
+                    // "Immediate Close during the Handshake". Don't bother trying to send anything
+                    // else.
+                    space_idx += 1;
+                    continue;
+                }
+            }
+
+            // Send an off-path PATH_RESPONSE. Prioritized over on-path data to ensure that path
+            // validation can occur while the link is saturated.
+            if space_id == SpaceId::Data && num_datagrams == 1 {
+                if let Some((token, remote)) = self.path_responses.pop_off_path(&self.path.remote) {
+                    // `unwrap` guaranteed to succeed because `builder_storage` was populated just
+                    // above.
+                    let mut builder = builder_storage.take().unwrap();
+                    trace!("PATH_RESPONSE {:08x} (off-path)", token);
+                    buf.write(frame::Type::PATH_RESPONSE);
+                    buf.write(token);
+                    self.stats.frame_tx.path_response += 1;
+                    builder.pad_to(MIN_INITIAL_SIZE);
+                    builder.finish_and_track(
+                        now,
+                        self,
+                        Some(SentFrames {
+                            non_retransmits: true,
+                            ..SentFrames::default()
+                        }),
+                        buf,
+                    );
+                    self.stats.udp_tx.on_sent(1, buf.len());
+                    return Some(Transmit {
+                        destination: remote,
+                        size: buf.len(),
+                        ecn: None,
+                        segment_size: None,
+                        src_ip: self.local_ip,
+                    });
+                }
             }
             todo!()
         }
@@ -1366,4 +1433,7 @@ const MAX_TRANSMIT_SEGMENTS: usize = 10;
 const MIN_PACKET_SPACE: usize = 40;
 
 #[derive(Default)]
-struct SentFrames {}
+struct SentFrames {
+    /// Whether the packet contains non-retransmittable frames (like datagrams)
+    non_retransmits: bool,
+}

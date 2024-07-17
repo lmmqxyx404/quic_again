@@ -1,11 +1,13 @@
-
-
 /// 1. Connection statistics
 #[derive(Debug, Default, Copy, Clone)]
 #[non_exhaustive]
 pub struct ConnectionStats {
     /// 1. Statistics about UDP datagrams received on a connection
     pub udp_rx: UdpStats,
+    /// 2. Statistics about frames transmitted on a connection
+    pub frame_tx: FrameStats,
+    /// 3. Statistics about UDP datagrams transmitted on a connection
+    pub udp_tx: UdpStats,
 }
 
 /// 2. Statistics about UDP datagrams transmitted or received on a connection
@@ -20,4 +22,29 @@ pub struct UdpStats {
     ///
     /// Can be less than `datagrams` when GSO, GRO, and/or batched system calls are in use.
     pub ios: u64,
+}
+
+impl UdpStats {
+    pub(crate) fn on_sent(&mut self, datagrams: u64, bytes: usize) {
+        self.datagrams += datagrams;
+        self.bytes += bytes as u64;
+        self.ios += 1;
+    }
+}
+
+/// Number of frames transmitted of each frame type
+#[derive(Default, Copy, Clone)]
+#[non_exhaustive]
+#[allow(missing_docs)]
+pub struct FrameStats {
+    /// 1
+    pub path_response: u64,
+}
+
+impl std::fmt::Debug for FrameStats {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("FrameStats")
+            .field("PATH_RESPONSE", &self.path_response)
+            .finish()
+    }
 }

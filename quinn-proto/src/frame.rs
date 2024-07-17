@@ -1,8 +1,11 @@
-use std::{fmt, io};
+use std::{fmt, io, ops::RangeInclusive};
 
-use bytes::Bytes;
+use bytes::{Buf, BufMut, Bytes};
 
-use crate::TransportError;
+use crate::{
+    coding::{self, BufExt, BufMutExt},
+    TransportError,
+};
 /// 1
 #[derive(Clone, Debug)]
 pub enum Close {
@@ -28,6 +31,15 @@ impl From<ApplicationClose> for Close {
 }
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub struct Type(u64);
+
+impl coding::Codec for Type {
+    fn decode<B: Buf>(buf: &mut B) -> coding::Result<Self> {
+        Ok(Self(buf.get_var()?))
+    }
+    fn encode<B: BufMut>(&self, buf: &mut B) {
+        buf.write_var(self.0);
+    }
+}
 
 pub(crate) struct Iter {
     // TODO: ditch io::Cursor after bytes 0.5
@@ -126,3 +138,39 @@ pub(crate) trait FrameStruct {
     /// Smallest number of bytes this type of frame is guaranteed to fit within.
     const SIZE_BOUND: usize;
 }
+
+macro_rules! frame_types {
+    {$($name:ident = $val:expr,)*} => {
+        impl Type {
+            $(pub const $name: Type = Type($val);)*
+        }
+
+        impl fmt::Debug for Type {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                match self.0 {
+                    $($val => f.write_str(stringify!($name)),)*
+                    _ => write!(f, "Type({:02x})", self.0)
+                }
+            }
+        }
+
+        impl fmt::Display for Type {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                match self.0 {
+                    $($val => f.write_str(stringify!($name)),)*
+                    x if STREAM_TYS.contains(&x) => f.write_str("STREAM"),
+                    x if DATAGRAM_TYS.contains(&x) => f.write_str("DATAGRAM"),
+                    _ => write!(f, "<unknown {:02x}>", self.0),
+                }
+            }
+        }
+    }
+}
+
+frame_types! {
+    PATH_RESPONSE = 0x1b,
+
+}
+
+const STREAM_TYS: RangeInclusive<u64> = RangeInclusive::new(0x08, 0x0f);
+const DATAGRAM_TYS: RangeInclusive<u64> = RangeInclusive::new(0x30, 0x31);
