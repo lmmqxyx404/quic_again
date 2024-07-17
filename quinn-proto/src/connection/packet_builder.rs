@@ -6,7 +6,7 @@ use tracing::trace_span;
 
 use crate::{
     frame::{self, Close},
-    packet::{Header, PacketNumber, PartialEncode, SpaceId},
+    packet::{Header, InitialHeader, PacketNumber, PartialEncode, SpaceId},
     shared::ConnectionId,
     INITIAL_MTU,
 };
@@ -125,9 +125,13 @@ impl PacketBuilder {
             SpaceId::Handshake => {
                 todo!()
             }
-            SpaceId::Initial => {
-                todo!()
-            }
+            SpaceId::Initial => Header::Initial(InitialHeader {
+                src_cid: conn.handshake_cid,
+                dst_cid,
+                token: conn.retry_token.clone(),
+                number,
+                version,
+            }),
         };
         todo!()
     }

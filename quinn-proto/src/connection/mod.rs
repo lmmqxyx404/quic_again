@@ -176,6 +176,11 @@ pub struct Connection {
     spin_enabled: bool,
     /// 32. Outgoing spin bit state
     spin: bool,
+    /// 33. The CID we initially chose, for use during the handshake
+    handshake_cid: ConnectionId,
+    /// 34. Sent in every outgoing Initial packet. Always empty for servers and after Initial keys are
+    /// discarded.
+    retry_token: Bytes,
 }
 
 impl Connection {
@@ -276,6 +281,9 @@ impl Connection {
             // at the 100th short-header packet.
             key_phase_size: rng.gen_range(10..1000),
             rng,
+            handshake_cid: loc_cid,
+            retry_token: Bytes::new(),
+
         };
 
         if side.is_client() {
