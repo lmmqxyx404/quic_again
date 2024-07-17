@@ -319,10 +319,7 @@ impl Connection {
                 self.local_cid_state.new_cids(&ids, now);
                 ids.into_iter().rev().for_each(|frame| {
                     // todo: 为什么这里需要显示声明为 usize
-                    self.spaces[SpaceId::Data as usize]
-                        .pending
-                        .new_cids
-                        .push(frame);
+                    self.spaces[SpaceId::Data].pending.new_cids.push(frame);
                 });
                 // Update Timer::PushNewCid
                 if self
@@ -424,7 +421,7 @@ impl Connection {
                 };
                 let _guard = span.enter();
 
-                let is_duplicate = |n| self.spaces[packet.header.space() as usize].dedup.insert(n);
+                let is_duplicate = |n| self.spaces[packet.header.space()].dedup.insert(n);
 
                 if number.map_or(false, is_duplicate) {
                     debug!("discarding possible duplicate packet");
@@ -684,7 +681,7 @@ impl Connection {
                     continue;
                 }
             }
-            let offset = self.spaces[space as usize].crypto_offset;
+            let offset = self.spaces[space].crypto_offset;
             let outgoing = Bytes::from(outgoing);
             if let State::Handshake(ref mut state) = self.state {
                 if space == SpaceId::Initial && offset == 0 && self.side.is_client() {
@@ -692,7 +689,7 @@ impl Connection {
                 }
             }
 
-            self.spaces[space as usize].crypto_offset += outgoing.len() as u64;
+            self.spaces[space].crypto_offset += outgoing.len() as u64;
             trace!(
                 "wrote {} {:?} CRYPTO bytes {:?}",
                 outgoing.len(),
@@ -700,13 +697,10 @@ impl Connection {
                 outgoing.clone().bytes()
             );
 
-            self.spaces[space as usize]
-                .pending
-                .crypto
-                .push_back(frame::Crypto {
-                    offset,
-                    data: outgoing,
-                });
+            self.spaces[space].pending.crypto.push_back(frame::Crypto {
+                offset,
+                data: outgoing,
+            });
         }
     }
 
@@ -812,7 +806,7 @@ impl Connection {
         for space in SpaceId::iter() {
             let request_immediate_ack =
                 space == SpaceId::Data && self.peer_supports_ack_frequency();
-            self.spaces[space as usize].maybe_queue_probe(request_immediate_ack, &self.streams);
+            self.spaces[space].maybe_queue_probe(request_immediate_ack, &self.streams);
         }
 
         // Check whether we need to send a close message
@@ -835,7 +829,7 @@ impl Connection {
 
         // Check whether we need to send an ACK_FREQUENCY frame
         if let Some(config) = &self.config.ack_frequency_config {
-            self.spaces[SpaceId::Data as usize].pending.ack_frequency = self
+            self.spaces[SpaceId::Data].pending.ack_frequency = self
                 .ack_frequency
                 .should_send_ack_frequency(self.path.rtt.get(), config, &self.peer_params)
                 && self.highest_space == SpaceId::Data
@@ -866,15 +860,13 @@ impl Connection {
             // handle large fixed-size frames, which only exist in 1-RTT (application datagrams). We
             // don't account for coalesced packets potentially occupying space because frames can
             // always spill into the next datagram.
-            let pn = self
-                .packet_number_filter
-                .peek(&self.spaces[SpaceId::Data as usize]);
+            let pn = self.packet_number_filter.peek(&self.spaces[SpaceId::Data]);
             let frame_space_1rtt =
                 segment_size.saturating_sub(self.predict_1rtt_overhead(Some(pn)));
 
             // Is there data or a close message to send in this space?
             let can_send = self.space_can_send(space_id, frame_space_1rtt);
-            if can_send.is_empty() && (!close || self.spaces[space_id as usize].crypto.is_none()) {
+            if can_send.is_empty() && (!close || self.spaces[space_id].crypto.is_none()) {
                 space_idx += 1;
                 continue;
             }
@@ -899,9 +891,7 @@ impl Connection {
         let pn_len = match pn {
             Some(pn) => PacketNumber::new(
                 pn,
-                self.spaces[SpaceId::Data as usize]
-                    .largest_acked_packet
-                    .unwrap_or(0),
+                self.spaces[SpaceId::Data].largest_acked_packet.unwrap_or(0),
             )
             .len(),
             // Upper bound
@@ -913,7 +903,7 @@ impl Connection {
     }
     /// 27
     fn tag_len_1rtt(&self) -> usize {
-        let key = match self.spaces[SpaceId::Data as usize].crypto.as_ref() {
+        let key = match self.spaces[SpaceId::Data].crypto.as_ref() {
             Some(crypto) => Some(&*crypto.packet.local),
             None => self.zero_rtt_crypto.as_ref().map(|x| &*x.packet),
         };
@@ -925,6 +915,25 @@ impl Connection {
 
     /// 28. Indicate what types of frames are ready to send for the given space
     fn space_can_send(&self, space_id: SpaceId, frame_space_1rtt: usize) -> SendableFrames {
+        if self.spaces[space_id].crypto.is_none()
+            && (space_id != SpaceId::Data
+                || self.zero_rtt_crypto.is_none()
+                || self.side.is_server())
+        {
+            // No keys available for this space
+            return SendableFrames::empty();
+        }
+        let mut can_send = self.spaces[space_id].can_send(&self.streams);
+        if space_id == SpaceId::Data {
+            can_send.other |= self.can_send_1rtt(frame_space_1rtt);
+        }
+        can_send
+    }
+
+    /// 29. Whether we have 1-RTT data to send
+    ///
+    /// See also `self.space(SpaceId::Data).can_send()`
+    fn can_send_1rtt(&self, max_size: usize) -> bool {
         todo!()
     }
 }

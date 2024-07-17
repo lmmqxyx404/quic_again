@@ -1,8 +1,10 @@
 use rand::Rng;
 
 use crate::frame;
+use crate::packet::SpaceId;
 use crate::{crypto::Keys, shared::IssuedCid};
 use std::collections::VecDeque;
+use std::ops::{Index, IndexMut};
 use std::time::Instant;
 use std::{cmp, mem};
 
@@ -78,6 +80,23 @@ impl PacketSpace {
             return;
         }
         todo!()
+    }
+    /// 3
+    pub(super) fn can_send(&self, streams: &StreamsState) -> SendableFrames {
+        todo!()
+    }
+}
+
+impl Index<SpaceId> for [PacketSpace; 3] {
+    type Output = PacketSpace;
+    fn index(&self, space: SpaceId) -> &PacketSpace {
+        &self.as_ref()[space as usize]
+    }
+}
+
+impl IndexMut<SpaceId> for [PacketSpace; 3] {
+    fn index_mut(&mut self, space: SpaceId) -> &mut PacketSpace {
+        &mut self.as_mut()[space as usize]
     }
 }
 
@@ -223,5 +242,13 @@ impl SendableFrames {
     /// 1. Whether no data is sendable
     pub(super) fn is_empty(&self) -> bool {
         !self.acks && !self.other
+    }
+
+    /// 2. Returns that no data is available for sending
+    pub(super) fn empty() -> Self {
+        Self {
+            acks: false,
+            other: false,
+        }
     }
 }

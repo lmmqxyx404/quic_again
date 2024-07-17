@@ -55,6 +55,14 @@ mod tests;
 ```
 以上代码如果缺少相关 cfg 设置，那么就会报错，无法识别`[dev-dependencies]` 配置的 crate
 
+## 3. about `Index trait`
+```Rust
+use std::ops::{Index, IndexMut};
+impl Index<SpaceId> for [PacketSpace; 3]
+impl IndexMut<SpaceId> for [PacketSpace; 3]
+```
+这个trait可以使用别的 struct 当作索引
+
 # dev history
 ## 1. 在 `4c8ab712de949a` 之后一个 commit
 就让 `fn version_negotiate_client` 通过test了，注意之后的 `assert_matches!`.

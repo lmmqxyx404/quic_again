@@ -20,7 +20,7 @@ pub(super) fn unprotect_header(
             return None;
         }
     } else if let Some(space) = partial_decode.space() {
-        if let Some(ref crypto) = spaces[space as usize].crypto {
+        if let Some(ref crypto) = spaces[space].crypto {
             Some(&*crypto.header.remote)
         } else {
             return None;
@@ -72,7 +72,7 @@ pub(super) fn decrypt_packet_body(
         // Unprotected packets also don't have packet numbers
         return Ok(None);
     }
-    
+
     todo!()
 }
 /// 4.
