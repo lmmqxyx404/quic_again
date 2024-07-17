@@ -1,10 +1,12 @@
 use std::{cmp, time::Instant};
 
 use bytes::Bytes;
+use rand::Rng;
+use tracing::trace_span;
 
 use crate::{
     frame::{self, Close},
-    packet::{PartialEncode, SpaceId},
+    packet::{Header, PacketNumber, PartialEncode, SpaceId},
     shared::ConnectionId,
     INITIAL_MTU,
 };
@@ -100,6 +102,32 @@ impl PacketBuilder {
         let exact_number = match space_id {
             SpaceId::Data => conn.packet_number_filter.allocate(&mut conn.rng, space),
             _ => space.get_tx_number(),
+        };
+
+        let span = trace_span!("send", space = ?space_id, pn = exact_number).entered();
+
+        let number = PacketNumber::new(exact_number, space.largest_acked_packet.unwrap_or(0));
+
+        let header = match space_id {
+            SpaceId::Data if space.crypto.is_some() => Header::Short {
+                dst_cid,
+                number,
+                spin: if conn.spin_enabled {
+                    conn.spin
+                } else {
+                    conn.rng.gen()
+                },
+                key_phase: conn.key_phase,
+            },
+            SpaceId::Data => {
+                todo!()
+            }
+            SpaceId::Handshake => {
+                todo!()
+            }
+            SpaceId::Initial => {
+                todo!()
+            }
         };
         todo!()
     }

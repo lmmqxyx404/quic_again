@@ -251,6 +251,8 @@ pub struct TransportConfig {
     pub(crate) deterministic_packet_numbers: bool,
     /// 13.
     pub(crate) congestion_controller_factory: Arc<dyn congestion::ControllerFactory + Send + Sync>,
+    /// 14.
+    pub(crate) allow_spin: bool,
 }
 
 impl TransportConfig {
@@ -286,6 +288,7 @@ impl Default for TransportConfig {
             deterministic_packet_numbers: false,
 
             congestion_controller_factory: Arc::new(congestion::CubicConfig::default()),
+            allow_spin: true,
         }
     }
 }

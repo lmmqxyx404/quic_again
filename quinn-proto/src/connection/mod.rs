@@ -172,6 +172,10 @@ pub struct Connection {
     key_phase_size: u64,
     /// 30
     rng: StdRng,
+    /// 31. Whether the spin bit is in use for this connection
+    spin_enabled: bool,
+    /// 32. Outgoing spin bit state
+    spin: bool,
 }
 
 impl Connection {
@@ -255,6 +259,9 @@ impl Connection {
                 config.receive_window,
                 config.stream_receive_window,
             ),
+            spin_enabled: config.allow_spin && rng.gen_ratio(7, 8),
+            spin: false,
+
             config,
 
             prev_path: None,
