@@ -211,3 +211,17 @@ impl PacketNumberFilter {
         n + 1
     }
 }
+
+/// Indicates which data is available for sending
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(super) struct SendableFrames {
+    pub(super) acks: bool,
+    pub(super) other: bool,
+}
+
+impl SendableFrames {
+    /// 1. Whether no data is sendable
+    pub(super) fn is_empty(&self) -> bool {
+        !self.acks && !self.other
+    }
+}

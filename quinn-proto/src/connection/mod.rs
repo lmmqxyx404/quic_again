@@ -35,7 +35,7 @@ mod cid_state;
 use cid_state::CidState;
 /// 4.
 mod spaces;
-use spaces::{PacketNumberFilter, PacketSpace};
+use spaces::{PacketNumberFilter, PacketSpace, SendableFrames};
 /// 5.
 mod timer;
 use thiserror::Error;
@@ -871,6 +871,14 @@ impl Connection {
                 .peek(&self.spaces[SpaceId::Data as usize]);
             let frame_space_1rtt =
                 segment_size.saturating_sub(self.predict_1rtt_overhead(Some(pn)));
+
+            // Is there data or a close message to send in this space?
+            let can_send = self.space_can_send(space_id, frame_space_1rtt);
+            if can_send.is_empty() && (!close || self.spaces[space_id as usize].crypto.is_none()) {
+                space_idx += 1;
+                continue;
+            }
+
             todo!()
         }
 
@@ -913,6 +921,11 @@ impl Connection {
         // this writing, all QUIC cipher suites use 16-byte tags. We could return `None` instead,
         // but that would needlessly prevent sending datagrams during 0-RTT.
         key.map_or(16, |x| x.tag_len())
+    }
+
+    /// 28. Indicate what types of frames are ready to send for the given space
+    fn space_can_send(&self, space_id: SpaceId, frame_space_1rtt: usize) -> SendableFrames {
+        todo!()
     }
 }
 
