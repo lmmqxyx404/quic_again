@@ -12,7 +12,7 @@ use crate::{
     cid_queue::CidQueue,
     config::{EndpointConfig, ServerConfig, TransportConfig},
     crypto::{self, KeyPair, Keys, PacketKey},
-    frame::{self, Close, Frame},
+    frame::{self, Close, Frame, FrameStruct},
     packet::{Header, InitialHeader, LongType, Packet, PacketNumber, PartialDecode, SpaceId},
     shared::{
         ConnectionEvent, ConnectionEventInner, ConnectionId, DatagramConnectionEvent, EcnCodepoint,
@@ -1128,6 +1128,14 @@ impl Connection {
                         &mut self.stats,
                     );
                 }
+
+                // Since there only 64 ACK frames there will always be enough space
+                // to encode the ConnectionClose frame too. However we still have the
+                // check here to prevent crashes if something changes.
+                debug_assert!(
+                    buf.len() + frame::ConnectionClose::SIZE_BOUND < builder.max_size,
+                    "ACKs should leave space for ConnectionClose"
+                );
             }
             todo!()
         }

@@ -102,6 +102,10 @@ impl fmt::Display for ConnectionClose {
     }
 }
 
+impl FrameStruct for ConnectionClose {
+    const SIZE_BOUND: usize = 1 + 8 + 8 + 8;
+}
+
 /// Reason given by an application for closing the connection
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ApplicationClose {}
@@ -116,4 +120,9 @@ impl fmt::Display for ApplicationClose {
 pub(crate) struct Crypto {
     pub(crate) offset: u64,
     pub(crate) data: Bytes,
+}
+
+pub(crate) trait FrameStruct {
+    /// Smallest number of bytes this type of frame is guaranteed to fit within.
+    const SIZE_BOUND: usize;
 }
