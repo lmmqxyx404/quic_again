@@ -315,4 +315,8 @@ impl PendingAcks {
     pub(super) fn can_send(&self) -> bool {
         self.immediate_ack_required && !self.ranges.is_empty()
     }
+    /// 3. Returns the set of currently pending ACK ranges
+    pub(super) fn ranges(&self) -> &ArrayRangeSet {
+        &self.ranges
+    }
 }

@@ -178,9 +178,10 @@ pub struct Connection {
     spin: bool,
     /// 33. The CID we initially chose, for use during the handshake
     handshake_cid: ConnectionId,
-    /// 34. Sent in every outgoing Initial packet. Always empty for servers and after Initial keys are
-    /// discarded.
+    /// 34. Sent in every outgoing Initial packet. Always empty for servers and after Initial keys are discarded.
     retry_token: Bytes,
+    /// 35. Congestion Control: Whether the most recently received packet had an ECN codepoint set
+    receiving_ecn: bool,
 }
 
 impl Connection {
@@ -283,7 +284,7 @@ impl Connection {
             rng,
             handshake_cid: loc_cid,
             retry_token: Bytes::new(),
-
+            receiving_ecn: false,
         };
 
         if side.is_client() {
@@ -1111,6 +1112,23 @@ impl Connection {
             pad_datagram |=
                 space_id == SpaceId::Initial && (self.side.is_client() || ack_eliciting);
 
+            if close {
+                trace!("sending CONNECTION_CLOSE");
+                // Encode ACKs before the ConnectionClose message, to give the receiver
+                // a better approximate on what data has been processed. This is
+                // especially important with ack delay, since the peer might not
+                // have gotten any other ACK for the data earlier on.
+                if !self.spaces[space_id].pending_acks.ranges().is_empty() {
+                    Self::populate_acks(
+                        now,
+                        self.receiving_ecn,
+                        &mut SentFrames::default(),
+                        &mut self.spaces[space_id],
+                        buf,
+                        &mut self.stats,
+                    );
+                }
+            }
             todo!()
         }
 
@@ -1191,6 +1209,21 @@ impl Connection {
     }
     /// 33
     fn close_inner(&mut self, now: Instant, reason: Close) {
+        todo!()
+    }
+
+    /// Write pending ACKs into a buffer
+    ///
+    /// This method assumes ACKs are pending, and should only be called if
+    /// `!PendingAcks::ranges().is_empty()` returns `true`.
+    fn populate_acks(
+        now: Instant,
+        receiving_ecn: bool,
+        sent: &mut SentFrames,
+        space: &mut PacketSpace,
+        buf: &mut Vec<u8>,
+        stats: &mut ConnectionStats,
+    ) {
         todo!()
     }
 }
