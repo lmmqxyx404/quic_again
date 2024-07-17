@@ -1044,6 +1044,46 @@ impl Connection {
             }
 
             debug_assert!(buf_capacity - buf.len() >= MIN_PACKET_SPACE);
+
+            //
+            // From here on, we've determined that a packet will definitely be sent.
+            //
+            if self.spaces[SpaceId::Initial].crypto.is_some()
+                && space_id == SpaceId::Handshake
+                && self.side.is_client()
+            {
+                // A client stops both sending and processing Initial packets when it
+                // sends its first Handshake packet.
+                self.discard_space(now, SpaceId::Initial);
+            }
+            if let Some(ref mut prev) = self.prev_crypto {
+                prev.update_unacked = false;
+            }
+
+            debug_assert!(
+                builder_storage.is_none() && sent_frames.is_none(),
+                "Previous packet must have been finished"
+            );
+
+            // This should really be `builder.insert()`, but `Option::insert`
+            // is not stable yet. Since we `debug_assert!(builder.is_none())` it
+            // doesn't make any functional difference.
+            let builder = builder_storage.get_or_insert(PacketBuilder::new(
+                now,
+                space_id,
+                self.rem_cids.active(),
+                buf,
+                buf_capacity,
+                datagram_start,
+                ack_eliciting,
+                self,
+            )?);
+            coalesce = coalesce && !builder.short_header;
+
+            // https://tools.ietf.org/html/draft-ietf-quic-transport-34#section-14.1
+            pad_datagram |=
+                space_id == SpaceId::Initial && (self.side.is_client() || ack_eliciting);
+
             todo!()
         }
 
@@ -1107,6 +1147,10 @@ impl Connection {
     ///
     /// See also `self.space(SpaceId::Data).can_send()`
     fn can_send_1rtt(&self, max_size: usize) -> bool {
+        todo!()
+    }
+    /// 30
+    fn discard_space(&mut self, now: Instant, space_id: SpaceId) {
         todo!()
     }
 }

@@ -91,6 +91,8 @@ pub(super) struct PrevCrypto {
     /// number is lower. `None` indicates that we have not yet received a packet using newer keys,
     /// which implies that the update was locally initiated.
     pub(super) end_packet: Option<(u64, Instant)>,
+    /// 2. Whether the following key phase is from a remotely initiated update that we haven't acked
+    pub(super) update_unacked: bool,
 }
 
 /// 2.
