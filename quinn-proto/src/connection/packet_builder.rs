@@ -6,7 +6,7 @@ use tracing::trace_span;
 
 use crate::{
     frame::{self, Close},
-    packet::{Header, InitialHeader, PacketNumber, PartialEncode, SpaceId},
+    packet::{Header, InitialHeader, PacketNumber, PartialEncode, SpaceId, FIXED_BIT},
     shared::ConnectionId,
     INITIAL_MTU,
 };
@@ -133,6 +133,42 @@ impl PacketBuilder {
                 version,
             }),
         };
-        todo!()
+        let partial_encode = header.encode(buffer);
+        if conn.peer_params.grease_quic_bit && conn.rng.gen() {
+            buffer[partial_encode.start] ^= FIXED_BIT;
+        }
+
+        let (sample_size, tag_len) = if let Some(ref crypto) = space.crypto {
+            (
+                crypto.header.local.sample_size(),
+                crypto.packet.local.tag_len(),
+            )
+        } else if space_id == SpaceId::Data {
+            let zero_rtt = conn.zero_rtt_crypto.as_ref().unwrap();
+            (zero_rtt.header.sample_size(), zero_rtt.packet.tag_len())
+        } else {
+            unreachable!("tried to send {:?} packet without keys", space_id);
+        };
+
+        // Each packet must be large enough for header protection sampling, i.e. the combined
+        // lengths of the encoded packet number and protected payload must be at least 4 bytes
+        // longer than the sample required for header protection. Further, each packet should be at
+        // least tag_len + 6 bytes larger than the destination CID on incoming packets so that the
+        // peer may send stateless resets that are indistinguishable from regular traffic.
+
+        // pn_len + payload_len + tag_len >= sample_size + 4
+        // payload_len >= sample_size + 4 - pn_len - tag_len
+        let min_size = Ord::max(
+            buffer.len() + (sample_size + 4).saturating_sub(number.len() + tag_len),
+            partial_encode.start + dst_cid.len() + 6,
+        );
+        let max_size = buffer_capacity - tag_len;
+
+        Some(Self {
+            min_size,
+            tag_len,
+            partial_encode,
+            short_header: header.is_short(),
+        })
     }
 }
