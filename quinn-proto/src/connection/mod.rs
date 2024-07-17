@@ -1204,6 +1204,22 @@ impl Connection {
                     });
                 }
             }
+
+            let sent =
+                self.populate_packet(now, space_id, buf, builder.max_size, builder.exact_number);
+            // ACK-only packets should only be sent when explicitly allowed. If we write them due to
+            // any other reason, there is a bug which leads to one component announcing write
+            // readiness while not writing any data. This degrades performance. The condition is
+            // only checked if the full MTU is available and when potentially large fixed-size
+            // frames aren't queued, so that lack of space in the datagram isn't the reason for just
+            // writing ACKs.
+            debug_assert!(
+                !(sent.is_ack_only(&self.streams)
+                    && !can_send.acks
+                    && can_send.other
+                    && (buf_capacity - builder.datagram_start) == self.path.current_mtu() as usize), //&& self.datagrams.outgoing.is_empty()
+                "SendableFrames was {can_send:?}, but only ACKs have been written"
+            );
             todo!()
         }
 
@@ -1286,8 +1302,7 @@ impl Connection {
     fn close_inner(&mut self, now: Instant, reason: Close) {
         todo!()
     }
-
-    /// Write pending ACKs into a buffer
+    /// 34 Write pending ACKs into a buffer
     ///
     /// This method assumes ACKs are pending, and should only be called if
     /// `!PendingAcks::ranges().is_empty()` returns `true`.
@@ -1299,6 +1314,17 @@ impl Connection {
         buf: &mut Vec<u8>,
         stats: &mut ConnectionStats,
     ) {
+        todo!()
+    }
+    /// 35
+    fn populate_packet(
+        &mut self,
+        now: Instant,
+        space_id: SpaceId,
+        buf: &mut Vec<u8>,
+        max_size: usize,
+        pn: u64,
+    ) -> SentFrames {
         todo!()
     }
 }
@@ -1436,4 +1462,11 @@ const MIN_PACKET_SPACE: usize = 40;
 struct SentFrames {
     /// Whether the packet contains non-retransmittable frames (like datagrams)
     non_retransmits: bool,
+}
+
+impl SentFrames {
+    /// Returns whether the packet contains only ACKs
+    fn is_ack_only(&self, streams: &StreamsState) -> bool {
+        !self.non_retransmits
+    }
 }

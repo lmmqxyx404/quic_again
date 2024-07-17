@@ -25,6 +25,10 @@ pub(super) struct PacketBuilder {
     pub(super) short_header: bool,
     /// 5. Largest absolute position in the associated buffer that may be occupied by this packet's frames
     pub(super) max_size: usize,
+    /// 6
+    pub(super) exact_number: u64,
+    /// 7.
+    pub(super) datagram_start: usize,
 }
 
 impl PacketBuilder {
@@ -172,6 +176,8 @@ impl PacketBuilder {
             partial_encode,
             short_header: header.is_short(),
             max_size,
+            exact_number,
+            datagram_start,
         })
     }
 }
