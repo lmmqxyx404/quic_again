@@ -63,6 +63,10 @@ impl IndexMut<SpaceId> for [PacketSpace; 3]
 ```
 这个trait可以使用别的 struct 当作索引
 
+## 4. about `ConnectionClose`
+这个结构体的实现比较复杂
+主要是其中的一个field `pub error_code: TransportErrorCode,`
+
 # dev history
 ## 1. 在 `4c8ab712de949a` 之后一个 commit
 就让 `fn version_negotiate_client` 通过test了，注意之后的 `assert_matches!`.

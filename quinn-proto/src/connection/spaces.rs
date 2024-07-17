@@ -34,6 +34,8 @@ pub(super) struct PacketSpace {
     pub(super) pending_acks: PendingAcks,
     /// 10.
     pub(super) ping_pending: bool,
+    /// 11. Number of packets sent in the current key phase
+    pub(super) sent_with_keys: u64,
 }
 
 impl PacketSpace {
@@ -52,6 +54,7 @@ impl PacketSpace {
 
             pending_acks: PendingAcks::new(),
             ping_pending: false,
+            sent_with_keys: 0,
         }
     }
 

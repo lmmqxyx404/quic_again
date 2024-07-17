@@ -5,7 +5,9 @@ use bytes::Bytes;
 use crate::TransportError;
 /// 1
 #[derive(Clone, Debug)]
-pub enum Close {}
+pub enum Close {
+    Connection(ConnectionClose),
+}
 
 impl From<TransportError> for Close {
     fn from(x: TransportError) -> Self {
@@ -83,11 +85,20 @@ pub(crate) enum Frame {
 
 /// Reason given by the transport for closing the connection
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ConnectionClose {}
+pub struct ConnectionClose {
+    /// 1. Human-readable reason for the close
+    pub reason: Bytes,
+    // pub error_code: TransportErrorCode,
+}
 
 impl fmt::Display for ConnectionClose {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        todo!()
+        // todo
+        if !self.reason.as_ref().is_empty() {
+            f.write_str(": ")?;
+            f.write_str(&String::from_utf8_lossy(&self.reason))?;
+        }
+        Ok(())
     }
 }
 

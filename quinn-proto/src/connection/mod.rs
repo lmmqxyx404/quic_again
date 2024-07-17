@@ -29,7 +29,7 @@ use packet_crypto::{PrevCrypto, ZeroRttCrypto};
 use paths::PathData;
 /// 2.
 mod stats;
-use rand::{rngs::StdRng, SeedableRng};
+use rand::{rngs::StdRng, Rng, SeedableRng};
 pub use stats::ConnectionStats;
 /// 3.
 mod cid_state;
@@ -168,6 +168,8 @@ pub struct Connection {
     packet_number_filter: PacketNumberFilter,
     /// 28. Surplus remote CIDs for future use on new paths
     rem_cids: CidQueue,
+    /// 19. How many packets are in the current key phase. Used only for `Data` space.
+    key_phase_size: u64,
 }
 
 impl Connection {
@@ -257,6 +259,13 @@ impl Connection {
             app_limited: false,
 
             rem_cids: CidQueue::new(rem_cid),
+            // A small initial key phase size ensures peers that don't handle key updates correctly
+            // fail sooner rather than later. It's okay for both peers to do this, as the first one
+            // to perform an update will reset the other's key phase size in `update_keys`, and a
+            // simultaneous key update by both is just like a regular key update with a really fast
+            // response. Inspired by quic-go's similar behavior of performing the first key update
+            // at the 100th short-header packet.
+            key_phase_size: rng.gen_range(10..1000),
         };
 
         if side.is_client() {
@@ -1151,6 +1160,19 @@ impl Connection {
     }
     /// 30
     fn discard_space(&mut self, now: Instant, space_id: SpaceId) {
+        todo!()
+    }
+    /// 31
+    #[doc(hidden)]
+    pub fn initiate_key_update(&mut self) {
+        self.update_keys(None, false);
+    }
+    /// 32.
+    fn update_keys(&mut self, end_packet: Option<(u64, Instant)>, remote: bool) {
+        todo!()
+    }
+    /// 33
+    fn close_inner(&mut self, now: Instant, reason: Close) {
         todo!()
     }
 }
