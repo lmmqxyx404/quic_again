@@ -23,6 +23,7 @@ rustc-hash = "2"
 tracing = { workspace = true }
 # todo: delete the following
 hex-literal = "0.4.0"
+tinyvec = { workspace = true, features = ["alloc"] }
 
 [dev-dependencies]
 assert_matches = "1.1"

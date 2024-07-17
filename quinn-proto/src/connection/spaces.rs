@@ -2,6 +2,7 @@ use rand::Rng;
 
 use crate::frame;
 use crate::packet::SpaceId;
+use crate::range_set::ArrayRangeSet;
 use crate::{crypto::Keys, shared::IssuedCid};
 use std::collections::VecDeque;
 use std::ops::{Index, IndexMut};
@@ -29,6 +30,10 @@ pub(super) struct PacketSpace {
     pub(super) next_packet_number: u64,
     /// 8. The largest packet number the remote peer acknowledged in an ACK frame.
     pub(super) largest_acked_packet: Option<u64>,
+    /// 9. Packet numbers to acknowledge
+    pub(super) pending_acks: PendingAcks,
+    /// 10.
+    pub(super) ping_pending: bool,
 }
 
 impl PacketSpace {
@@ -44,6 +49,9 @@ impl PacketSpace {
             immediate_ack_pending: false,
             next_packet_number: 0,
             largest_acked_packet: None,
+
+            pending_acks: PendingAcks::new(),
+            ping_pending: false,
         }
     }
 
@@ -83,7 +91,11 @@ impl PacketSpace {
     }
     /// 3
     pub(super) fn can_send(&self, streams: &StreamsState) -> SendableFrames {
-        todo!()
+        let acks = self.pending_acks.can_send();
+        let other =
+            !self.pending.is_empty(streams) || self.ping_pending || self.immediate_ack_pending;
+
+        SendableFrames { acks, other }
     }
 }
 
@@ -250,5 +262,32 @@ impl SendableFrames {
             acks: false,
             other: false,
         }
+    }
+}
+
+#[derive(Debug)]
+pub(super) struct PendingAcks {
+    /// 1. Whether we should send an ACK immediately, even if that means sending an ACK-only packet
+    ///
+    /// When `immediate_ack_required` is false, the normal behavior is to send ACK frames only when
+    /// there is other data to send, or when the `MaxAckDelay` timer expires.
+    immediate_ack_required: bool,
+    /// 2. The packet number ranges of ack-eliciting packets the peer hasn't confirmed receipt of ACKs
+    /// for
+    ranges: ArrayRangeSet,
+}
+
+impl PendingAcks {
+    /// 1.
+    fn new() -> Self {
+        Self {
+            immediate_ack_required: false,
+
+            ranges: ArrayRangeSet::default(),
+        }
+    }
+    /// 2. Whether any ACK frames can be sent
+    pub(super) fn can_send(&self) -> bool {
+        self.immediate_ack_required && !self.ranges.is_empty()
     }
 }
