@@ -4,6 +4,7 @@ use rand::RngCore;
 
 use crate::{
     cid_generator::HashedConnectionIdGenerator,
+    congestion,
     crypto::{self, HandshakeTokenKey, HmacKey},
     shared::ConnectionId,
     ConnectionIdGenerator, RandomConnectionIdGenerator, VarInt, DEFAULT_SUPPORTED_VERSIONS,
@@ -248,6 +249,8 @@ pub struct TransportConfig {
     /// 12.
     #[cfg(test)]
     pub(crate) deterministic_packet_numbers: bool,
+    /// 13.
+    pub(crate) congestion_controller_factory: Arc<dyn congestion::ControllerFactory + Send + Sync>,
 }
 
 impl TransportConfig {
@@ -281,6 +284,8 @@ impl Default for TransportConfig {
             ack_frequency_config: None,
             #[cfg(test)]
             deterministic_packet_numbers: false,
+
+            congestion_controller_factory: Arc::new(congestion::CubicConfig::default()),
         }
     }
 }

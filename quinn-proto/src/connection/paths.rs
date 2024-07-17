@@ -4,7 +4,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::{config::TransportConfig, TIMER_GRANULARITY};
+use crate::{config::TransportConfig, congestion, TIMER_GRANULARITY};
 
 use super::mtud::MtuDiscovery;
 
@@ -25,6 +25,10 @@ pub(super) struct PathData {
     pub(super) rtt: RttEstimator,
     /// 6. The state of the MTU discovery process
     pub(super) mtud: MtuDiscovery,
+    /// 7.
+    pub(super) in_flight: InFlight,
+    /// 8. Congestion controller state
+    pub(super) congestion: Box<dyn congestion::Controller>,
 }
 
 impl PathData {
@@ -37,6 +41,10 @@ impl PathData {
         validated: bool,
         config: &TransportConfig,
     ) -> Self {
+        let congestion = config
+            .congestion_controller_factory
+            .clone()
+            .build(now, config.get_initial_mtu());
         Self {
             remote,
             validated,
@@ -58,6 +66,9 @@ impl PathData {
                         )
                     },
                 ),
+
+            in_flight: InFlight::new(),
+            congestion,
         }
     }
     /// 2. Indicates whether we're a server that hasn't validated the peer's address and hasn't
@@ -101,5 +112,21 @@ impl RttEstimator {
     /// 3.The current best RTT estimation.
     pub fn get(&self) -> Duration {
         self.smoothed.unwrap_or(self.latest)
+    }
+}
+
+/// Summary statistics of packets that have been sent on a particular path, but which have not yet
+/// been acked or deemed lost
+pub(super) struct InFlight {
+    /// 1. Sum of the sizes of all sent packets considered "in flight" by congestion control
+    ///
+    /// The size does not include IP or UDP overhead. Packets only containing ACK frames do not
+    /// count towards this to ensure congestion control does not impede congestion feedback.
+    pub(super) bytes: u64,
+}
+
+impl InFlight {
+    fn new() -> Self {
+        Self { bytes: 0 }
     }
 }
