@@ -168,8 +168,10 @@ pub struct Connection {
     packet_number_filter: PacketNumberFilter,
     /// 28. Surplus remote CIDs for future use on new paths
     rem_cids: CidQueue,
-    /// 19. How many packets are in the current key phase. Used only for `Data` space.
+    /// 29. How many packets are in the current key phase. Used only for `Data` space.
     key_phase_size: u64,
+    /// 30
+    rng: StdRng,
 }
 
 impl Connection {
@@ -266,6 +268,7 @@ impl Connection {
             // response. Inspired by quic-go's similar behavior of performing the first key update
             // at the 100th short-header packet.
             key_phase_size: rng.gen_range(10..1000),
+            rng,
         };
 
         if side.is_client() {

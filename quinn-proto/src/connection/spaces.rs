@@ -100,6 +100,14 @@ impl PacketSpace {
 
         SendableFrames { acks, other }
     }
+
+    /// 4. Get the next outgoing packet number in this space
+    ///
+    /// In the Data space, the connection's [`PacketNumberFilter`] must be used rather than calling
+    /// this directly.
+    pub(super) fn get_tx_number(&mut self) -> u64 {
+        todo!()
+    }
 }
 
 impl Index<SpaceId> for [PacketSpace; 3] {
@@ -222,6 +230,7 @@ pub(super) struct PacketNumberFilter {
 }
 
 impl PacketNumberFilter {
+    /// 1
     pub(super) fn new(rng: &mut (impl Rng + ?Sized)) -> Self {
         // First skipped PN is in 0..64
         let exponent = 6;
@@ -229,20 +238,28 @@ impl PacketNumberFilter {
             next_skipped_packet_number: rng.gen_range(0..2u64.saturating_pow(exponent)),
         }
     }
-
+    /// 2
     #[cfg(test)]
     pub(super) fn disabled() -> Self {
         Self {
             next_skipped_packet_number: u64::MAX,
         }
     }
-
+    /// 3
     pub(super) fn peek(&self, space: &PacketSpace) -> u64 {
         let n = space.next_packet_number;
         if n != self.next_skipped_packet_number {
             return n;
         }
         n + 1
+    }
+    /// 4
+    pub(super) fn allocate(
+        &mut self,
+        rng: &mut (impl Rng + ?Sized),
+        space: &mut PacketSpace,
+    ) -> u64 {
+        todo!()
     }
 }
 

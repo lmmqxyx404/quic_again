@@ -1,4 +1,4 @@
-use std::time::Instant;
+use std::{cmp, time::Instant};
 
 use bytes::Bytes;
 
@@ -6,6 +6,7 @@ use crate::{
     frame::{self, Close},
     packet::{PartialEncode, SpaceId},
     shared::ConnectionId,
+    INITIAL_MTU,
 };
 
 use super::{Connection, SentFrames};
@@ -88,6 +89,18 @@ impl PacketBuilder {
             }
         }
 
+        let space = &mut conn.spaces[space_id];
+
+        if space.loss_probes != 0 {
+            space.loss_probes -= 1;
+            // Clamp the packet size to at most the minimum MTU to ensure that loss probes can get
+            // through and enable recovery even if the path MTU has shrank unexpectedly.
+            buffer_capacity = cmp::min(buffer_capacity, datagram_start + usize::from(INITIAL_MTU));
+        }
+        let exact_number = match space_id {
+            SpaceId::Data => conn.packet_number_filter.allocate(&mut conn.rng, space),
+            _ => space.get_tx_number(),
+        };
         todo!()
     }
 }
