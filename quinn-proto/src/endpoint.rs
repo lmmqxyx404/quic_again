@@ -445,7 +445,29 @@ impl Endpoint {
         crypto: Keys,
         buf: &mut Vec<u8>,
     ) -> Option<DatagramEvent> {
-        todo!()
+        if !packet.reserved_bits_valid() {
+            debug!("dropping connection attempt with invalid reserved bits");
+            return None;
+        }
+
+        let Header::Initial(header) = packet.header else {
+            panic!("non-initial packet in handle_first_packet()");
+        };
+
+        let server_config = self.server_config.as_ref().unwrap().clone();
+
+        let (retry_src_cid, orig_dst_cid): (Option<ConnectionId>, ConnectionId) =
+            if header.token.is_empty() {
+                (None, header.dst_cid)
+            } else {
+                todo!()
+            };
+
+        let incoming_idx = self.incoming_buffers.insert(IncomingBuffer::default());
+        self.index
+            .insert_initial_incoming(orig_dst_cid, incoming_idx);
+
+        Some(DatagramEvent::NewConnection(Incoming {}))
     }
     /// 12. Whether we've used up 3/4 of the available CID space
     ///
@@ -579,6 +601,11 @@ impl ConnectionIndex {
             .get(addresses.remote, &data[data.len() - RESET_TOKEN_SIZE..])
             .cloned()
             .map(RouteDatagramTo::Connection)
+    }
+    /// 3.Associate an incoming connection with its initial destination CID
+    fn insert_initial_incoming(&mut self, dst_cid: ConnectionId, incoming_key: usize) {
+        self.connection_ids_initial
+            .insert(dst_cid, RouteDatagramTo::Incoming(incoming_key));
     }
 }
 

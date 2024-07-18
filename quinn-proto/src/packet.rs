@@ -153,6 +153,16 @@ pub(crate) struct Packet {
     pub(crate) payload: BytesMut,
 }
 
+impl Packet {
+    pub(crate) fn reserved_bits_valid(&self) -> bool {
+        let mask = match self.header {
+            Header::Short { .. } => SHORT_RESERVED_BITS,
+            _ => LONG_RESERVED_BITS,
+        };
+        self.header_data[0] & mask == 0
+    }
+}
+
 pub(crate) enum Header {
     Initial(InitialHeader),
     Long {
@@ -829,6 +839,9 @@ pub(crate) const FIXED_BIT: u8 = 0x40;
 pub(crate) const LONG_HEADER_FORM: u8 = 0x80;
 pub(crate) const SPIN_BIT: u8 = 0x20;
 const KEY_PHASE_BIT: u8 = 0x04;
+const SHORT_RESERVED_BITS: u8 = 0x18;
+const LONG_RESERVED_BITS: u8 = 0x0c;
+
 #[cfg(test)]
 mod tests {
     use hex_literal::hex;
