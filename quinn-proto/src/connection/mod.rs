@@ -14,7 +14,7 @@ use crate::{
     coding::BufMutExt,
     config::{EndpointConfig, ServerConfig, TransportConfig},
     crypto::{self, KeyPair, Keys, PacketKey},
-    frame::{self, Close, Frame, FrameStruct},
+    frame::{self, Close, Datagram, Frame, FrameStruct},
     packet::{Header, InitialHeader, LongType, Packet, PacketNumber, PartialDecode, SpaceId},
     shared::{
         ConnectionEvent, ConnectionEventInner, ConnectionId, DatagramConnectionEvent, EcnCodepoint,
@@ -1516,6 +1516,24 @@ impl Connection {
             sent.retransmits.get_or_create().retire_cids.push(seq);
             self.stats.frame_tx.retire_connection_id += 1;
         }
+
+        // DATAGRAM
+        let mut sent_datagrams = false;
+        while buf.len() + Datagram::SIZE_BOUND < max_size && space_id == SpaceId::Data {
+            match self.datagrams.write(buf, max_size) {
+                true => {
+                    sent_datagrams = true;
+                    sent.non_retransmits = true;
+                    self.stats.frame_tx.datagram += 1;
+                }
+                false => break,
+            }
+        }
+        if self.datagrams.send_blocked && sent_datagrams {
+            self.events.push_back(Event::DatagramsUnblocked);
+            self.datagrams.send_blocked = false;
+        }
+
         todo!()
     }
 }
@@ -1638,6 +1656,8 @@ pub enum Event {
     },
     /// 2. Stream events
     Stream(StreamEvent),
+    /// 3. One or more application datagrams have been sent after blocking
+    DatagramsUnblocked,
 }
 
 /// 1. The maximum amount of datagrams that are sent in a single transmit

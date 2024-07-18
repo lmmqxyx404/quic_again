@@ -201,6 +201,10 @@ pub struct Datagram {
     pub data: Bytes,
 }
 
+impl FrameStruct for Datagram {
+    const SIZE_BOUND: usize = 1 + 8;
+}
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub(crate) struct AckFrequency {
     pub(crate) sequence: VarInt,
