@@ -121,6 +121,9 @@ pub(super) struct Pair {
     /// Number of spin bit flips
     pub(super) spins: u64,
     last_spin: bool,
+    /// Simulates explicit congestion notification
+    pub(super) congestion_experienced: bool,
+    latency: Duration,
 }
 
 impl Pair {
@@ -154,6 +157,8 @@ impl Pair {
             mtu: DEFAULT_MTU,
             spins: 0,
             last_spin: false,
+            congestion_experienced: false,
+            latency: Duration::new(0, 0),
         }
     }
     /// 3
@@ -221,7 +226,17 @@ impl Pair {
                 self.spins += (spin == self.last_spin) as u64;
                 self.last_spin = spin;
             }
-            todo!()
+            if let Some(ref socket) = self.client.socket {
+                socket.send_to(&buffer, packet.destination).unwrap();
+            }
+            if self.server.addr == packet.destination {
+                let ecn = set_congestion_experienced(packet.ecn, self.congestion_experienced);
+                self.server.inbound.push_back((
+                    self.time + self.latency,
+                    ecn,
+                    buffer.as_ref().into(),
+                ));
+            }
         }
     }
     /// 10
@@ -421,3 +436,13 @@ fn packet_size(transmit: &Transmit, buffer: &Bytes) -> usize {
 }
 
 pub(super) const DEFAULT_MTU: usize = 1452;
+
+fn set_congestion_experienced(
+    x: Option<EcnCodepoint>,
+    congestion_experienced: bool,
+) -> Option<EcnCodepoint> {
+    x.map(|codepoint| match congestion_experienced {
+        true => EcnCodepoint::Ce,
+        false => codepoint,
+    })
+}
