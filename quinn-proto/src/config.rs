@@ -77,6 +77,8 @@ pub struct ServerConfig {
     ///
     /// Must be set to use TLS 1.3 only.
     pub crypto: Arc<dyn crypto::ServerConfig>,
+    /// 5.
+    pub(crate) max_incoming: usize,
 }
 
 #[cfg(feature = "ring")]
@@ -105,6 +107,7 @@ impl ServerConfig {
             incoming_buffer_size_total: 100 << 20,
 
             crypto,
+            max_incoming: 1 << 16,
         }
     }
 }

@@ -399,7 +399,29 @@ impl Endpoint {
         &mut self,
         header: &ProtectedInitialHeader,
     ) -> Result<(), TransportError> {
-        todo!()
+        let config = &self.server_config.as_ref().unwrap();
+        if self.cids_exhausted() || self.incoming_buffers.len() >= config.max_incoming {
+            return Err(TransportError::CONNECTION_REFUSED(""));
+        }
+
+        // RFC9000 §7.2 dictates that initial (client-chosen) destination CIDs must be at least 8
+        // bytes. If this is a Retry packet, then the length must instead match our usual CID
+        // length. If we ever issue non-Retry address validation tokens via `NEW_TOKEN`, then we'll
+        // also need to validate CID length for those after decoding the token.
+        if header.dst_cid.len() < 8
+            && (!header.token_pos.is_empty()
+                && header.dst_cid.len() != self.local_cid_generator.cid_len())
+        {
+            debug!(
+                "rejecting connection due to invalid DCID length {}",
+                header.dst_cid.len()
+            );
+            return Err(TransportError::PROTOCOL_VIOLATION(
+                "invalid destination CID length",
+            ));
+        }
+
+        Ok(())
     }
     /// 10
     fn initial_close(
@@ -424,6 +446,17 @@ impl Endpoint {
         buf: &mut Vec<u8>,
     ) -> Option<DatagramEvent> {
         todo!()
+    }
+    /// 12. Whether we've used up 3/4 of the available CID space
+    ///
+    /// We leave some space unused so that `new_cid` can be relied upon to finish quickly. We don't
+    /// bother to check when CID longer than 4 bytes are used because 2^40 connections is a lot.
+    fn cids_exhausted(&self) -> bool {
+        self.local_cid_generator.cid_len() <= 4
+            && self.local_cid_generator.cid_len() != 0
+            && (2usize.pow(self.local_cid_generator.cid_len() as u32 * 8)
+                - self.index.connection_ids.len())
+                < 2usize.pow(self.local_cid_generator.cid_len() as u32 * 8 - 2)
     }
 }
 
