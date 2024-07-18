@@ -8,6 +8,8 @@ pub struct ConnectionStats {
     pub frame_tx: FrameStats,
     /// 3. Statistics about UDP datagrams transmitted on a connection
     pub udp_tx: UdpStats,
+    /// 4. Statistics related to the current transmission path
+    pub path: PathStats,
 }
 
 /// 2. Statistics about UDP datagrams transmitted or received on a connection
@@ -69,4 +71,12 @@ impl std::fmt::Debug for FrameStats {
             .field("PATH_CHALLENGE", &self.path_challenge)
             .finish()
     }
+}
+
+/// Statistics related to a transmission path
+#[derive(Debug, Default, Copy, Clone)]
+#[non_exhaustive]
+pub struct PathStats {
+    /// 1. The amount of packets sent on this path
+    pub sent_packets: u64,
 }

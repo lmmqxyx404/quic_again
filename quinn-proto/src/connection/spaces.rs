@@ -373,3 +373,8 @@ impl ThinRetransmits {
         }
     }
 }
+
+
+/// Represents one or more packets subject to retransmission
+#[derive(Debug, Clone)]
+pub(super) struct SentPacket {}

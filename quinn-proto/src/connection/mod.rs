@@ -1255,7 +1255,7 @@ impl Connection {
         }
 
         self.app_limited = buf.is_empty() && !congestion_blocked;
-        
+
         todo!()
     }
     /// 25
@@ -1560,6 +1560,10 @@ impl Connection {
         }
 
         sent
+    }
+
+    fn reset_keep_alive(&mut self, now: Instant) {
+        todo!()
     }
 }
 

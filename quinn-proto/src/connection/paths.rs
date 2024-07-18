@@ -6,7 +6,7 @@ use std::{
 
 use crate::{config::TransportConfig, congestion, TIMER_GRANULARITY};
 
-use super::{mtud::MtuDiscovery, pacing::Pacer};
+use super::{mtud::MtuDiscovery, pacing::Pacer, spaces::{PacketSpace, SentPacket}};
 
 /// Description of a particular network path
 pub(super) struct PathData {
@@ -94,6 +94,11 @@ impl PathData {
     /// 3. Returns the path's current MTU
     pub(super) fn current_mtu(&self) -> u16 {
         self.mtud.current_mtu()
+    }
+
+    /// 4. Account for transmission of `packet` with number `pn` in `space`
+    pub(super) fn sent(&mut self, pn: u64, packet: SentPacket, space: &mut PacketSpace) {
+        todo!()
     }
 }
 

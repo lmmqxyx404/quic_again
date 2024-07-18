@@ -5,6 +5,7 @@ use rand::Rng;
 use tracing::{trace, trace_span};
 
 use crate::{
+    connection::spaces::SentPacket,
     frame::{self, Close},
     packet::{Header, InitialHeader, PacketNumber, PartialEncode, SpaceId, FIXED_BIT},
     shared::ConnectionId,
@@ -64,6 +65,21 @@ impl PacketBuilder {
             true => size as u16,
             false => 0,
         };
+
+        let packet = SentPacket {
+            /* largest_acked: sent.largest_acked,
+            time_sent: now,
+            size,
+            ack_eliciting,
+            retransmits: sent.retransmits,
+            stream_frames: sent.stream_frames, */
+        };
+
+        conn.path
+            .sent(exact_number, packet, &mut conn.spaces[space_id]);
+        conn.stats.path.sent_packets += 1;
+        conn.reset_keep_alive(now);
+        
         todo!()
     }
 
