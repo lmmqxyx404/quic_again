@@ -585,6 +585,26 @@ impl Endpoint {
             });
         }
 
+        let tls = server_config.crypto.clone().start_session(version, &params);
+        let transport_config = server_config.transport.clone();
+        let mut conn = self.add_connection(
+            ch,
+            version,
+            dst_cid,
+            loc_cid,
+            src_cid,
+            pref_addr_cid,
+            incoming.addresses,
+            now,
+            tls,
+            Some(server_config),
+            transport_config,
+            remote_address_validated,
+        );
+        if dst_cid.len() != 0 {
+            self.index.insert_initial(dst_cid, ch);
+        }
+
         todo!()
     }
 }
@@ -717,6 +737,11 @@ impl ConnectionIndex {
     /// 4. Remove an association with an initial destination CID
     fn remove_initial(&mut self, dst_cid: ConnectionId) {
         self.connection_ids_initial.remove(&dst_cid);
+    }
+    /// 5. Associate a connection with its initial destination CID
+    fn insert_initial(&mut self, dst_cid: ConnectionId, connection: ConnectionHandle) {
+        self.connection_ids_initial
+            .insert(dst_cid, RouteDatagramTo::Connection(connection));
     }
 }
 

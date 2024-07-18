@@ -115,12 +115,20 @@ pub trait HeaderKey: Send + Sync {
 
 /// 6. Server-side configuration for the crypto protocol
 pub trait ServerConfig: Send + Sync {
-    /// Create the initial set of keys given the client's initial destination ConnectionId
+    /// 1. Create the initial set of keys given the client's initial destination ConnectionId
     fn initial_keys(
         &self,
         version: u32,
         dst_cid: &ConnectionId,
     ) -> Result<Keys, UnsupportedVersion>;
+    /// 2. Start a server session with this configuration
+    ///
+    /// Never called if `initial_keys` rejected `version`.
+    fn start_session(
+        self: Arc<Self>,
+        version: u32,
+        params: &TransportParameters,
+    ) -> Box<dyn Session>;
 }
 
 /// 7. A pseudo random key for HKDF

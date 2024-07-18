@@ -281,6 +281,8 @@ impl crypto::PacketKey for Box<dyn PacketKey> {
 pub struct QuicServerConfig {
     /// 1.
     initial: Suite,
+    /// 2.
+    inner: Arc<rustls::ServerConfig>,
 }
 
 impl QuicServerConfig {
@@ -322,6 +324,7 @@ impl TryFrom<Arc<rustls::ServerConfig>> for QuicServerConfig {
         Ok(Self {
             initial: initial_suite_from_provider(inner.crypto_provider())
                 .ok_or(NoInitialCipherSuite { specific: false })?,
+            inner,
         })
     }
 }
@@ -334,5 +337,24 @@ impl crypto::ServerConfig for QuicServerConfig {
     ) -> Result<Keys, UnsupportedVersion> {
         let version = interpret_version(version)?;
         Ok(initial_keys(version, dst_cid, Side::Server, &self.initial))
+    }
+
+    fn start_session(
+        self: Arc<Self>,
+        version: u32,
+        params: &TransportParameters,
+    ) -> Box<dyn crypto::Session> {
+        // Safe: `start_session()` is never called if `initial_keys()` rejected `version`
+        let version = interpret_version(version).unwrap();
+        Box::new(TlsSession {
+            version,
+            got_handshake_data: false,
+            next_secrets: None,
+            inner: rustls::quic::Connection::Server(
+                rustls::quic::ServerConnection::new(self.inner.clone(), version, to_vec(params))
+                    .unwrap(),
+            ),
+            suite: self.initial,
+        })
     }
 }
