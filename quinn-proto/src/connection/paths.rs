@@ -153,4 +153,8 @@ impl PathResponses {
     pub(crate) fn pop_off_path(&mut self, remote: &SocketAddr) -> Option<(u64, SocketAddr)> {
         todo!()
     }
+    /// 2
+    pub(crate) fn pop_on_path(&mut self, remote: &SocketAddr) -> Option<u64> {
+        todo!()
+    }
 }

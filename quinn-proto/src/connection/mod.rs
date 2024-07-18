@@ -1418,6 +1418,18 @@ impl Connection {
             }
         }
 
+        // PATH_RESPONSE
+        if buf.len() + 9 < max_size && space_id == SpaceId::Data {
+            if let Some(token) = self.path_responses.pop_on_path(&self.path.remote) {
+                sent.non_retransmits = true;
+                sent.requires_padding = true;
+                trace!("PATH_RESPONSE {:08x}", token);
+                buf.write(frame::Type::PATH_RESPONSE);
+                buf.write(token);
+                self.stats.frame_tx.path_response += 1;
+            }
+        }
+
         todo!()
     }
 }
