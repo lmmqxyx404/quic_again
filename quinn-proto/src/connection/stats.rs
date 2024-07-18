@@ -55,6 +55,8 @@ pub struct FrameStats {
     pub retire_connection_id: u64,
     /// 9.
     pub datagram: u64,
+    /// 10.
+    pub stream: u64,
 }
 
 impl std::fmt::Debug for FrameStats {

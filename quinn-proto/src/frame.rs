@@ -1,6 +1,7 @@
 use std::{fmt, io, ops::RangeInclusive};
 
 use bytes::{Buf, BufMut, Bytes};
+use tinyvec::TinyVec;
 
 use crate::{
     coding::{self, BufExt, BufMutExt},
@@ -243,3 +244,17 @@ impl NewConnectionId {
 
 /// Smallest number of bytes this type of frame is guaranteed to fit within.
 pub(crate) const RETIRE_CONNECTION_ID_SIZE_BOUND: usize = 9;
+
+/// Metadata from a stream frame
+#[derive(Debug, Clone)]
+pub(crate) struct StreamMeta {}
+
+// This manual implementation exists because `Default` is not implemented for `StreamId`
+impl Default for StreamMeta {
+    fn default() -> Self {
+        Self {}
+    }
+}
+
+/// A vector of [`StreamMeta`] with optimization for the single element case
+pub(crate) type StreamMetaVec = TinyVec<[StreamMeta; 1]>;

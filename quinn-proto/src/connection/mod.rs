@@ -14,7 +14,7 @@ use crate::{
     coding::BufMutExt,
     config::{EndpointConfig, ServerConfig, TransportConfig},
     crypto::{self, KeyPair, Keys, PacketKey},
-    frame::{self, Close, Datagram, Frame, FrameStruct},
+    frame::{self, Close, Datagram, Frame, FrameStruct, StreamMetaVec},
     packet::{Header, InitialHeader, LongType, Packet, PacketNumber, PartialDecode, SpaceId},
     shared::{
         ConnectionEvent, ConnectionEventInner, ConnectionId, DatagramConnectionEvent, EcnCodepoint,
@@ -1534,7 +1534,13 @@ impl Connection {
             self.datagrams.send_blocked = false;
         }
 
-        todo!()
+        // STREAM
+        if space_id == SpaceId::Data {
+            sent.stream_frames = self.streams.write_stream_frames(buf, max_size);
+            self.stats.frame_tx.stream += sent.stream_frames.len() as u64;
+        }
+
+        sent
     }
 }
 
@@ -1679,6 +1685,8 @@ struct SentFrames {
     largest_acked: Option<u64>,
     /// 4.
     retransmits: ThinRetransmits,
+    /// 5.
+    stream_frames: StreamMetaVec,
 }
 
 impl SentFrames {

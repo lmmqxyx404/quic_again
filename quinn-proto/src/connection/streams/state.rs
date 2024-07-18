@@ -4,8 +4,7 @@ use crate::{
     connection::{
         spaces::{Retransmits, ThinRetransmits},
         stats::FrameStats,
-    },
-    Dir, Side, StreamId, VarInt,
+    }, frame::StreamMetaVec, Dir, Side, StreamId, VarInt
 };
 
 use super::{send::Send, StreamEvent};
@@ -86,11 +85,11 @@ impl StreamsState {
         self.events.pop_front()
     }
 
-    /// Returns the maximum amount of data this is allowed to be written on the connection
+    /// 3.Returns the maximum amount of data this is allowed to be written on the connection
     pub(crate) fn write_limit(&self) -> u64 {
         (self.max_data - self.data_sent).min(self.send_window - self.unacked_data)
     }
-
+    /// 4.
     pub(in crate::connection) fn write_control_frames(
         &mut self,
         buf: &mut Vec<u8>,
@@ -99,6 +98,14 @@ impl StreamsState {
         stats: &mut FrameStats,
         max_size: usize,
     ) {
+        todo!()
+    }
+    /// 5.
+    pub(crate) fn write_stream_frames(
+        &mut self,
+        buf: &mut Vec<u8>,
+        max_buf_size: usize,
+    ) -> StreamMetaVec {
         todo!()
     }
 }
