@@ -113,6 +113,10 @@ impl PacketNumber {
             U32(_) => 0b11,
         }
     }
+    /// 7
+    pub(crate) fn decode_len(tag: u8) -> usize {
+        1 + (tag & 0x03) as usize
+    }
 }
 
 #[allow(unreachable_pub)] // fuzzing only
@@ -496,7 +500,18 @@ impl PartialDecode {
         buf: &mut io::Cursor<BytesMut>,
         header_crypto: &dyn crypto::HeaderKey,
     ) -> Result<PacketNumber, PacketDecodeError> {
-        todo!()
+        let packet_length = buf.get_ref().len();
+        let pn_offset = buf.position() as usize;
+        if packet_length < pn_offset + 4 + header_crypto.sample_size() {
+            return Err(PacketDecodeError::InvalidHeader(
+                "packet too short to extract header protection sample",
+            ));
+        }
+
+        header_crypto.decrypt(pn_offset, buf.get_mut());
+
+        let len = PacketNumber::decode_len(buf.get_ref()[0]);
+        PacketNumber::decode(len, buf)
     }
     /// 10.
     pub(crate) fn initial_header(&self) -> Option<&ProtectedInitialHeader> {
