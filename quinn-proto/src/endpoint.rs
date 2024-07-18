@@ -472,7 +472,11 @@ impl Endpoint {
             retry_src_cid,
             improper_drop_warner: IncomingImproperDropWarner,
             incoming_idx,
-            packet: InitialPacket { header },
+            packet: InitialPacket {
+                header,
+                header_data: packet.header_data,
+                payload: packet.payload,
+            },
             orig_dst_cid,
             addresses,
             crypto,
@@ -526,6 +530,31 @@ impl Endpoint {
                 )),
             });
         }
+
+        let server_config =
+            server_config.unwrap_or_else(|| self.server_config.as_ref().unwrap().clone());
+
+        if incoming
+            .crypto
+            .packet
+            .remote
+            .decrypt(
+                packet_number,
+                &incoming.packet.header_data,
+                &mut incoming.packet.payload,
+            )
+            .is_err()
+        {
+            debug!(packet_number, "failed to authenticate initial packet");
+            self.index.remove_initial(incoming.orig_dst_cid);
+            return Err(AcceptError {
+                cause: TransportError::PROTOCOL_VIOLATION("authentication failed").into(),
+                response: None,
+            });
+        };
+
+        let ch = ConnectionHandle(self.connections.vacant_key());
+        let loc_cid = self.new_cid(ch);
 
         todo!()
     }

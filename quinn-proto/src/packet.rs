@@ -838,6 +838,10 @@ pub(crate) struct InitialHeader {
 pub(crate) struct InitialPacket {
     /// 1.
     pub(crate) header: InitialHeader,
+    /// 2.
+    pub(crate) header_data: Bytes,
+    /// 3.
+    pub(crate) payload: BytesMut,
 }
 
 pub(crate) const FIXED_BIT: u8 = 0x40;
