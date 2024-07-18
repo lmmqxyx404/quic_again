@@ -473,6 +473,9 @@ impl Endpoint {
             improper_drop_warner: IncomingImproperDropWarner,
             incoming_idx,
             packet: InitialPacket { header },
+            orig_dst_cid,
+            addresses,
+            crypto,
         }))
     }
     /// 12. Whether we've used up 3/4 of the available CID space
@@ -507,6 +510,22 @@ impl Endpoint {
             version,
             ..
         } = incoming.packet.header;
+
+        if self.cids_exhausted() {
+            debug!("refusing connection");
+            self.index.remove_initial(incoming.orig_dst_cid);
+            return Err(AcceptError {
+                cause: ConnectionError::CidsExhausted,
+                response: Some(self.initial_close(
+                    version,
+                    incoming.addresses,
+                    &incoming.crypto,
+                    &src_cid,
+                    TransportError::CONNECTION_REFUSED(""),
+                    buf,
+                )),
+            });
+        }
 
         todo!()
     }
@@ -637,6 +656,10 @@ impl ConnectionIndex {
         self.connection_ids_initial
             .insert(dst_cid, RouteDatagramTo::Incoming(incoming_key));
     }
+    /// 4. Remove an association with an initial destination CID
+    fn remove_initial(&mut self, dst_cid: ConnectionId) {
+        self.connection_ids_initial.remove(&dst_cid);
+    }
 }
 
 /// 7. Identifies a connection by the combination of remote and local addresses
@@ -699,6 +722,12 @@ pub struct Incoming {
     incoming_idx: usize,
     /// 4.
     packet: InitialPacket,
+    /// 5.
+    orig_dst_cid: ConnectionId,
+    /// 6.
+    addresses: FourTuple,
+    /// 7
+    crypto: Keys,
 }
 
 impl Incoming {
