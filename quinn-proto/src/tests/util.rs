@@ -20,9 +20,9 @@ use tracing::{info, info_span};
 
 use crate::{
     config::{ClientConfig, EndpointConfig, ServerConfig},
-    connection::Connection,
+    connection::{Connection, ConnectionError},
     crypto::rustls::{QuicClientConfig, QuicServerConfig},
-    endpoint::{ConnectionHandle, DatagramEvent},
+    endpoint::{ConnectionHandle, DatagramEvent, Incoming},
     packet,
     shared::{ConnectionEvent, EcnCodepoint, EndpointEvent},
     Endpoint, Transmit,
@@ -288,6 +288,13 @@ pub(super) struct TestEndpoint {
     conn_events: HashMap<ConnectionHandle, VecDeque<ConnectionEvent>>,
     /// 8.
     pub(super) outbound: VecDeque<(Transmit, Bytes)>,
+    /// 9.
+    pub(super) incoming_connection_behavior: IncomingConnectionBehavior,
+}
+
+#[derive(Debug, Copy, Clone)]
+pub(super) enum IncomingConnectionBehavior {
+    AcceptAll,
 }
 
 impl TestEndpoint {
@@ -311,6 +318,7 @@ impl TestEndpoint {
             timeout: None,
             conn_events: HashMap::default(),
             outbound: VecDeque::new(),
+            incoming_connection_behavior: IncomingConnectionBehavior::AcceptAll,
         }
     }
     /// 2
@@ -346,7 +354,14 @@ impl TestEndpoint {
             {
                 match event {
                     DatagramEvent::NewConnection(incoming) => {
-                        todo!()
+                        match self.incoming_connection_behavior {
+                            IncomingConnectionBehavior::AcceptAll => {
+                                let _ = self.try_accept(incoming, now);
+                            }
+                            _ => {
+                                todo!()
+                            }
+                        }
                     }
                     DatagramEvent::ConnectionEvent(ch, event) => {
                         todo!()
@@ -401,6 +416,14 @@ impl TestEndpoint {
                 }
             }
         }
+    }
+    /// 7
+    pub(super) fn try_accept(
+        &mut self,
+        incoming: Incoming,
+        now: Instant,
+    ) -> Result<ConnectionHandle, ConnectionError> {
+        todo!()
     }
 }
 
