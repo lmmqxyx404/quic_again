@@ -97,6 +97,13 @@ pub enum EcnCodepoint {
     Ce = 0b11,
 }
 
+impl EcnCodepoint {
+    /// Returns whether the codepoint is a CE, signalling that congestion was experienced
+    pub fn is_ce(self) -> bool {
+        matches!(self, Self::Ce)
+    }
+}
+
 /// Variant of [`ConnectionEventInner`].
 #[derive(Debug)]
 pub(crate) struct DatagramConnectionEvent {

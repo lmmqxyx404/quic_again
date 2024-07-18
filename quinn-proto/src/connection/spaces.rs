@@ -53,6 +53,8 @@ pub(super) struct PacketSpace {
     pub(super) loss_time: Option<Instant>,
     /// 18. Number of explicit congestion notification codepoints seen on incoming packets
     pub(super) ecn_counters: frame::EcnCounts,
+    /// 19. Highest received packet number
+    pub(super) rx_packet: u64,
 }
 
 impl PacketSpace {
@@ -80,6 +82,8 @@ impl PacketSpace {
             time_of_last_ack_eliciting_packet: None,
             loss_time: None,
             ecn_counters: frame::EcnCounts::ZERO,
+
+            rx_packet: 0,
         }
     }
 
@@ -413,6 +417,14 @@ impl PendingAcks {
         if self.non_ack_eliciting_since_last_ack_sent > LAZY_ACK_THRESHOLD {
             self.immediate_ack_required = true;
         }
+    }
+    /// 6.
+    pub(super) fn set_immediate_ack_required(&mut self) {
+        self.immediate_ack_required = true;
+    }
+    /// 7. Insert one packet that needs to be acknowledged
+    pub(super) fn insert_one(&mut self, packet: u64, now: Instant) {
+        todo!()
     }
 }
 

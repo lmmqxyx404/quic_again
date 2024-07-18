@@ -1790,16 +1790,32 @@ impl Connection {
             let space = &mut self.spaces[space_id];
             space.ecn_counters += x;
 
-            /* if x.is_ce() {
+            if x.is_ce() {
                 space.pending_acks.set_immediate_ack_required();
-            } */
+            }
         }
 
         let packet = match packet {
             Some(x) => x,
             None => return,
         };
-        todo!()
+        if self.side.is_server() {
+            if self.spaces[SpaceId::Initial].crypto.is_some() && space_id == SpaceId::Handshake {
+                // A server stops sending and processing Initial packets when it receives its first Handshake packet.
+                self.discard_space(now, SpaceId::Initial);
+            }
+            if self.zero_rtt_crypto.is_some() && is_1rtt {
+                // Discard 0-RTT keys soon after receiving a 1-RTT packet
+                self.set_key_discard_timer(now, space_id)
+            }
+        }
+        let space = &mut self.spaces[space_id];
+        space.pending_acks.insert_one(packet, now);
+        if packet >= space.rx_packet {
+            space.rx_packet = packet;
+            // Update outgoing spin bit, inverting iff we're the client
+            self.spin = self.side.is_client() ^ spin;
+        }
     }
 }
 
