@@ -170,6 +170,7 @@ macro_rules! frame_types {
 frame_types! {
     PATH_RESPONSE = 0x1b,
     HANDSHAKE_DONE = 0x1e,
+    IMMEDIATE_ACK = 0x1f,
 }
 
 const STREAM_TYS: RangeInclusive<u64> = RangeInclusive::new(0x08, 0x0f);

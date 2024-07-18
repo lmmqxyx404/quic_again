@@ -1352,6 +1352,27 @@ impl Connection {
             self.stats.frame_tx.handshake_done =
                 self.stats.frame_tx.handshake_done.saturating_add(1);
         }
+
+        // IMMEDIATE_ACK
+        if mem::replace(&mut space.immediate_ack_pending, false) {
+            trace!("IMMEDIATE_ACK");
+            buf.write(frame::Type::IMMEDIATE_ACK);
+            sent.non_retransmits = true;
+            self.stats.frame_tx.immediate_ack += 1;
+        }
+
+        // ACK
+        if space.pending_acks.can_send() {
+            Self::populate_acks(
+                now,
+                self.receiving_ecn,
+                &mut sent,
+                space,
+                buf,
+                &mut self.stats,
+            );
+        }
+
         todo!()
     }
 }
