@@ -30,6 +30,8 @@ pub struct EndpointConfig {
     pub(crate) supported_versions: Vec<u32>,
     /// 5.
     pub(crate) grease_quic_bit: bool,
+    /// 6.
+    pub(crate) reset_key: Arc<dyn HmacKey>,
 }
 
 impl EndpointConfig {
@@ -43,6 +45,7 @@ impl EndpointConfig {
             max_udp_payload_size: (1500u32 - 28).into(), // Ethernet MTU minus IP + UDP headers
             supported_versions: DEFAULT_SUPPORTED_VERSIONS.to_vec(),
             grease_quic_bit: true,
+            reset_key,
         }
     }
 
@@ -79,6 +82,8 @@ pub struct ServerConfig {
     pub crypto: Arc<dyn crypto::ServerConfig>,
     /// 5.
     pub(crate) max_incoming: usize,
+    /// 6. Transport configuration to use for incoming connections
+    pub transport: Arc<TransportConfig>,
 }
 
 #[cfg(feature = "ring")]
@@ -108,6 +113,7 @@ impl ServerConfig {
 
             crypto,
             max_incoming: 1 << 16,
+            transport: Arc::new(TransportConfig::default()),
         }
     }
 }

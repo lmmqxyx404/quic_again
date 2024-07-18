@@ -2,7 +2,7 @@ use std::net::{Ipv4Addr, Ipv6Addr, SocketAddrV4, SocketAddrV6};
 
 use bytes::BufMut;
 
-use crate::{coding::BufMutExt, config::TransportConfig, shared::ConnectionId, ResetToken, VarInt};
+use crate::{coding::BufMutExt, config::{EndpointConfig, ServerConfig, TransportConfig}, shared::ConnectionId, ConnectionIdGenerator, ResetToken, VarInt};
 // Apply a given macro to a list of all the transport parameters having integer types, along with
 // their codes and default values. Using this helps us avoid error-prone duplication of the
 // contained information across decoding, encoding, and the `Default` impl. Whenever we want to do
@@ -120,7 +120,13 @@ pub(crate) struct PreferredAddress {
 
 impl TransportParameters {
     /// 1
-    pub(crate) fn new(config: &TransportConfig) -> Self {
+    pub(crate) fn new(
+        config: &TransportConfig,
+        endpoint_config: &EndpointConfig,
+        cid_gen: &dyn ConnectionIdGenerator,
+        initial_src_cid: ConnectionId,
+        server_config: Option<&ServerConfig>,
+    ) -> Self {
         Self { ..Self::default() }
     }
 }

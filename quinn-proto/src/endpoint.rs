@@ -101,7 +101,13 @@ impl Endpoint {
         let ch = ConnectionHandle(self.connections.vacant_key());
         let loc_cid = self.new_cid(ch);
 
-        let params = TransportParameters::new(&config.transport);
+        let params = TransportParameters::new(
+            &config.transport,
+            &self.config,
+            self.local_cid_generator.as_ref(),
+            loc_cid,
+            None,
+        );
 
         let tls = config
             .crypto
@@ -555,6 +561,17 @@ impl Endpoint {
 
         let ch = ConnectionHandle(self.connections.vacant_key());
         let loc_cid = self.new_cid(ch);
+        let mut params = TransportParameters::new(
+            &server_config.transport,
+            &self.config,
+            self.local_cid_generator.as_ref(),
+            loc_cid,
+            Some(&server_config),
+        );
+        params.stateless_reset_token = Some(ResetToken::new(&*self.config.reset_key, &loc_cid));
+        params.original_dst_cid = Some(incoming.orig_dst_cid);
+        params.retry_src_cid = incoming.retry_src_cid;
+        //  let mut pref_addr_cid = None;
 
         todo!()
     }
