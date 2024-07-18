@@ -29,6 +29,10 @@ pub(super) struct PacketBuilder {
     pub(super) exact_number: u64,
     /// 7.
     pub(super) datagram_start: usize,
+    /// 8.
+    pub(super) ack_eliciting: bool,
+    /// 9.
+    pub(super) space: SpaceId,
 }
 
 impl PacketBuilder {
@@ -47,6 +51,19 @@ impl PacketBuilder {
         sent: Option<SentFrames>,
         buffer: &mut Vec<u8>,
     ) {
+        let ack_eliciting = self.ack_eliciting;
+        let exact_number = self.exact_number;
+        let space_id = self.space;
+        let (size, padded) = self.finish(conn, buffer);
+        let sent = match sent {
+            Some(sent) => sent,
+            None => return,
+        };
+
+        let size = match padded || ack_eliciting {
+            true => size as u16,
+            false => 0,
+        };
         todo!()
     }
 
@@ -180,6 +197,13 @@ impl PacketBuilder {
             max_size,
             exact_number,
             datagram_start,
+            ack_eliciting,
+            space: space_id,
         })
+    }
+
+    /// 4. Encrypt packet, returning the length of the packet and whether padding was added
+    pub(super) fn finish(self, conn: &mut Connection, buffer: &mut Vec<u8>) -> (usize, bool) {
+        todo!()
     }
 }
