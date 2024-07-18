@@ -19,7 +19,8 @@ use crate::{
     crypto,
     packet::{FixedLengthConnectionIdParser, Header, PacketDecodeError, PartialDecode},
     shared::{
-        ConnectionEvent, ConnectionEventInner, ConnectionId, DatagramConnectionEvent, EcnCodepoint, EndpointEvent,
+        ConnectionEvent, ConnectionEventInner, ConnectionId, DatagramConnectionEvent, EcnCodepoint,
+        EndpointEvent,
     },
     token::ResetToken,
     transport_parameters::TransportParameters,
@@ -304,10 +305,26 @@ impl Endpoint {
                 }
             }
         }
+
+        //
+        // Potentially create a new connection
+        //
+
+        let dst_cid = first_decode.dst_cid();
+        let server_config = match &self.server_config {
+            Some(config) => config,
+            None => {
+                debug!("packet for unrecognized connection {}", dst_cid);
+                return self
+                    .stateless_reset(now, datagram_len, addresses, dst_cid, buf)
+                    .map(DatagramEvent::Response);
+            }
+        };
+
         todo!()
     }
 
-    /// Process `EndpointEvent`s emitted from related `Connection`s
+    /// 7. Process `EndpointEvent`s emitted from related `Connection`s
     ///
     /// In turn, processing this event may return a `ConnectionEvent` for the same `Connection`.
     pub fn handle_event(
@@ -315,6 +332,17 @@ impl Endpoint {
         ch: ConnectionHandle,
         event: EndpointEvent,
     ) -> Option<ConnectionEvent> {
+        todo!()
+    }
+    /// 8.
+    fn stateless_reset(
+        &mut self,
+        now: Instant,
+        inciting_dgram_len: usize,
+        addresses: FourTuple,
+        dst_cid: &ConnectionId,
+        buf: &mut Vec<u8>,
+    ) -> Option<Transmit> {
         todo!()
     }
 }
