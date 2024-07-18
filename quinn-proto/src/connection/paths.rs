@@ -6,7 +6,11 @@ use std::{
 
 use crate::{config::TransportConfig, congestion, TIMER_GRANULARITY};
 
-use super::{mtud::MtuDiscovery, pacing::Pacer, spaces::{PacketSpace, SentPacket}};
+use super::{
+    mtud::MtuDiscovery,
+    pacing::Pacer,
+    spaces::{PacketSpace, SentPacket},
+};
 
 /// Description of a particular network path
 pub(super) struct PathData {
@@ -35,6 +39,11 @@ pub(super) struct PathData {
     pub(super) challenge: Option<u64>,
     /// 11.
     pub(super) challenge_pending: bool,
+    /// Number of the first packet sent on this path
+    ///
+    /// Used to determine whether a packet was sent on an earlier path. Insufficient to determine if
+    /// a packet was sent on a later path.
+    first_packet: Option<u64>,
 }
 
 impl PathData {
@@ -83,6 +92,7 @@ impl PathData {
             congestion,
             challenge: None,
             challenge_pending: false,
+            first_packet: None,
         }
     }
     /// 2. Indicates whether we're a server that hasn't validated the peer's address and hasn't
@@ -98,7 +108,11 @@ impl PathData {
 
     /// 4. Account for transmission of `packet` with number `pn` in `space`
     pub(super) fn sent(&mut self, pn: u64, packet: SentPacket, space: &mut PacketSpace) {
-        todo!()
+        self.in_flight.insert(&packet);
+        if self.first_packet.is_none() {
+            self.first_packet = Some(pn);
+        }
+        self.in_flight.bytes -= space.sent(pn, packet);
     }
 }
 
@@ -142,11 +156,25 @@ pub(super) struct InFlight {
     /// The size does not include IP or UDP overhead. Packets only containing ACK frames do not
     /// count towards this to ensure congestion control does not impede congestion feedback.
     pub(super) bytes: u64,
+    /// 2. Number of packets in flight containing frames other than ACK and PADDING
+    ///
+    /// This can be 0 even when bytes is not 0 because PADDING frames cause a packet to be
+    /// considered "in flight" by congestion control. However, if this is nonzero, bytes will always
+    /// also be nonzero.
+    pub(super) ack_eliciting: u64,
 }
 
 impl InFlight {
     fn new() -> Self {
-        Self { bytes: 0 }
+        Self {
+            bytes: 0,
+            ack_eliciting: 0,
+        }
+    }
+
+    fn insert(&mut self, packet: &SentPacket) {
+        self.bytes += u64::from(packet.size);
+        self.ack_eliciting += u64::from(packet.ack_eliciting);
     }
 }
 

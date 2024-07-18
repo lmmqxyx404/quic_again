@@ -67,6 +67,8 @@ impl PacketBuilder {
         };
 
         let packet = SentPacket {
+            size,
+            ack_eliciting,
             /* largest_acked: sent.largest_acked,
             time_sent: now,
             size,
@@ -79,7 +81,7 @@ impl PacketBuilder {
             .sent(exact_number, packet, &mut conn.spaces[space_id]);
         conn.stats.path.sent_packets += 1;
         conn.reset_keep_alive(now);
-        
+
         todo!()
     }
 

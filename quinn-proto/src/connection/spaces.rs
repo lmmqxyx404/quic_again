@@ -113,6 +113,10 @@ impl PacketSpace {
         self.sent_with_keys += 1;
         x
     }
+    /// Returns the number of bytes to *remove* from the connection's in-flight count
+    pub(super) fn sent(&mut self, number: u64, packet: SentPacket) -> u64 {
+        todo!()
+    }
 }
 
 impl Index<SpaceId> for [PacketSpace; 3] {
@@ -374,7 +378,13 @@ impl ThinRetransmits {
     }
 }
 
-
 /// Represents one or more packets subject to retransmission
 #[derive(Debug, Clone)]
-pub(super) struct SentPacket {}
+pub(super) struct SentPacket {
+    /// The number of bytes sent in the packet, not including UDP or IP overhead, but including QUIC
+    /// framing overhead. Zero if this packet is not counted towards congestion control, i.e. not an
+    /// "in flight" packet.
+    pub(super) size: u16,
+    /// Whether an acknowledgement is expected directly in response to this packet.
+    pub(super) ack_eliciting: bool,
+}
