@@ -1298,6 +1298,20 @@ impl Connection {
 
         self.app_limited = buf.is_empty() && !congestion_blocked;
 
+        // Send MTU probe if necessary
+        if buf.is_empty() && self.state.is_established() {
+            let space_id = SpaceId::Data;
+            let probe_size = match self
+                .path
+                .mtud
+                .poll_transmit(now, self.packet_number_filter.peek(&self.spaces[space_id]))
+            {
+                Some(next_probe_size) => next_probe_size,
+                None => return None,
+            };
+            todo!()
+        }
+
         todo!()
     }
     /// 25

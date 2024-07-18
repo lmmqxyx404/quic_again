@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use crate::{config::MtuDiscoveryConfig, MAX_UDP_PAYLOAD};
 
 /// Implements Datagram Packetization Layer Path Maximum Transmission Unit Discovery
@@ -7,6 +9,8 @@ use crate::{config::MtuDiscoveryConfig, MAX_UDP_PAYLOAD};
 pub(crate) struct MtuDiscovery {
     /// 1. Detected MTU for the path
     current_mtu: u16,
+    /// 2. The state of the MTU discovery, if enabled
+    state: Option<EnabledMtuDiscovery>,
 }
 
 impl MtuDiscovery {
@@ -44,7 +48,13 @@ impl MtuDiscovery {
     /// 4.
     fn with_state(current_mtu: u16, min_mtu: u16, state: Option<EnabledMtuDiscovery>) -> Self {
         // todo
-        Self { current_mtu }
+        Self { current_mtu, state }
+    }
+    /// 5. Returns the amount of bytes that should be sent as an MTU probe, if any
+    pub(crate) fn poll_transmit(&mut self, now: Instant, next_pn: u64) -> Option<u16> {
+        self.state
+            .as_mut()
+            .and_then(|state| state.poll_transmit(now, self.current_mtu, next_pn))
     }
 }
 
@@ -63,11 +73,16 @@ struct EnabledMtuDiscovery {
 }
 
 impl EnabledMtuDiscovery {
+    /// 1.
     fn new(config: MtuDiscoveryConfig) -> Self {
         Self {
             phase: Phase::Initial,
             peer_max_udp_payload_size: MAX_UDP_PAYLOAD,
             config,
         }
+    }
+    /// 2.Returns the amount of bytes that should be sent as an MTU probe, if any
+    fn poll_transmit(&mut self, now: Instant, current_mtu: u16, next_pn: u64) -> Option<u16> {
+        todo!()
     }
 }
