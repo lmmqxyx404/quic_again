@@ -138,6 +138,8 @@ pub struct Retransmits {
     pub(super) crypto: VecDeque<frame::Crypto>,
     /// 3.
     pub(super) ack_frequency: bool,
+    /// 4.
+    pub(super) handshake_done: bool,
 }
 
 impl Retransmits {
@@ -341,6 +343,31 @@ impl PendingAcks {
         const LAZY_ACK_THRESHOLD: u64 = 10;
         if self.non_ack_eliciting_since_last_ack_sent > LAZY_ACK_THRESHOLD {
             self.immediate_ack_required = true;
+        }
+    }
+}
+
+/// A variant of `Retransmits` which only allocates storage when required
+#[derive(Debug, Default, Clone)]
+pub(super) struct ThinRetransmits {
+    retransmits: Option<Box<Retransmits>>,
+}
+
+impl ThinRetransmits {
+    /// 1. Returns a mutable reference to the stored retransmits
+    ///
+    /// This function will allocate a backing storage if required.
+    pub(super) fn get_or_create(&mut self) -> &mut Retransmits {
+        if self.retransmits.is_none() {
+            self.retransmits = Some(Box::default());
+        }
+        self.retransmits.as_deref_mut().unwrap()
+    }
+    /// 2.Returns `true` if no retransmits are necessary
+    pub(super) fn is_empty(&self, streams: &StreamsState) -> bool {
+        match &self.retransmits {
+            Some(retransmits) => retransmits.is_empty(streams),
+            None => true,
         }
     }
 }

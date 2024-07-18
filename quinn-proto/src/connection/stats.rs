@@ -37,8 +37,10 @@ impl UdpStats {
 #[non_exhaustive]
 #[allow(missing_docs)]
 pub struct FrameStats {
-    /// 1
+    /// 1.
     pub path_response: u64,
+    /// 2.
+    pub handshake_done: u8,
 }
 
 impl std::fmt::Debug for FrameStats {

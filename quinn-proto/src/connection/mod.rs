@@ -3,6 +3,7 @@ use std::{
     collections::VecDeque,
     fmt,
     io::Read,
+    mem,
     net::{IpAddr, SocketAddr},
     sync::Arc,
     time::{Duration, Instant},
@@ -37,7 +38,7 @@ mod cid_state;
 use cid_state::CidState;
 /// 4.
 mod spaces;
-use spaces::{PacketNumberFilter, PacketSpace, SendableFrames};
+use spaces::{PacketNumberFilter, PacketSpace, SendableFrames, ThinRetransmits};
 /// 5.
 mod timer;
 use thiserror::Error;
@@ -1343,6 +1344,14 @@ impl Connection {
         let is_0rtt = space_id == SpaceId::Data && space.crypto.is_none();
         space.pending_acks.maybe_ack_non_eliciting();
 
+        // HANDSHAKE_DONE
+        if !is_0rtt && mem::replace(&mut space.pending.handshake_done, false) {
+            buf.write(frame::Type::HANDSHAKE_DONE);
+            sent.retransmits.get_or_create().handshake_done = true;
+            // This is just a u8 counter and the frame is typically just sent once
+            self.stats.frame_tx.handshake_done =
+                self.stats.frame_tx.handshake_done.saturating_add(1);
+        }
         todo!()
     }
 }
@@ -1484,11 +1493,13 @@ struct SentFrames {
     requires_padding: bool,
     /// 3.
     largest_acked: Option<u64>,
+    /// 4.
+    retransmits: ThinRetransmits,
 }
 
 impl SentFrames {
     /// Returns whether the packet contains only ACKs
     fn is_ack_only(&self, streams: &StreamsState) -> bool {
-        !self.non_retransmits && self.largest_acked.is_some()
+        !self.non_retransmits && self.largest_acked.is_some() && self.retransmits.is_empty(streams)
     }
 }
