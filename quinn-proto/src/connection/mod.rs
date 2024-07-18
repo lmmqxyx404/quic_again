@@ -65,6 +65,8 @@ use packet_builder::PacketBuilder;
 /// 11
 mod pacing;
 
+mod datagrams;
+use datagrams::DatagramState;
 // #[cfg(fuzzing)]
 // pub use spaces::Retransmits;
 
@@ -188,6 +190,8 @@ pub struct Connection {
     /// 37. The "real" local IP address which was was used to receive the initial packet.
     /// This is only populated for the server case, and if known
     local_ip: Option<IpAddr>,
+    /// 38. State of the unreliable datagram extension
+    datagrams: DatagramState,
 }
 
 impl Connection {
@@ -293,6 +297,7 @@ impl Connection {
             receiving_ecn: false,
             path_responses: PathResponses::default(),
             local_ip,
+            datagrams: DatagramState::default(),
         };
 
         if side.is_client() {
@@ -1217,7 +1222,8 @@ impl Connection {
                 !(sent.is_ack_only(&self.streams)
                     && !can_send.acks
                     && can_send.other
-                    && (buf_capacity - builder.datagram_start) == self.path.current_mtu() as usize), //&& self.datagrams.outgoing.is_empty()
+                    && (buf_capacity - builder.datagram_start) == self.path.current_mtu() as usize
+                    && self.datagrams.outgoing.is_empty()),
                 "SendableFrames was {can_send:?}, but only ACKs have been written"
             );
             todo!()

@@ -174,3 +174,10 @@ frame_types! {
 
 const STREAM_TYS: RangeInclusive<u64> = RangeInclusive::new(0x08, 0x0f);
 const DATAGRAM_TYS: RangeInclusive<u64> = RangeInclusive::new(0x30, 0x31);
+
+/// An unreliable datagram
+#[derive(Debug, Clone)]
+pub struct Datagram {
+    /// Payload
+    pub data: Bytes,
+}
