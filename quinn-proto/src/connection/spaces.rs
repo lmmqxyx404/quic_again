@@ -300,6 +300,7 @@ pub(super) struct PendingAcks {
     /// 2. The packet number ranges of ack-eliciting packets the peer hasn't confirmed receipt of ACKs
     /// for
     ranges: ArrayRangeSet,
+    non_ack_eliciting_since_last_ack_sent: u64,
 }
 
 impl PendingAcks {
@@ -309,6 +310,7 @@ impl PendingAcks {
             immediate_ack_required: false,
 
             ranges: ArrayRangeSet::default(),
+            non_ack_eliciting_since_last_ack_sent: 0,
         }
     }
     /// 2. Whether any ACK frames can be sent
@@ -325,5 +327,20 @@ impl PendingAcks {
     /// This will suppress sending further ACKs until additional ACK eliciting frames arrive
     pub(super) fn acks_sent(&mut self) {
         todo!()
+    }
+    /// 5. Queue an ACK if a significant number of non-ACK-eliciting packets have not yet been
+    /// acknowledged
+    ///
+    /// Should be called immediately before a non-probing packet is composed, when we've already
+    /// committed to sending a packet regardless.
+    pub(super) fn maybe_ack_non_eliciting(&mut self) {
+        // If we're going to send a packet anyway, and we've received a significant number of
+        // non-ACK-eliciting packets, then include an ACK to help the peer perform timely loss
+        // detection even if they're not sending any ACK-eliciting packets themselves. Exact
+        // threshold chosen somewhat arbitrarily.
+        const LAZY_ACK_THRESHOLD: u64 = 10;
+        if self.non_ack_eliciting_since_last_ack_sent > LAZY_ACK_THRESHOLD {
+            self.immediate_ack_required = true;
+        }
     }
 }

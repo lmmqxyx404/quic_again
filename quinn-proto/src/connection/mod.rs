@@ -1338,6 +1338,11 @@ impl Connection {
         max_size: usize,
         pn: u64,
     ) -> SentFrames {
+        let mut sent = SentFrames::default();
+        let space = &mut self.spaces[space_id];
+        let is_0rtt = space_id == SpaceId::Data && space.crypto.is_none();
+        space.pending_acks.maybe_ack_non_eliciting();
+
         todo!()
     }
 }
