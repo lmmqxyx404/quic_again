@@ -134,6 +134,16 @@ pub(crate) struct Crypto {
     pub(crate) data: Bytes,
 }
 
+impl Crypto {
+    pub(crate) const SIZE_BOUND: usize = 17;
+
+    pub(crate) fn encode<W: BufMut>(&self, out: &mut W) {
+        out.write(Type::CRYPTO);
+        out.write_var(self.offset);
+        out.write_var(self.data.len() as u64);
+        out.put_slice(&self.data);
+    }
+}
 pub(crate) trait FrameStruct {
     /// Smallest number of bytes this type of frame is guaranteed to fit within.
     const SIZE_BOUND: usize;
@@ -174,6 +184,7 @@ frame_types! {
     // ACK Frequency
     ACK_FREQUENCY = 0xaf,
     PATH_CHALLENGE = 0x1a,
+    CRYPTO = 0x06,
 }
 
 const STREAM_TYS: RangeInclusive<u64> = RangeInclusive::new(0x08, 0x0f);

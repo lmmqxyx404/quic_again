@@ -1430,6 +1430,48 @@ impl Connection {
             }
         }
 
+        // CRYPTO
+        while buf.len() + frame::Crypto::SIZE_BOUND < max_size && !is_0rtt {
+            let mut frame = match space.pending.crypto.pop_front() {
+                Some(x) => x,
+                None => break,
+            };
+
+            // Calculate the maximum amount of crypto data we can store in the buffer.
+            // Since the offset is known, we can reserve the exact size required to encode it.
+            // For length we reserve 2bytes which allows to encode up to 2^14,
+            // which is more than what fits into normally sized QUIC frames.
+            let max_crypto_data_size = max_size
+                        - buf.len()
+                        - 1 // Frame Type
+                        - VarInt::size(unsafe { VarInt::from_u64_unchecked(frame.offset) })
+                        - 2; // Maximum encoded length for frame size, given we send less than 2^14 bytes
+
+            let len = frame
+                .data
+                .len()
+                .min(2usize.pow(14) - 1)
+                .min(max_crypto_data_size);
+
+            let data = frame.data.split_to(len);
+            let truncated = frame::Crypto {
+                offset: frame.offset,
+                data,
+            };
+            trace!(
+                "CRYPTO: off {} len {}",
+                truncated.offset,
+                truncated.data.len()
+            );
+            truncated.encode(buf);
+            self.stats.frame_tx.crypto += 1;
+            sent.retransmits.get_or_create().crypto.push_back(truncated);
+            if !frame.data.is_empty() {
+                frame.offset += len as u64;
+                space.pending.crypto.push_front(frame);
+            }
+        }
+
         todo!()
     }
 }

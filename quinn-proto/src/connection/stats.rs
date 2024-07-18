@@ -47,6 +47,8 @@ pub struct FrameStats {
     pub ack_frequency: u64,
     /// 5.
     pub path_challenge: u64,
+    /// 6.
+    pub crypto: u64,
 }
 
 impl std::fmt::Debug for FrameStats {

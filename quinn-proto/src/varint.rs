@@ -50,6 +50,14 @@ impl VarInt {
             unreachable!("malformed VarInt");
         }
     }
+    /// 5.Create a VarInt without ensuring it's in range
+    ///
+    /// # Safety
+    ///
+    /// `x` must be less than 2^62.
+    pub const unsafe fn from_u64_unchecked(x: u64) -> Self {
+        Self(x)
+    }
 }
 /// used for [`$($(#[$doc])* pub(crate) $name : VarInt,)*`]
 impl fmt::Debug for VarInt {
