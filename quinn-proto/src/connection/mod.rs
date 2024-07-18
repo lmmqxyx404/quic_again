@@ -1482,6 +1482,28 @@ impl Connection {
             );
         }
 
+        // NEW_CONNECTION_ID
+        while buf.len() + 44 < max_size {
+            let issued = match space.pending.new_cids.pop() {
+                Some(x) => x,
+                None => break,
+            };
+            trace!(
+                sequence = issued.sequence,
+                id = %issued.id,
+                "NEW_CONNECTION_ID"
+            );
+            frame::NewConnectionId {
+                sequence: issued.sequence,
+                retire_prior_to: self.local_cid_state.retire_prior_to(),
+                id: issued.id,
+                reset_token: issued.reset_token,
+            }
+            .encode(buf);
+            sent.retransmits.get_or_create().new_cids.push(issued);
+            self.stats.frame_tx.new_connection_id += 1;
+        }
+
         todo!()
     }
 }

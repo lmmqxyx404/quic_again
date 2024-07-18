@@ -82,9 +82,13 @@ impl CidState {
         });
     }
 
-    /// Update cid state when `NewIdentifiers` event is received
+    /// 3. Update cid state when `NewIdentifiers` event is received
     pub(crate) fn new_cids(&mut self, ids: &[IssuedCid], now: Instant) {
         todo!()
+    }
+    /// 4. The value for `retire_prior_to` field in `NEW_CONNECTION_ID` frame
+    pub(crate) fn retire_prior_to(&self) -> u64 {
+        self.retire_seq
     }
 }
 

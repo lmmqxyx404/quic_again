@@ -4,6 +4,8 @@ use bytes::{Buf, BufMut, Bytes};
 
 use crate::{
     coding::{self, BufExt, BufMutExt},
+    shared::ConnectionId,
+    token::ResetToken,
     TransportError, VarInt,
 };
 /// 1
@@ -185,6 +187,7 @@ frame_types! {
     ACK_FREQUENCY = 0xaf,
     PATH_CHALLENGE = 0x1a,
     CRYPTO = 0x06,
+    NEW_CONNECTION_ID = 0x18,
 }
 
 const STREAM_TYS: RangeInclusive<u64> = RangeInclusive::new(0x08, 0x0f);
@@ -212,5 +215,23 @@ impl AckFrequency {
         buf.write(self.ack_eliciting_threshold);
         buf.write(self.request_max_ack_delay);
         buf.write(self.reordering_threshold);
+    }
+}
+#[derive(Debug, Copy, Clone)]
+pub(crate) struct NewConnectionId {
+    pub(crate) sequence: u64,
+    pub(crate) retire_prior_to: u64,
+    pub(crate) id: ConnectionId,
+    pub(crate) reset_token: ResetToken,
+}
+
+impl NewConnectionId {
+    pub(crate) fn encode<W: BufMut>(&self, out: &mut W) {
+        out.write(Type::NEW_CONNECTION_ID);
+        out.write_var(self.sequence);
+        out.write_var(self.retire_prior_to);
+        out.write(self.id.len() as u8);
+        out.put_slice(&self.id);
+        out.put_slice(&self.reset_token);
     }
 }
