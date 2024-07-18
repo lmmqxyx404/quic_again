@@ -1,4 +1,8 @@
-use std::{sync::Arc, time::Duration};
+use std::{
+    net::{SocketAddrV4, SocketAddrV6},
+    sync::Arc,
+    time::Duration,
+};
 
 use rand::RngCore;
 
@@ -84,6 +88,9 @@ pub struct ServerConfig {
     pub(crate) max_incoming: usize,
     /// 6. Transport configuration to use for incoming connections
     pub transport: Arc<TransportConfig>,
+
+    pub(crate) preferred_address_v4: Option<SocketAddrV4>,
+    pub(crate) preferred_address_v6: Option<SocketAddrV6>,
 }
 
 #[cfg(feature = "ring")]
@@ -114,6 +121,9 @@ impl ServerConfig {
             crypto,
             max_incoming: 1 << 16,
             transport: Arc::new(TransportConfig::default()),
+
+            preferred_address_v4: None,
+            preferred_address_v6: None,
         }
     }
 }

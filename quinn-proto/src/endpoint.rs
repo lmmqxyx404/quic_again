@@ -27,7 +27,7 @@ use crate::{
         EndpointEvent,
     },
     token::ResetToken,
-    transport_parameters::TransportParameters,
+    transport_parameters::{PreferredAddress, TransportParameters},
     ConnectionIdGenerator, Side, Transmit, TransportError, MIN_INITIAL_SIZE, RESET_TOKEN_SIZE,
 };
 
@@ -571,7 +571,19 @@ impl Endpoint {
         params.stateless_reset_token = Some(ResetToken::new(&*self.config.reset_key, &loc_cid));
         params.original_dst_cid = Some(incoming.orig_dst_cid);
         params.retry_src_cid = incoming.retry_src_cid;
-        //  let mut pref_addr_cid = None;
+        let mut pref_addr_cid = None;
+        if server_config.preferred_address_v4.is_some()
+            || server_config.preferred_address_v6.is_some()
+        {
+            let cid = self.new_cid(ch);
+            pref_addr_cid = Some(cid);
+            params.preferred_address = Some(PreferredAddress {
+                address_v4: server_config.preferred_address_v4,
+                address_v6: server_config.preferred_address_v6,
+                connection_id: cid,
+                stateless_reset_token: ResetToken::new(&*self.config.reset_key, &cid),
+            });
+        }
 
         todo!()
     }
