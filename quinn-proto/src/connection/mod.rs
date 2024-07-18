@@ -1472,6 +1472,16 @@ impl Connection {
             }
         }
 
+        if space_id == SpaceId::Data {
+            self.streams.write_control_frames(
+                buf,
+                &mut space.pending,
+                &mut sent.retransmits,
+                &mut self.stats.frame_tx,
+                max_size,
+            );
+        }
+
         todo!()
     }
 }

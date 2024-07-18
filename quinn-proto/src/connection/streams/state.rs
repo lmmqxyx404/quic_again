@@ -1,6 +1,12 @@
 use rustc_hash::FxHashMap;
 
-use crate::{Dir, Side, StreamId, VarInt};
+use crate::{
+    connection::{
+        spaces::{Retransmits, ThinRetransmits},
+        stats::FrameStats,
+    },
+    Dir, Side, StreamId, VarInt,
+};
 
 use super::{send::Send, StreamEvent};
 use std::{collections::VecDeque, mem};
@@ -83,5 +89,16 @@ impl StreamsState {
     /// Returns the maximum amount of data this is allowed to be written on the connection
     pub(crate) fn write_limit(&self) -> u64 {
         (self.max_data - self.data_sent).min(self.send_window - self.unacked_data)
+    }
+
+    pub(in crate::connection) fn write_control_frames(
+        &mut self,
+        buf: &mut Vec<u8>,
+        pending: &mut Retransmits,
+        retransmits: &mut ThinRetransmits,
+        stats: &mut FrameStats,
+        max_size: usize,
+    ) {
+        todo!()
     }
 }
