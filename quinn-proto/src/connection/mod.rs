@@ -193,6 +193,10 @@ pub struct Connection {
     local_ip: Option<IpAddr>,
     /// 38. State of the unreliable datagram extension
     datagrams: DatagramState,
+    /// 39. Whether the idle timer should be reset the next time an ack-eliciting packet is transmitted.
+    permit_idle_reset: bool,
+    /// 40. Negotiated idle timeout
+    idle_timeout: Option<VarInt>,
 }
 
 impl Connection {
@@ -276,6 +280,8 @@ impl Connection {
                 config.receive_window,
                 config.stream_receive_window,
             ),
+            idle_timeout: config.max_idle_timeout,
+
             spin_enabled: config.allow_spin && rng.gen_ratio(7, 8),
             spin: false,
 
@@ -299,6 +305,7 @@ impl Connection {
             path_responses: PathResponses::default(),
             local_ip,
             datagrams: DatagramState::default(),
+            permit_idle_reset: true,
         };
 
         if side.is_client() {
@@ -1568,6 +1575,19 @@ impl Connection {
             _ => return,
         };
         self.timers.set(Timer::KeepAlive, now + interval);
+    }
+    /// 36
+    fn reset_idle_timeout(&mut self, now: Instant, space: SpaceId) {
+        let timeout = match self.idle_timeout {
+            None => return,
+            Some(x) => Duration::from_millis(x.0),
+        };
+        if self.state.is_closed() {
+            self.timers.stop(Timer::Idle);
+            return;
+        }
+        let dt = cmp::max(timeout, 3 * self.pto(space));
+        self.timers.set(Timer::Idle, now + dt);
     }
 }
 

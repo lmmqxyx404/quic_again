@@ -255,6 +255,8 @@ pub struct TransportConfig {
     pub(crate) allow_spin: bool,
     /// 15.
     pub(crate) keep_alive_interval: Option<Duration>,
+    /// 16.
+    pub(crate) max_idle_timeout: Option<VarInt>,
 }
 
 impl TransportConfig {
@@ -293,6 +295,7 @@ impl Default for TransportConfig {
             allow_spin: true,
 
             keep_alive_interval: None,
+            max_idle_timeout: Some(VarInt(10_000)),
         }
     }
 }

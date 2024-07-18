@@ -45,6 +45,8 @@ pub(super) struct PacketSpace {
     pub(super) sent_packets: BTreeMap<u64, SentPacket>,
     /// 15. Number of congestion control "in flight" bytes
     pub(super) in_flight: u64,
+    /// 16. The time the most recently sent retransmittable packet was sent.
+    pub(super) time_of_last_ack_eliciting_packet: Option<Instant>,
 }
 
 impl PacketSpace {
@@ -69,6 +71,7 @@ impl PacketSpace {
             unacked_non_ack_eliciting_tail: 0,
             sent_packets: BTreeMap::new(),
             in_flight: 0,
+            time_of_last_ack_eliciting_packet: None,
         }
     }
 

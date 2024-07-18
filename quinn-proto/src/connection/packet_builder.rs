@@ -82,7 +82,17 @@ impl PacketBuilder {
         conn.stats.path.sent_packets += 1;
         conn.reset_keep_alive(now);
 
-        todo!()
+        if size != 0 {
+            if ack_eliciting {
+                conn.spaces[space_id].time_of_last_ack_eliciting_packet = Some(now);
+                if conn.permit_idle_reset {
+                    conn.reset_idle_timeout(now, space_id);
+                }
+                conn.permit_idle_reset = false;
+            }
+            conn.set_loss_detection_timer(now);
+            conn.path.pacing.on_transmit(size);
+        }
     }
 
     /// 3.Write a new packet header to `buffer` and determine the packet's properties

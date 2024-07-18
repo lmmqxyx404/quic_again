@@ -108,6 +108,11 @@ impl Pacer {
         // this is the time at which the pacing window becomes empty
         Some(self.prev + (unscaled_delay / 5) * 4)
     }
+
+    /// 3. Record that a packet has been transmitted.
+    pub(super) fn on_transmit(&mut self, packet_length: u16) {
+        self.tokens = self.tokens.saturating_sub(packet_length.into())
+    }
 }
 
 /// Calculates a pacer capacity for a certain window and RTT
