@@ -23,6 +23,7 @@ use crate::{
     connection::Connection,
     crypto::rustls::{QuicClientConfig, QuicServerConfig},
     endpoint::{ConnectionHandle, DatagramEvent},
+    packet,
     shared::{ConnectionEvent, EcnCodepoint, EndpointEvent},
     Endpoint, Transmit,
 };
@@ -115,6 +116,11 @@ pub(super) struct Pair {
     pub(super) client: TestEndpoint,
     /// Current time
     pub(super) time: Instant,
+    /// Simulates the maximum size allowed for UDP payloads by the link (packets exceeding this size will be dropped)
+    pub(super) mtu: usize,
+    /// Number of spin bit flips
+    pub(super) spins: u64,
+    last_spin: bool,
 }
 
 impl Pair {
@@ -145,6 +151,9 @@ impl Pair {
             server: TestEndpoint::new(server, server_addr),
             client: TestEndpoint::new(client, client_addr),
             time: now,
+            mtu: DEFAULT_MTU,
+            spins: 0,
+            last_spin: false,
         }
     }
     /// 3
@@ -200,7 +209,20 @@ impl Pair {
         let span = info_span!("client");
         let _guard = span.enter();
         self.client.drive(self.time, self.server.addr);
-        todo!()
+
+        for (packet, buffer) in self.client.outbound.drain(..) {
+            let packet_size = packet_size(&packet, &buffer);
+            if packet_size > self.mtu {
+                info!(packet_size, "dropping packet (max size exceeded)");
+                continue;
+            }
+            if buffer[0] & packet::LONG_HEADER_FORM == 0 {
+                let spin = buffer[0] & packet::SPIN_BIT != 0;
+                self.spins += (spin == self.last_spin) as u64;
+                self.last_spin = spin;
+            }
+            todo!()
+        }
     }
     /// 10
     pub(super) fn drive_server(&mut self) {
@@ -389,3 +411,13 @@ fn split_transmit(transmit: Transmit, buffer: &[u8]) -> Vec<(Transmit, Bytes)> {
 
     transmits
 }
+
+fn packet_size(transmit: &Transmit, buffer: &Bytes) -> usize {
+    if transmit.segment_size.is_some() {
+        panic!("This transmit is meant to be split into multiple packets!");
+    }
+
+    buffer.len()
+}
+
+pub(super) const DEFAULT_MTU: usize = 1452;
