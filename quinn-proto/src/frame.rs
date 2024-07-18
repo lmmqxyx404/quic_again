@@ -5,7 +5,7 @@ use tinyvec::TinyVec;
 
 use crate::{
     coding::{self, BufExt, BufMutExt},
-    shared::ConnectionId,
+    shared::{ConnectionId, EcnCodepoint},
     token::ResetToken,
     TransportError, VarInt,
 };
@@ -258,3 +258,34 @@ impl Default for StreamMeta {
 
 /// A vector of [`StreamMeta`] with optimization for the single element case
 pub(crate) type StreamMetaVec = TinyVec<[StreamMeta; 1]>;
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub struct EcnCounts {
+    pub ect0: u64,
+    pub ect1: u64,
+    pub ce: u64,
+}
+
+impl EcnCounts {
+    pub const ZERO: Self = Self {
+        ect0: 0,
+        ect1: 0,
+        ce: 0,
+    };
+}
+
+impl std::ops::AddAssign<EcnCodepoint> for EcnCounts {
+    fn add_assign(&mut self, rhs: EcnCodepoint) {
+        match rhs {
+            EcnCodepoint::Ect0 => {
+                self.ect0 += 1;
+            }
+            EcnCodepoint::Ect1 => {
+                self.ect1 += 1;
+            }
+            EcnCodepoint::Ce => {
+                self.ce += 1;
+            }
+        }
+    }
+}

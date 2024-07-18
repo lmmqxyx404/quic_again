@@ -51,6 +51,8 @@ pub(super) struct PacketSpace {
     /// exceeding the reordering window in time. Only set for packets numbered prior to a packet
     /// that has been acknowledged.
     pub(super) loss_time: Option<Instant>,
+    /// 18. Number of explicit congestion notification codepoints seen on incoming packets
+    pub(super) ecn_counters: frame::EcnCounts,
 }
 
 impl PacketSpace {
@@ -77,6 +79,7 @@ impl PacketSpace {
             in_flight: 0,
             time_of_last_ack_eliciting_packet: None,
             loss_time: None,
+            ecn_counters: frame::EcnCounts::ZERO,
         }
     }
 

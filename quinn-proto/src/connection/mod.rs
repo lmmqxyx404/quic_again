@@ -1781,6 +1781,24 @@ impl Connection {
         spin: bool,
         is_1rtt: bool,
     ) {
+        self.total_authed_packets += 1;
+        self.reset_keep_alive(now);
+        self.reset_idle_timeout(now, space_id);
+        self.permit_idle_reset = true;
+        self.receiving_ecn |= ecn.is_some();
+        if let Some(x) = ecn {
+            let space = &mut self.spaces[space_id];
+            space.ecn_counters += x;
+
+            /* if x.is_ce() {
+                space.pending_acks.set_immediate_ack_required();
+            } */
+        }
+
+        let packet = match packet {
+            Some(x) => x,
+            None => return,
+        };
         todo!()
     }
 }
