@@ -43,14 +43,20 @@ pub struct FrameStats {
     pub handshake_done: u8,
     /// 3.
     pub immediate_ack: u64,
-    /// 6.
+    /// 4.
     pub ack_frequency: u64,
+    /// 5.
+    pub path_challenge: u64,
 }
 
 impl std::fmt::Debug for FrameStats {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("FrameStats")
             .field("PATH_RESPONSE", &self.path_response)
+            .field("HANDSHAKE_DONE", &self.handshake_done)
+            .field("IMMEDIATE_ACK", &self.immediate_ack)
+            .field("ACK_FREQUENCY", &self.ack_frequency)
+            .field("PATH_CHALLENGE", &self.path_challenge)
             .finish()
     }
 }

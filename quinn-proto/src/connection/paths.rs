@@ -31,6 +31,10 @@ pub(super) struct PathData {
     pub(super) congestion: Box<dyn congestion::Controller>,
     /// 9. Pacing state
     pub(super) pacing: Pacer,
+    /// 10.
+    pub(super) challenge: Option<u64>,
+    /// 11.
+    pub(super) challenge_pending: bool,
 }
 
 impl PathData {
@@ -77,6 +81,8 @@ impl PathData {
                 now,
             ),
             congestion,
+            challenge: None,
+            challenge_pending: false,
         }
     }
     /// 2. Indicates whether we're a server that hasn't validated the peer's address and hasn't

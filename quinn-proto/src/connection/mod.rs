@@ -1403,6 +1403,21 @@ impl Connection {
             self.stats.frame_tx.ack_frequency += 1;
         }
 
+        // PATH_CHALLENGE
+        if buf.len() + 9 < max_size && space_id == SpaceId::Data {
+            // Transmit challenges with every outgoing frame on an unvalidated path
+            if let Some(token) = self.path.challenge {
+                // But only send a packet solely for that purpose at most once
+                self.path.challenge_pending = false;
+                sent.non_retransmits = true;
+                sent.requires_padding = true;
+                trace!("PATH_CHALLENGE {:08x}", token);
+                buf.write(frame::Type::PATH_CHALLENGE);
+                buf.write(token);
+                self.stats.frame_tx.path_challenge += 1;
+            }
+        }
+
         todo!()
     }
 }

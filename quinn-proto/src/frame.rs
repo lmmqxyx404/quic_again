@@ -173,6 +173,7 @@ frame_types! {
     IMMEDIATE_ACK = 0x1f,
     // ACK Frequency
     ACK_FREQUENCY = 0xaf,
+    PATH_CHALLENGE = 0x1a,
 }
 
 const STREAM_TYS: RangeInclusive<u64> = RangeInclusive::new(0x08, 0x0f);
