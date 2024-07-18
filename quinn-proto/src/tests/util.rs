@@ -290,6 +290,8 @@ pub(super) struct TestEndpoint {
     pub(super) outbound: VecDeque<(Transmit, Bytes)>,
     /// 9.
     pub(super) incoming_connection_behavior: IncomingConnectionBehavior,
+    /// 10.
+    accepted: Option<Result<ConnectionHandle, ConnectionError>>,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -319,6 +321,7 @@ impl TestEndpoint {
             conn_events: HashMap::default(),
             outbound: VecDeque::new(),
             incoming_connection_behavior: IncomingConnectionBehavior::AcceptAll,
+            accepted: None,
         }
     }
     /// 2
@@ -423,7 +426,22 @@ impl TestEndpoint {
         incoming: Incoming,
         now: Instant,
     ) -> Result<ConnectionHandle, ConnectionError> {
-        todo!()
+        let mut buf = Vec::new();
+        match self.endpoint.accept(incoming, now, &mut buf, None) {
+            Ok((ch, conn)) => {
+                self.connections.insert(ch, conn);
+                self.accepted = Some(Ok(ch));
+                Ok(ch)
+            }
+            Err(error) => {
+                if let Some(transmit) = error.response {
+                    let size = transmit.size;
+                    self.outbound.extend(split_transmit(transmit, &buf[..size]));
+                }
+                self.accepted = Some(Err(error.cause.clone()));
+                Err(error.cause)
+            }
+        }
     }
 }
 

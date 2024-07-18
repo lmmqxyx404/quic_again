@@ -15,7 +15,7 @@ use tracing::{debug, trace};
 use crate::{
     coding::BufMutExt,
     config::{ClientConfig, EndpointConfig, ServerConfig, TransportConfig},
-    connection::Connection,
+    connection::{Connection, ConnectionError},
     crypto::{self, Keys},
     packet::{
         FixedLengthConnectionIdParser, Header, Packet, PacketDecodeError, PartialDecode,
@@ -480,6 +480,16 @@ impl Endpoint {
                 - self.index.connection_ids.len())
                 < 2usize.pow(self.local_cid_generator.cid_len() as u32 * 8 - 2)
     }
+    /// Attempt to accept this incoming connection (an error may still occur)
+    pub fn accept(
+        &mut self,
+        mut incoming: Incoming,
+        now: Instant,
+        buf: &mut Vec<u8>,
+        server_config: Option<Arc<ServerConfig>>,
+    ) -> Result<(ConnectionHandle, Connection), AcceptError> {
+        todo!()
+    }
 }
 
 /// 2. Internal identifier for a `Connection` currently associated with an endpoint
@@ -661,3 +671,12 @@ impl ResetTokenTable {
 
 /// An incoming connection for which the server has not yet begun its part of the handshake.
 pub struct Incoming {}
+
+/// Error type for attempting to accept an [`Incoming`]
+#[derive(Debug)]
+pub struct AcceptError {
+    /// Underlying error describing reason for failure
+    pub cause: ConnectionError,
+    /// Optional response to transmit back
+    pub response: Option<Transmit>,
+}
