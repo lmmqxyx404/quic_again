@@ -1747,6 +1747,40 @@ impl Connection {
         packet: InitialPacket,
         remaining: Option<BytesMut>,
     ) -> Result<(), ConnectionError> {
+        let span = trace_span!("first recv");
+        let _guard = span.enter();
+        debug_assert!(self.side.is_server());
+        let len = packet.header_data.len() + packet.payload.len();
+        self.path.total_recvd = len as u64;
+
+        match self.state {
+            State::Handshake(ref mut state) => {
+                state.expected_token = packet.header.token.clone();
+            }
+            _ => unreachable!("first packet must be delivered in Handshake state"),
+        }
+
+        self.on_packet_authenticated(
+            now,
+            SpaceId::Initial,
+            ecn,
+            Some(packet_number),
+            false,
+            false,
+        );
+
+        todo!()
+    }
+    /// 42
+    fn on_packet_authenticated(
+        &mut self,
+        now: Instant,
+        space_id: SpaceId,
+        ecn: Option<EcnCodepoint>,
+        packet: Option<u64>,
+        spin: bool,
+        is_1rtt: bool,
+    ) {
         todo!()
     }
 }
