@@ -1226,6 +1226,13 @@ impl Connection {
                     && self.datagrams.outgoing.is_empty()),
                 "SendableFrames was {can_send:?}, but only ACKs have been written"
             );
+
+            pad_datagram |= sent.requires_padding;
+
+            if sent.largest_acked.is_some() {
+                self.spaces[space_id].pending_acks.acks_sent();
+                self.timers.stop(Timer::MaxAckDelay);
+            }
             todo!()
         }
 
@@ -1466,13 +1473,17 @@ const MIN_PACKET_SPACE: usize = 40;
 
 #[derive(Default)]
 struct SentFrames {
-    /// Whether the packet contains non-retransmittable frames (like datagrams)
+    /// 1. Whether the packet contains non-retransmittable frames (like datagrams)
     non_retransmits: bool,
+    /// 2.
+    requires_padding: bool,
+    /// 3.
+    largest_acked: Option<u64>,
 }
 
 impl SentFrames {
     /// Returns whether the packet contains only ACKs
     fn is_ack_only(&self, streams: &StreamsState) -> bool {
-        !self.non_retransmits
+        !self.non_retransmits && self.largest_acked.is_some()
     }
 }

@@ -319,4 +319,11 @@ impl PendingAcks {
     pub(super) fn ranges(&self) -> &ArrayRangeSet {
         &self.ranges
     }
+
+    /// 4. Should be called whenever ACKs have been sent
+    ///
+    /// This will suppress sending further ACKs until additional ACK eliciting frames arrive
+    pub(super) fn acks_sent(&mut self) {
+        todo!()
+    }
 }
