@@ -140,6 +140,8 @@ pub struct Retransmits {
     pub(super) ack_frequency: bool,
     /// 4.
     pub(super) handshake_done: bool,
+    /// 5.
+    pub(super) retire_cids: Vec<u64>,
 }
 
 impl Retransmits {

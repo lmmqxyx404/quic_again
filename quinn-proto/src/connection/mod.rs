@@ -1504,6 +1504,18 @@ impl Connection {
             self.stats.frame_tx.new_connection_id += 1;
         }
 
+        // RETIRE_CONNECTION_ID
+        while buf.len() + frame::RETIRE_CONNECTION_ID_SIZE_BOUND < max_size {
+            let seq = match space.pending.retire_cids.pop() {
+                Some(x) => x,
+                None => break,
+            };
+            trace!(sequence = seq, "RETIRE_CONNECTION_ID");
+            buf.write(frame::Type::RETIRE_CONNECTION_ID);
+            buf.write_var(seq);
+            sent.retransmits.get_or_create().retire_cids.push(seq);
+            self.stats.frame_tx.retire_connection_id += 1;
+        }
         todo!()
     }
 }

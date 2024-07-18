@@ -188,6 +188,7 @@ frame_types! {
     PATH_CHALLENGE = 0x1a,
     CRYPTO = 0x06,
     NEW_CONNECTION_ID = 0x18,
+    RETIRE_CONNECTION_ID = 0x19,
 }
 
 const STREAM_TYS: RangeInclusive<u64> = RangeInclusive::new(0x08, 0x0f);
@@ -235,3 +236,6 @@ impl NewConnectionId {
         out.put_slice(&self.reset_token);
     }
 }
+
+/// Smallest number of bytes this type of frame is guaranteed to fit within.
+pub(crate) const RETIRE_CONNECTION_ID_SIZE_BOUND: usize = 9;

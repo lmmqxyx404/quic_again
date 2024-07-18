@@ -51,6 +51,8 @@ pub struct FrameStats {
     pub crypto: u64,
     /// 7.
     pub new_connection_id: u64,
+    /// 8.
+    pub retire_connection_id: u64,
 }
 
 impl std::fmt::Debug for FrameStats {
