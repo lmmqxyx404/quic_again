@@ -736,6 +736,17 @@ pub(crate) struct PartialEncode {
     pn: Option<(usize, bool)>,
 }
 
+impl PartialEncode {
+    pub(crate) fn finish(
+        self,
+        buf: &mut [u8],
+        header_crypto: &dyn crypto::HeaderKey,
+        crypto: Option<(u64, &dyn crypto::PacketKey)>,
+    ) {
+        todo!()
+    }
+}
+
 /// Packet number space identifiers
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub enum SpaceId {

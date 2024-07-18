@@ -2,7 +2,7 @@ use std::{cmp, time::Instant};
 
 use bytes::Bytes;
 use rand::Rng;
-use tracing::trace_span;
+use tracing::{trace, trace_span};
 
 use crate::{
     frame::{self, Close},
@@ -204,6 +204,37 @@ impl PacketBuilder {
 
     /// 4. Encrypt packet, returning the length of the packet and whether padding was added
     pub(super) fn finish(self, conn: &mut Connection, buffer: &mut Vec<u8>) -> (usize, bool) {
-        todo!()
+        let pad = buffer.len() < self.min_size;
+        if pad {
+            trace!("PADDING * {}", self.min_size - buffer.len());
+            buffer.resize(self.min_size, 0);
+        }
+
+        let space = &conn.spaces[self.space];
+        let (header_crypto, packet_crypto) = if let Some(ref crypto) = space.crypto {
+            (&*crypto.header.local, &*crypto.packet.local)
+        } else if self.space == SpaceId::Data {
+            let zero_rtt = conn.zero_rtt_crypto.as_ref().unwrap();
+            (&*zero_rtt.header, &*zero_rtt.packet)
+        } else {
+            unreachable!("tried to send {:?} packet without keys", self.space);
+        };
+
+        debug_assert_eq!(
+            packet_crypto.tag_len(),
+            self.tag_len,
+            "Mismatching crypto tag len"
+        );
+
+        buffer.resize(buffer.len() + packet_crypto.tag_len(), 0);
+        let encode_start = self.partial_encode.start;
+        let packet_buf = &mut buffer[encode_start..];
+        self.partial_encode.finish(
+            packet_buf,
+            header_crypto,
+            Some((self.exact_number, packet_crypto)),
+        );
+
+        (buffer.len() - encode_start, pad)
     }
 }
