@@ -47,6 +47,10 @@ pub(super) struct PacketSpace {
     pub(super) in_flight: u64,
     /// 16. The time the most recently sent retransmittable packet was sent.
     pub(super) time_of_last_ack_eliciting_packet: Option<Instant>,
+    /// 17. The time at which the earliest sent packet in this space will be considered lost based on
+    /// exceeding the reordering window in time. Only set for packets numbered prior to a packet
+    /// that has been acknowledged.
+    pub(super) loss_time: Option<Instant>,
 }
 
 impl PacketSpace {
@@ -72,6 +76,7 @@ impl PacketSpace {
             sent_packets: BTreeMap::new(),
             in_flight: 0,
             time_of_last_ack_eliciting_packet: None,
+            loss_time: None,
         }
     }
 

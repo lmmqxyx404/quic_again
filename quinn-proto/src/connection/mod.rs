@@ -197,6 +197,8 @@ pub struct Connection {
     permit_idle_reset: bool,
     /// 40. Negotiated idle timeout
     idle_timeout: Option<VarInt>,
+    /// 41. Loss Detection: The number of times a PTO has been sent without receiving an ack.
+    pto_count: u32,
 }
 
 impl Connection {
@@ -306,6 +308,7 @@ impl Connection {
             local_ip,
             datagrams: DatagramState::default(),
             permit_idle_reset: true,
+            pto_count: 0,
         };
 
         if side.is_client() {
@@ -413,7 +416,39 @@ impl Connection {
     }
     /// 5.
     fn set_loss_detection_timer(&mut self, now: Instant) {
-        todo!()
+        if self.state.is_closed() {
+            // No loss detection takes place on closed connections, and `close_common` already
+            // stopped time timer. Ensure we don't restart it inadvertently, e.g. in response to a
+            // reordered packet being handled by state-insensitive code.
+            return;
+        }
+
+        if let Some((loss_time, _)) = self.loss_time_and_space() {
+            // Time threshold loss detection.
+            self.timers.set(Timer::LossDetection, loss_time);
+            return;
+        }
+
+        if self.path.anti_amplification_blocked(1) {
+            // We wouldn't be able to send anything, so don't bother.
+            self.timers.stop(Timer::LossDetection);
+            return;
+        }
+
+        if self.path.in_flight.ack_eliciting == 0 && self.peer_completed_address_validation() {
+            // There is nothing to detect lost, so no timer is set. However, the client needs to arm
+            // the timer if the server might be blocked by the anti-amplification limit.
+            self.timers.stop(Timer::LossDetection);
+            return;
+        }
+
+        // Determine which PN space to arm PTO for.
+        // Calculate PTO duration
+        if let Some((timeout, _)) = self.pto_time_and_space(now) {
+            self.timers.set(Timer::LossDetection, timeout);
+        } else {
+            self.timers.stop(Timer::LossDetection);
+        }
     }
     /// 6.
     fn reset_cid_retirement(&mut self) {
@@ -1589,6 +1624,65 @@ impl Connection {
         let dt = cmp::max(timeout, 3 * self.pto(space));
         self.timers.set(Timer::Idle, now + dt);
     }
+    /// 37
+    fn loss_time_and_space(&self) -> Option<(Instant, SpaceId)> {
+        SpaceId::iter()
+            .filter_map(|id| Some((self.spaces[id].loss_time?, id)))
+            .min_by_key(|&(time, _)| time)
+    }
+    /// 38.
+    #[allow(clippy::suspicious_operation_groupings)]
+    fn peer_completed_address_validation(&self) -> bool {
+        if self.side.is_server() || self.state.is_closed() {
+            return true;
+        }
+        // The server is guaranteed to have validated our address if any of our handshake or 1-RTT
+        // packets are acknowledged or we've seen HANDSHAKE_DONE and discarded handshake keys.
+        self.spaces[SpaceId::Handshake]
+            .largest_acked_packet
+            .is_some()
+            || self.spaces[SpaceId::Data].largest_acked_packet.is_some()
+            || (self.spaces[SpaceId::Data].crypto.is_some()
+                && self.spaces[SpaceId::Handshake].crypto.is_none())
+    }
+    /// 39.
+    fn pto_time_and_space(&self, now: Instant) -> Option<(Instant, SpaceId)> {
+        let backoff = 2u32.pow(self.pto_count.min(MAX_BACKOFF_EXPONENT));
+        let mut duration = self.path.rtt.pto_base() * backoff;
+
+        if self.path.in_flight.ack_eliciting == 0 {
+            debug_assert!(!self.peer_completed_address_validation());
+            let space = match self.highest_space {
+                SpaceId::Handshake => SpaceId::Handshake,
+                _ => SpaceId::Initial,
+            };
+            return Some((now + duration, space));
+        }
+
+        let mut result = None;
+        for space in SpaceId::iter() {
+            if self.spaces[space].in_flight == 0 {
+                continue;
+            }
+            if space == SpaceId::Data {
+                // Skip ApplicationData until handshake completes.
+                if self.is_handshaking() {
+                    return result;
+                }
+                // Include max_ack_delay and backoff for ApplicationData.
+                duration += self.ack_frequency.max_ack_delay_for_pto() * backoff;
+            }
+            let last_ack_eliciting = match self.spaces[space].time_of_last_ack_eliciting_packet {
+                Some(time) => time,
+                None => continue,
+            };
+            let pto = last_ack_eliciting + duration;
+            if result.map_or(true, |(earliest_pto, _)| pto < earliest_pto) {
+                result = Some((pto, space));
+            }
+        }
+        result
+    }
 }
 
 #[allow(unreachable_pub)] // fuzzing only
@@ -1723,8 +1817,10 @@ pub enum Event {
 /// memory allocations when calling `poll_transmit()`. Benchmarks have shown
 /// that numbers around 10 are a good compromise.
 const MAX_TRANSMIT_SEGMENTS: usize = 10;
-// 2. Minimal remaining size to allow packet coalescing
+/// 2. Minimal remaining size to allow packet coalescing
 const MIN_PACKET_SPACE: usize = 40;
+/// 3. Prevents overflow and improves behavior in extreme circumstances
+const MAX_BACKOFF_EXPONENT: u32 = 16;
 
 #[derive(Default)]
 struct SentFrames {
