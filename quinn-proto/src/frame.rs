@@ -4,7 +4,7 @@ use bytes::{Buf, BufMut, Bytes};
 
 use crate::{
     coding::{self, BufExt, BufMutExt},
-    TransportError,
+    TransportError, VarInt,
 };
 /// 1
 #[derive(Clone, Debug)]
@@ -171,6 +171,8 @@ frame_types! {
     PATH_RESPONSE = 0x1b,
     HANDSHAKE_DONE = 0x1e,
     IMMEDIATE_ACK = 0x1f,
+    // ACK Frequency
+    ACK_FREQUENCY = 0xaf,
 }
 
 const STREAM_TYS: RangeInclusive<u64> = RangeInclusive::new(0x08, 0x0f);
@@ -181,4 +183,22 @@ const DATAGRAM_TYS: RangeInclusive<u64> = RangeInclusive::new(0x30, 0x31);
 pub struct Datagram {
     /// Payload
     pub data: Bytes,
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub(crate) struct AckFrequency {
+    pub(crate) sequence: VarInt,
+    pub(crate) ack_eliciting_threshold: VarInt,
+    pub(crate) request_max_ack_delay: VarInt,
+    pub(crate) reordering_threshold: VarInt,
+}
+
+impl AckFrequency {
+    pub(crate) fn encode<W: BufMut>(&self, buf: &mut W) {
+        buf.write(Type::ACK_FREQUENCY);
+        buf.write(self.sequence);
+        buf.write(self.ack_eliciting_threshold);
+        buf.write(self.request_max_ack_delay);
+        buf.write(self.reordering_threshold);
+    }
 }

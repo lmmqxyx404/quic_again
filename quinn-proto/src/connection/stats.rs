@@ -43,6 +43,8 @@ pub struct FrameStats {
     pub handshake_done: u8,
     /// 3.
     pub immediate_ack: u64,
+    /// 6.
+    pub ack_frequency: u64,
 }
 
 impl std::fmt::Debug for FrameStats {

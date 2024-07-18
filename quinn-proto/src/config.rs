@@ -305,4 +305,9 @@ impl Default for TransportConfig {
 /// because they change the way reordered packets are handled (see
 /// [`AckFrequencyConfig::reordering_threshold`] for details).
 #[derive(Clone, Debug)]
-pub struct AckFrequencyConfig {}
+pub struct AckFrequencyConfig {
+    /// 1
+    pub(crate) ack_eliciting_threshold: VarInt,
+    /// 2
+    pub(crate) reordering_threshold: VarInt,
+}

@@ -86,6 +86,14 @@ impl From<VarInt> for u64 {
     }
 }
 
+impl std::convert::TryFrom<u128> for VarInt {
+    type Error = VarIntBoundsExceeded;
+    /// Succeeds iff `x` < 2^62
+    fn try_from(x: u128) -> Result<Self, VarIntBoundsExceeded> {
+        Self::from_u64(x.try_into().map_err(|_| VarIntBoundsExceeded)?)
+    }
+}
+
 /// Error returned when constructing a `VarInt` from a value >= 2^62
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Error)]
 #[error("value too large for varint encoding")]
