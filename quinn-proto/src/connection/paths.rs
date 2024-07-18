@@ -39,11 +39,13 @@ pub(super) struct PathData {
     pub(super) challenge: Option<u64>,
     /// 11.
     pub(super) challenge_pending: bool,
-    /// Number of the first packet sent on this path
+    /// 12. Number of the first packet sent on this path
     ///
     /// Used to determine whether a packet was sent on an earlier path. Insufficient to determine if
     /// a packet was sent on a later path.
     first_packet: Option<u64>,
+    /// 13. Whether we're enabling ECN on outgoing packets
+    pub(super) sending_ecn: bool,
 }
 
 impl PathData {
@@ -93,6 +95,7 @@ impl PathData {
             challenge: None,
             challenge_pending: false,
             first_packet: None,
+            sending_ecn: true,
         }
     }
     /// 2. Indicates whether we're a server that hasn't validated the peer's address and hasn't

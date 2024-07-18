@@ -1312,7 +1312,29 @@ impl Connection {
             todo!()
         }
 
-        todo!()
+        if buf.is_empty() {
+            return None;
+        }
+
+        trace!("sending {} bytes in {} datagrams", buf.len(), num_datagrams);
+        self.path.total_sent = self.path.total_sent.saturating_add(buf.len() as u64);
+
+        self.stats.udp_tx.on_sent(num_datagrams, buf.len());
+
+        Some(Transmit {
+            destination: self.path.remote,
+            size: buf.len(),
+            ecn: if self.path.sending_ecn {
+                Some(EcnCodepoint::Ect0)
+            } else {
+                None
+            },
+            segment_size: match num_datagrams {
+                1 => None,
+                _ => Some(segment_size),
+            },
+            src_ip: self.local_ip,
+        })
     }
     /// 25
     fn peer_supports_ack_frequency(&self) -> bool {
