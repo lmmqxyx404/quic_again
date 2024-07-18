@@ -1,5 +1,6 @@
 use std::{
     collections::{hash_map, HashMap},
+    mem,
     net::{IpAddr, SocketAddr},
     sync::Arc,
     time::{Duration, Instant},
@@ -18,8 +19,8 @@ use crate::{
     connection::{Connection, ConnectionError},
     crypto::{self, Keys},
     packet::{
-        FixedLengthConnectionIdParser, Header, Packet, PacketDecodeError, PartialDecode,
-        ProtectedInitialHeader,
+        FixedLengthConnectionIdParser, Header, InitialHeader, InitialPacket, Packet,
+        PacketDecodeError, PartialDecode, ProtectedInitialHeader,
     },
     shared::{
         ConnectionEvent, ConnectionEventInner, ConnectionId, DatagramConnectionEvent, EcnCodepoint,
@@ -467,7 +468,12 @@ impl Endpoint {
         self.index
             .insert_initial_incoming(orig_dst_cid, incoming_idx);
 
-        Some(DatagramEvent::NewConnection(Incoming {}))
+        Some(DatagramEvent::NewConnection(Incoming {
+            retry_src_cid,
+            improper_drop_warner: IncomingImproperDropWarner,
+            incoming_idx,
+            packet: InitialPacket { header },
+        }))
     }
     /// 12. Whether we've used up 3/4 of the available CID space
     ///
@@ -488,6 +494,20 @@ impl Endpoint {
         buf: &mut Vec<u8>,
         server_config: Option<Arc<ServerConfig>>,
     ) -> Result<(ConnectionHandle, Connection), AcceptError> {
+        let remote_address_validated = incoming.remote_address_validated();
+        incoming.improper_drop_warner.dismiss();
+        let incoming_buffer = self.incoming_buffers.remove(incoming.incoming_idx);
+        self.all_incoming_buffers_total_bytes -= incoming_buffer.total_bytes;
+
+        let packet_number = incoming.packet.header.number.expand(0);
+
+        let InitialHeader {
+            src_cid,
+            dst_cid,
+            version,
+            ..
+        } = incoming.packet.header;
+
         todo!()
     }
 }
@@ -670,8 +690,26 @@ impl ResetTokenTable {
 }
 
 /// An incoming connection for which the server has not yet begun its part of the handshake.
-pub struct Incoming {}
+pub struct Incoming {
+    /// 1
+    retry_src_cid: Option<ConnectionId>,
+    /// 2
+    improper_drop_warner: IncomingImproperDropWarner,
+    /// 3.
+    incoming_idx: usize,
+    /// 4.
+    packet: InitialPacket,
+}
 
+impl Incoming {
+    /// Whether the socket address that is initiating this connection has been validated.
+    ///
+    /// This means that the sender of the initial packet has proved that they can receive traffic
+    /// sent to `self.remote_address()`.
+    pub fn remote_address_validated(&self) -> bool {
+        self.retry_src_cid.is_some()
+    }
+}
 /// Error type for attempting to accept an [`Incoming`]
 #[derive(Debug)]
 pub struct AcceptError {
@@ -679,4 +717,12 @@ pub struct AcceptError {
     pub cause: ConnectionError,
     /// Optional response to transmit back
     pub response: Option<Transmit>,
+}
+
+struct IncomingImproperDropWarner;
+
+impl IncomingImproperDropWarner {
+    fn dismiss(self) {
+        mem::forget(self);
+    }
 }

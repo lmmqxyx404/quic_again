@@ -835,6 +835,11 @@ pub(crate) struct InitialHeader {
     pub(crate) version: u32,
 }
 
+pub(crate) struct InitialPacket {
+    /// 1.
+    pub(crate) header: InitialHeader,
+}
+
 pub(crate) const FIXED_BIT: u8 = 0x40;
 pub(crate) const LONG_HEADER_FORM: u8 = 0x80;
 pub(crate) const SPIN_BIT: u8 = 0x20;
