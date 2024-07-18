@@ -1561,9 +1561,13 @@ impl Connection {
 
         sent
     }
-
+    /// 36.
     fn reset_keep_alive(&mut self, now: Instant) {
-        todo!()
+        let interval = match self.config.keep_alive_interval {
+            Some(x) if self.state.is_established() => x,
+            _ => return,
+        };
+        self.timers.set(Timer::KeepAlive, now + interval);
     }
 }
 
@@ -1600,6 +1604,10 @@ impl State {
         Self::Closed(state::Closed {
             reason: reason.into(),
         })
+    }
+    /// 5.
+    fn is_established(&self) -> bool {
+        matches!(*self, Self::Established)
     }
 }
 

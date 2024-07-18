@@ -253,6 +253,8 @@ pub struct TransportConfig {
     pub(crate) congestion_controller_factory: Arc<dyn congestion::ControllerFactory + Send + Sync>,
     /// 14.
     pub(crate) allow_spin: bool,
+    /// 15.
+    pub(crate) keep_alive_interval: Option<Duration>,
 }
 
 impl TransportConfig {
@@ -289,6 +291,8 @@ impl Default for TransportConfig {
 
             congestion_controller_factory: Arc::new(congestion::CubicConfig::default()),
             allow_spin: true,
+
+            keep_alive_interval: None,
         }
     }
 }
