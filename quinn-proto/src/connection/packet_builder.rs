@@ -35,7 +35,9 @@ impl PacketBuilder {
     /// 1. Append the minimum amount of padding such that, after encryption, the packet will occupy at
     /// least `min_size` bytes
     pub(super) fn pad_to(&mut self, min_size: u16) {
-        todo!()
+        let prev = self.min_size;
+        self.min_size = self.datagram_start + (min_size as usize) - self.tag_len;
+        debug_assert!(self.min_size >= prev, "padding must not shrink datagram");
     }
     /// 2.
     pub(super) fn finish_and_track(
