@@ -375,7 +375,11 @@ pub(super) struct PendingAcks {
     /// 2. The packet number ranges of ack-eliciting packets the peer hasn't confirmed receipt of ACKs
     /// for
     ranges: ArrayRangeSet,
+    /// 3.
     non_ack_eliciting_since_last_ack_sent: u64,
+    /// 4. The packet with the largest packet number, and the time upon which it was received (used to
+    /// calculate ACK delay in [`PendingAcks::ack_delay`])
+    largest_packet: Option<(u64, Instant)>,
 }
 
 impl PendingAcks {
@@ -383,9 +387,9 @@ impl PendingAcks {
     fn new() -> Self {
         Self {
             immediate_ack_required: false,
-
             ranges: ArrayRangeSet::default(),
             non_ack_eliciting_since_last_ack_sent: 0,
+            largest_packet: None,
         }
     }
     /// 2. Whether any ACK frames can be sent
@@ -424,7 +428,15 @@ impl PendingAcks {
     }
     /// 7. Insert one packet that needs to be acknowledged
     pub(super) fn insert_one(&mut self, packet: u64, now: Instant) {
-        todo!()
+        self.ranges.insert_one(packet);
+
+        if self.largest_packet.map_or(true, |(pn, _)| packet > pn) {
+            self.largest_packet = Some((packet, now));
+        }
+
+        if self.ranges.len() > MAX_ACK_BLOCKS {
+            self.ranges.pop_min();
+        }
     }
 }
 
@@ -463,3 +475,6 @@ pub(super) struct SentPacket {
     /// Whether an acknowledgement is expected directly in response to this packet.
     pub(super) ack_eliciting: bool,
 }
+
+/// Ensures we can always fit all our ACKs in a single minimum-MTU packet with room to spare
+const MAX_ACK_BLOCKS: usize = 64;
