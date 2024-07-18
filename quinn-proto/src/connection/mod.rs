@@ -1719,6 +1719,18 @@ impl Connection {
         }
         result
     }
+
+    /// 40. Returns the next time at which `handle_timeout` should be called
+    ///
+    /// The value returned may change after:
+    /// - the application performed some I/O on the connection
+    /// - a call was made to `handle_event`
+    /// - a call to `poll_transmit` returned `Some`
+    /// - a call was made to `handle_timeout`
+    #[must_use]
+    pub fn poll_timeout(&mut self) -> Option<Instant> {
+        self.timers.next_timeout()
+    }
 }
 
 #[allow(unreachable_pub)] // fuzzing only

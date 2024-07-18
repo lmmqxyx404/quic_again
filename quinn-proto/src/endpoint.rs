@@ -19,7 +19,7 @@ use crate::{
     crypto,
     packet::{FixedLengthConnectionIdParser, Header, PacketDecodeError, PartialDecode},
     shared::{
-        ConnectionEvent, ConnectionEventInner, ConnectionId, DatagramConnectionEvent, EcnCodepoint,
+        ConnectionEvent, ConnectionEventInner, ConnectionId, DatagramConnectionEvent, EcnCodepoint, EndpointEvent,
     },
     token::ResetToken,
     transport_parameters::TransportParameters,
@@ -304,6 +304,17 @@ impl Endpoint {
                 }
             }
         }
+        todo!()
+    }
+
+    /// Process `EndpointEvent`s emitted from related `Connection`s
+    ///
+    /// In turn, processing this event may return a `ConnectionEvent` for the same `Connection`.
+    pub fn handle_event(
+        &mut self,
+        ch: ConnectionHandle,
+        event: EndpointEvent,
+    ) -> Option<ConnectionEvent> {
         todo!()
     }
 }

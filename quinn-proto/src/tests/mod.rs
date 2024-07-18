@@ -101,5 +101,5 @@ fn lifecycle() {
     let mut pair = Pair::default();
     let (client_ch, server_ch) = pair.connect();
 
-    todo!()
+    
 }

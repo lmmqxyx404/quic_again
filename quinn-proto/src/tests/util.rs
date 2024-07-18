@@ -329,7 +329,19 @@ impl TestEndpoint {
                     self.outbound.extend(split_transmit(transmit, &buf[..size]));
                     buf.clear();
                 }
-                todo!()
+                self.timeout = conn.poll_timeout();
+            }
+
+            if endpoint_events.is_empty() {
+                break;
+            }
+
+            for (ch, event) in endpoint_events {
+                if let Some(event) = self.handle_event(ch, event) {
+                    if let Some(conn) = self.connections.get_mut(&ch) {
+                        conn.handle_event(event);
+                    }
+                }
             }
         }
     }
