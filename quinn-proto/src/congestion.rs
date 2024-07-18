@@ -11,6 +11,9 @@ pub trait Controller: Send + Sync {
     fn window(&self) -> u64;
     /// 2. Initial congestion window
     fn initial_window(&self) -> u64;
+    /// 3. One or more packets were just sent
+    #[allow(unused_variables)]
+    fn on_sent(&mut self, now: Instant, bytes: u64, last_packet_number: u64) {}
 }
 
 /// Constructs controllers on demand

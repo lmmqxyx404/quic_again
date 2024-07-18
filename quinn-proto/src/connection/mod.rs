@@ -1234,9 +1234,28 @@ impl Connection {
                 self.spaces[space_id].pending_acks.acks_sent();
                 self.timers.stop(Timer::MaxAckDelay);
             }
-            todo!()
+
+            // Keep information about the packet around until it gets finalized
+            sent_frames = Some(sent);
+
+            // Don't increment space_idx.
+            // We stay in the current space and check if there is more data to send.
         }
 
+        // Finish the last packet
+        if let Some(mut builder) = builder_storage {
+            if pad_datagram {
+                builder.pad_to(MIN_INITIAL_SIZE);
+            }
+            let last_packet_number = builder.exact_number;
+            builder.finish_and_track(now, self, sent_frames, buf);
+            self.path
+                .congestion
+                .on_sent(now, buf.len() as u64, last_packet_number);
+        }
+
+        self.app_limited = buf.is_empty() && !congestion_blocked;
+        
         todo!()
     }
     /// 25
