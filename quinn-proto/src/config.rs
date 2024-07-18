@@ -73,6 +73,10 @@ pub struct ServerConfig {
     /// Improves behavior for clients that move between different internet connections or suffer NAT
     /// rebinding. Enabled by default.
     pub(crate) migration: bool,
+    /// 4. TLS configuration used for incoming connections.
+    ///
+    /// Must be set to use TLS 1.3 only.
+    pub crypto: Arc<dyn crypto::ServerConfig>,
 }
 
 #[cfg(feature = "ring")]
@@ -99,6 +103,8 @@ impl ServerConfig {
 
             incoming_buffer_size: 10 << 20,
             incoming_buffer_size_total: 100 << 20,
+
+            crypto,
         }
     }
 }

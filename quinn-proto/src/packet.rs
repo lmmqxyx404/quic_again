@@ -498,6 +498,14 @@ impl PartialDecode {
     ) -> Result<PacketNumber, PacketDecodeError> {
         todo!()
     }
+    /// 10.
+    pub(crate) fn initial_header(&self) -> Option<&ProtectedInitialHeader> {
+        self.plain_header.as_initial()
+    }
+    /// 11.
+    pub(crate) fn has_long_header(&self) -> bool {
+        !matches!(self.plain_header, ProtectedHeader::Short { .. })
+    }
 }
 
 /// Parse connection id in short header packet
@@ -667,6 +675,13 @@ impl ProtectedHeader {
             Retry { dst_cid, .. } => dst_cid,
             Short { dst_cid, .. } => dst_cid,
             VersionNegotiate { dst_cid, .. } => dst_cid,
+        }
+    }
+    /// 4
+    fn as_initial(&self) -> Option<&ProtectedInitialHeader> {
+        match self {
+            Self::Initial(x) => Some(x),
+            _ => None,
         }
     }
 }

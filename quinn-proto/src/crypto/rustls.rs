@@ -278,7 +278,10 @@ impl crypto::PacketKey for Box<dyn PacketKey> {
 /// available to clients if `max_early_data_size` is set to `u32::MAX`.
 ///
 /// [single]: crate::config::ServerConfig::with_single_cert()
-pub struct QuicServerConfig {}
+pub struct QuicServerConfig {
+    /// 1.
+    initial: Suite,
+}
 
 impl QuicServerConfig {
     /// Initialize a sane QUIC-compatible TLS server configuration
@@ -316,8 +319,20 @@ impl TryFrom<Arc<rustls::ServerConfig>> for QuicServerConfig {
     type Error = NoInitialCipherSuite;
 
     fn try_from(inner: Arc<rustls::ServerConfig>) -> Result<Self, Self::Error> {
-        Ok(Self {})
+        Ok(Self {
+            initial: initial_suite_from_provider(inner.crypto_provider())
+                .ok_or(NoInitialCipherSuite { specific: false })?,
+        })
     }
 }
 
-impl crypto::ServerConfig for QuicServerConfig {}
+impl crypto::ServerConfig for QuicServerConfig {
+    fn initial_keys(
+        &self,
+        version: u32,
+        dst_cid: &ConnectionId,
+    ) -> Result<Keys, UnsupportedVersion> {
+        let version = interpret_version(version)?;
+        Ok(initial_keys(version, dst_cid, Side::Server, &self.initial))
+    }
+}
