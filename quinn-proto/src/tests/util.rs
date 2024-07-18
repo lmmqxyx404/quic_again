@@ -241,7 +241,27 @@ impl Pair {
     }
     /// 10
     pub(super) fn drive_server(&mut self) {
-        todo!()
+        let span = info_span!("server");
+        let _guard = span.enter();
+        self.server.drive(self.time, self.client.addr);
+        for (packet, buffer) in self.server.outbound.drain(..) {
+            let packet_size = packet_size(&packet, &buffer);
+            if packet_size > self.mtu {
+                info!(packet_size, "dropping packet (max size exceeded)");
+                continue;
+            }
+            if let Some(ref socket) = self.server.socket {
+                socket.send_to(&buffer, packet.destination).unwrap();
+            }
+            if self.client.addr == packet.destination {
+                let ecn = set_congestion_experienced(packet.ecn, self.congestion_experienced);
+                self.client.inbound.push_back((
+                    self.time + self.latency,
+                    ecn,
+                    buffer.as_ref().into(),
+                ));
+            }
+        }
     }
 }
 
