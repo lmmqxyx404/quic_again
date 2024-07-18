@@ -15,7 +15,10 @@ use crate::{
     config::{EndpointConfig, ServerConfig, TransportConfig},
     crypto::{self, KeyPair, Keys, PacketKey},
     frame::{self, Close, Datagram, Frame, FrameStruct, StreamMetaVec},
-    packet::{Header, InitialHeader, LongType, Packet, PacketNumber, PartialDecode, SpaceId},
+    packet::{
+        Header, InitialHeader, InitialPacket, LongType, Packet, PacketNumber, PartialDecode,
+        SpaceId,
+    },
     shared::{
         ConnectionEvent, ConnectionEventInner, ConnectionId, DatagramConnectionEvent, EcnCodepoint,
         EndpointEvent, EndpointEventInner,
@@ -1730,6 +1733,21 @@ impl Connection {
     #[must_use]
     pub fn poll_timeout(&mut self) -> Option<Instant> {
         self.timers.next_timeout()
+    }
+    /// 41 Handle the already-decrypted first packet from the client
+    ///
+    /// Decrypting the first packet in the `Endpoint` allows stateless packet handling to be more
+    /// efficient.
+    pub(crate) fn handle_first_packet(
+        &mut self,
+        now: Instant,
+        remote: SocketAddr,
+        ecn: Option<EcnCodepoint>,
+        packet_number: u64,
+        packet: InitialPacket,
+        remaining: Option<BytesMut>,
+    ) -> Result<(), ConnectionError> {
+        todo!()
     }
 }
 

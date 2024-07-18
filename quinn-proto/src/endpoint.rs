@@ -24,7 +24,7 @@ use crate::{
     },
     shared::{
         ConnectionEvent, ConnectionEventInner, ConnectionId, DatagramConnectionEvent, EcnCodepoint,
-        EndpointEvent,
+        EndpointEvent, EndpointEventInner,
     },
     token::ResetToken,
     transport_parameters::{PreferredAddress, TransportParameters},
@@ -486,6 +486,8 @@ impl Endpoint {
             orig_dst_cid,
             addresses,
             crypto,
+            ecn,
+            rest,
         }))
     }
     /// 12. Whether we've used up 3/4 of the available CID space
@@ -605,7 +607,40 @@ impl Endpoint {
             self.index.insert_initial(dst_cid, ch);
         }
 
-        todo!()
+        match conn.handle_first_packet(
+            now,
+            incoming.addresses.remote,
+            incoming.ecn,
+            packet_number,
+            incoming.packet,
+            incoming.rest,
+        ) {
+            Ok(()) => {
+                trace!(id = ch.0, icid = %dst_cid, "new connection");
+
+                for event in incoming_buffer.datagrams {
+                    conn.handle_event(ConnectionEvent(ConnectionEventInner::Datagram(event)))
+                }
+
+                Ok((ch, conn))
+            }
+            Err(e) => {
+                debug!("handshake failed: {}", e);
+                self.handle_event(ch, EndpointEvent(EndpointEventInner::Drained));
+                let response = match e {
+                    ConnectionError::TransportError(ref e) => Some(self.initial_close(
+                        version,
+                        incoming.addresses,
+                        &incoming.crypto,
+                        &src_cid,
+                        e.clone(),
+                        buf,
+                    )),
+                    _ => None,
+                };
+                Err(AcceptError { cause: e, response })
+            }
+        }
     }
 }
 
@@ -811,6 +846,10 @@ pub struct Incoming {
     addresses: FourTuple,
     /// 7
     crypto: Keys,
+    /// 8.
+    ecn: Option<EcnCodepoint>,
+    /// 9.
+    rest: Option<BytesMut>,
 }
 
 impl Incoming {
