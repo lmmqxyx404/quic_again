@@ -163,6 +163,16 @@ impl Packet {
     }
 }
 
+impl From<InitialPacket> for Packet {
+    fn from(x: InitialPacket) -> Self {
+        Self {
+            header: Header::Initial(x.header),
+            header_data: x.header_data,
+            payload: x.payload,
+        }
+    }
+}
+
 pub(crate) enum Header {
     Initial(InitialHeader),
     Long {

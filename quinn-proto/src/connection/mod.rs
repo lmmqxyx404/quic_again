@@ -1769,6 +1769,11 @@ impl Connection {
             false,
         );
 
+        self.process_decrypted_packet(now, remote, Some(packet_number), packet.into())?;
+        if let Some(data) = remaining {
+            self.handle_coalesced(now, remote, ecn, data);
+        }
+
         todo!()
     }
     /// 42
