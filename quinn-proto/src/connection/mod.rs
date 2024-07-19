@@ -620,7 +620,14 @@ impl Connection {
                 self.set_key_discard_timer(now, packet.header.space());
             }
         }
-        todo!()
+
+        if result.incoming_key_update {
+            trace!("key update authenticated");
+            self.update_keys(Some((result.number, now)), true);
+            self.set_key_discard_timer(now, packet.header.space());
+        }
+
+        Ok(Some(result.number))
     }
     /// 10
     fn set_key_discard_timer(&mut self, now: Instant, space: SpaceId) {

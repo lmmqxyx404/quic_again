@@ -136,7 +136,7 @@ pub(super) fn decrypt_packet_body(
     Ok(Some(DecryptPacketResult {
         number,
         outgoing_key_update_acked,
-        // incoming_key_update: crypto_update,
+        incoming_key_update: crypto_update,
     }))
 }
 /// 4.
@@ -145,6 +145,8 @@ pub(super) struct DecryptPacketResult {
     pub(super) outgoing_key_update_acked: bool,
     /// 2. The packet number
     pub(super) number: u64,
+    /// 3. Whether the peer has initiated a key update
+    pub(super) incoming_key_update: bool,
 }
 /// 3.
 pub(super) struct PrevCrypto {
