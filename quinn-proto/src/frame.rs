@@ -4,7 +4,7 @@ use bytes::{Buf, BufMut, Bytes};
 use tinyvec::TinyVec;
 
 use crate::{
-    coding::{self, BufExt, BufMutExt},
+    coding::{self, BufExt, BufMutExt, UnexpectedEnd},
     shared::{ConnectionId, EcnCodepoint},
     token::ResetToken,
     TransportError, VarInt,
@@ -68,12 +68,28 @@ impl Iter {
             last_ty: None,
         })
     }
+
+    fn try_next(&mut self) -> Result<Frame, IterErr> {
+        let ty = self.bytes.get::<Type>()?;
+        self.last_ty = Some(ty);
+        todo!()
+    }
 }
 
 impl Iterator for Iter {
     type Item = Result<Frame, InvalidFrame>;
     fn next(&mut self) -> Option<Self::Item> {
-        todo!()
+        if !self.bytes.has_remaining() {
+            return None;
+        }
+        match self.try_next() {
+            Ok(x) => Some(Ok(x)),
+            Err(e) => {
+                // Corrupt frame, skip it and everything that follows
+                self.bytes = io::Cursor::new(Bytes::new());
+                todo!()
+            }
+        }
     }
 }
 
@@ -96,6 +112,16 @@ impl From<InvalidFrame> for TransportError {
 pub(crate) enum Frame {
     Padding,
     Ping,
+}
+
+impl Frame {
+    pub(crate) fn ty(&self) -> Type {
+        use self::Frame::*;
+        match *self {
+            Padding => Type::PADDING,
+            Ping => Type::PING,
+        }
+    }
 }
 
 /// Reason given by the transport for closing the connection
@@ -190,6 +216,8 @@ frame_types! {
     CRYPTO = 0x06,
     NEW_CONNECTION_ID = 0x18,
     RETIRE_CONNECTION_ID = 0x19,
+    PADDING = 0x00,
+    PING = 0x01,
 }
 
 const STREAM_TYS: RangeInclusive<u64> = RangeInclusive::new(0x08, 0x0f);
@@ -287,5 +315,16 @@ impl std::ops::AddAssign<EcnCodepoint> for EcnCounts {
                 self.ce += 1;
             }
         }
+    }
+}
+
+enum IterErr {
+    /// 1.
+    UnexpectedEnd,
+}
+
+impl From<UnexpectedEnd> for IterErr {
+    fn from(_: UnexpectedEnd) -> Self {
+        Self::UnexpectedEnd
     }
 }

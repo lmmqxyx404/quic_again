@@ -763,6 +763,17 @@ impl Connection {
         now: Instant,
         packet: Packet,
     ) -> Result<(), TransportError> {
+        debug_assert_ne!(packet.header.space(), SpaceId::Data);
+        let payload_len = packet.payload.len();
+        let mut ack_eliciting = false;
+        for result in frame::Iter::new(packet.payload.freeze())? {
+            let frame = result?;
+            let span = match frame {
+                Frame::Padding => continue,
+                _ => Some(trace_span!("frame", ty = %frame.ty())),
+            };
+            todo!()
+        }
         todo!()
     }
     /// 14
