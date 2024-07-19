@@ -6,7 +6,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use bytes::BytesMut;
+use bytes::{Bytes, BytesMut};
 use rand::{rngs::StdRng, Rng, RngCore, SeedableRng};
 use rustc_hash::FxHashMap;
 use slab::Slab;
@@ -14,21 +14,13 @@ use thiserror::Error;
 use tracing::{debug, trace};
 
 use crate::{
-    coding::BufMutExt,
-    config::{ClientConfig, EndpointConfig, ServerConfig, TransportConfig},
-    connection::{Connection, ConnectionError},
-    crypto::{self, Keys},
-    packet::{
+    coding::BufMutExt, config::{ClientConfig, EndpointConfig, ServerConfig, TransportConfig}, connection::{Connection, ConnectionError}, crypto::{self, Keys}, frame, packet::{
         FixedLengthConnectionIdParser, Header, InitialHeader, InitialPacket, Packet,
-        PacketDecodeError, PartialDecode, ProtectedInitialHeader,
-    },
-    shared::{
+        PacketDecodeError, PacketNumber, PartialDecode, ProtectedInitialHeader,
+    }, shared::{
         ConnectionEvent, ConnectionEventInner, ConnectionId, DatagramConnectionEvent, EcnCodepoint,
         EndpointEvent, EndpointEventInner,
-    },
-    token::ResetToken,
-    transport_parameters::{PreferredAddress, TransportParameters},
-    ConnectionIdGenerator, Side, Transmit, TransportError, MIN_INITIAL_SIZE, RESET_TOKEN_SIZE,
+    }, token::ResetToken, transport_parameters::{PreferredAddress, TransportParameters}, ConnectionIdGenerator, Side, Transmit, TransportError, INITIAL_MTU, MIN_INITIAL_SIZE, RESET_TOKEN_SIZE
 };
 
 /// 1. The main entry point to the library
@@ -457,7 +449,32 @@ impl Endpoint {
         reason: TransportError,
         buf: &mut Vec<u8>,
     ) -> Transmit {
-        todo!()
+        // We don't need to worry about CID collisions in initial closes because the peer
+        // shouldn't respond, and if it does, and the CID collides, we'll just drop the
+        // unexpected response.
+        let local_id = self.local_cid_generator.generate_cid();
+        let number = PacketNumber::U8(0);
+        let header = Header::Initial(InitialHeader {
+            dst_cid: *remote_id,
+            src_cid: local_id,
+            number,
+            token: Bytes::new(),
+            version,
+        });
+
+        let partial_encode = header.encode(buf);
+        let max_len =
+            INITIAL_MTU as usize - partial_encode.header_len - crypto.packet.local.tag_len();
+        frame::Close::from(reason).encode(buf, max_len);
+        buf.resize(buf.len() + crypto.packet.local.tag_len(), 0);
+        partial_encode.finish(buf, &*crypto.header.local, Some((0, &*crypto.packet.local)));
+        Transmit {
+            destination: addresses.remote,
+            ecn: None,
+            size: buf.len(),
+            segment_size: None,
+            src_ip: addresses.local_ip,
+        }
     }
     /// 11.
     fn handle_first_packet(

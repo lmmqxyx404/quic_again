@@ -44,6 +44,15 @@ impl Code {
     }
 }
 
+impl coding::Codec for Code {
+    fn decode<B: Buf>(buf: &mut B) -> coding::Result<Self> {
+        Ok(Self(buf.get_var()?))
+    }
+    fn encode<B: BufMut>(&self, buf: &mut B) {
+        buf.write_var(self.0)
+    }
+}
+
 macro_rules! errors {
     {$($name:ident($val:expr) $desc:expr;)*} => {
         #[allow(non_snake_case, unused)]
@@ -91,4 +100,5 @@ errors! {
     PROTOCOL_VIOLATION(0xA) "detected an error with protocol compliance that was not covered by more specific error codes";
     TRANSPORT_PARAMETER_ERROR(0x8) "received transport parameters that were badly formatted, included an invalid value, was absent even though it is mandatory, was present though it is forbidden, or is otherwise in error";
     FRAME_ENCODING_ERROR(0x7) "received a frame that was badly formatted";
+    AEAD_LIMIT_REACHED(0xF) "the endpoint has reached the confidentiality or integrity limit for the AEAD algorithm";
 }

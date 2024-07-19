@@ -7,12 +7,21 @@ use crate::{
     coding::{self, BufExt, BufMutExt, UnexpectedEnd},
     shared::{ConnectionId, EcnCodepoint},
     token::ResetToken,
-    StreamId, TransportError, VarInt,
+    StreamId, TransportError, TransportErrorCode, VarInt,
 };
 /// 1
 #[derive(Clone, Debug)]
 pub enum Close {
     Connection(ConnectionClose),
+}
+
+impl Close {
+    pub(crate) fn encode<W: BufMut>(&self, out: &mut W, max_len: usize) {
+        match *self {
+            Self::Connection(ref x) => x.encode(out, max_len),
+            // Self::Application(ref x) => x.encode(out, max_len),
+        }
+    }
 }
 
 impl From<TransportError> for Close {
@@ -194,7 +203,10 @@ impl Frame {
 pub struct ConnectionClose {
     /// 1. Human-readable reason for the close
     pub reason: Bytes,
-    // pub error_code: TransportErrorCode,
+    /// 2. Class of error as encoded in the specification
+    pub error_code: TransportErrorCode,
+    /// 3. Type of frame that caused the close
+    pub frame_type: Option<Type>,
 }
 
 impl fmt::Display for ConnectionClose {
@@ -210,6 +222,22 @@ impl fmt::Display for ConnectionClose {
 
 impl FrameStruct for ConnectionClose {
     const SIZE_BOUND: usize = 1 + 8 + 8 + 8;
+}
+
+impl ConnectionClose {
+    pub(crate) fn encode<W: BufMut>(&self, out: &mut W, max_len: usize) {
+        out.write(Type::CONNECTION_CLOSE); // 1 byte
+        out.write(self.error_code); // <= 8 bytes
+        let ty = self.frame_type.map_or(0, |x| x.0);
+        out.write_var(ty); // <= 8 bytes
+        let max_len = max_len
+            - 3
+            - VarInt::from_u64(ty).unwrap().size()
+            - VarInt::from_u64(self.reason.len() as u64).unwrap().size();
+        let actual_len = self.reason.len().min(max_len);
+        out.write_var(actual_len as u64); // <= 8 bytes
+        out.put_slice(&self.reason[0..actual_len]); // whatever's left
+    }
 }
 
 /// Reason given by an application for closing the connection
@@ -283,6 +311,8 @@ frame_types! {
     RETIRE_CONNECTION_ID = 0x19,
     PADDING = 0x00,
     PING = 0x01,
+    CONNECTION_CLOSE = 0x1c,
+
 }
 
 const STREAM_TYS: RangeInclusive<u64> = RangeInclusive::new(0x08, 0x0f);

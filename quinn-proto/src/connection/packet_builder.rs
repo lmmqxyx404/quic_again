@@ -9,7 +9,7 @@ use crate::{
     frame::{self, Close},
     packet::{Header, InitialHeader, PacketNumber, PartialEncode, SpaceId, FIXED_BIT},
     shared::ConnectionId,
-    INITIAL_MTU,
+    TransportErrorCode, INITIAL_MTU,
 };
 
 use super::{Connection, SentFrames};
@@ -130,8 +130,8 @@ impl PacketBuilder {
                 conn.close_inner(
                     now,
                     Close::Connection(frame::ConnectionClose {
-                        // error_code: TransportErrorCode::AEAD_LIMIT_REACHED,
-                        // frame_type: None,
+                        error_code: TransportErrorCode::AEAD_LIMIT_REACHED,
+                        frame_type: None,
                         reason: Bytes::from_static(b"confidentiality limit reached"),
                     }),
                 )
