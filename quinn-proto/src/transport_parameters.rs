@@ -1,8 +1,14 @@
 use std::net::{Ipv4Addr, Ipv6Addr, SocketAddrV4, SocketAddrV6};
 
-use bytes::BufMut;
+use bytes::{Buf, BufMut};
+use thiserror::Error;
 
-use crate::{coding::BufMutExt, config::{EndpointConfig, ServerConfig, TransportConfig}, shared::ConnectionId, ConnectionIdGenerator, ResetToken, VarInt};
+use crate::{
+    coding::BufMutExt,
+    config::{EndpointConfig, ServerConfig, TransportConfig},
+    shared::ConnectionId,
+    ConnectionIdGenerator, ResetToken, Side, TransportError, VarInt,
+};
 // Apply a given macro to a list of all the transport parameters having integer types, along with
 // their codes and default values. Using this helps us avoid error-prone duplication of the
 // contained information across decoding, encoding, and the `Default` impl. Whenever we want to do
@@ -197,8 +203,12 @@ impl TransportParameters {
             w.write(x);
         }
     }
-}
 
+    /// Decode `TransportParameters` from buffer
+    pub fn read<R: Buf>(side: Side, r: &mut R) -> Result<Self, Error> {
+        todo!()
+    }
+}
 impl PreferredAddress {
     fn wire_size(&self) -> u16 {
         4 + 2 + 16 + 2 + 1 + self.connection_id.len() as u16 + 16
@@ -212,5 +222,25 @@ impl PreferredAddress {
         w.write::<u8>(self.connection_id.len() as u8);
         w.put_slice(&self.connection_id);
         w.put_slice(&self.stateless_reset_token);
+    }
+}
+
+/// Errors encountered while decoding `TransportParameters`
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Error)]
+pub enum Error {
+    /// Parameters that are semantically invalid
+    #[error("parameter had illegal value")]
+    IllegalValue,
+    /// Catch-all error for problems while decoding transport parameters
+    #[error("parameters were malformed")]
+    Malformed,
+}
+
+impl From<Error> for TransportError {
+    fn from(e: Error) -> Self {
+        match e {
+            Error::IllegalValue => Self::TRANSPORT_PARAMETER_ERROR("illegal value"),
+            Error::Malformed => Self::TRANSPORT_PARAMETER_ERROR("malformed"),
+        }
     }
 }

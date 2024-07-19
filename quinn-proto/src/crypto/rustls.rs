@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{io, sync::Arc};
 
 use bytes::BytesMut;
 use rustls::{
@@ -9,7 +9,7 @@ use rustls::{
 
 use crate::{
     crypto, endpoint::ConnectError, shared::ConnectionId,
-    transport_parameters::TransportParameters, Side,
+    transport_parameters::TransportParameters, Side, TransportError,
 };
 
 use super::{CryptoError, HeaderKey, KeyPair, Keys, UnsupportedVersion};
@@ -146,6 +146,15 @@ pub struct TlsSession {
     suite: Suite,
 }
 
+impl TlsSession {
+    fn side(&self) -> Side {
+        match self.inner {
+            Connection::Client(_) => Side::Client,
+            Connection::Server(_) => Side::Server,
+        }
+    }
+}
+
 impl crypto::Session for TlsSession {
     fn initial_keys(&self, dst_cid: &ConnectionId, side: Side) -> Keys {
         initial_keys(self.version, dst_cid, side, &self.suite)
@@ -175,6 +184,16 @@ impl crypto::Session for TlsSession {
     fn early_crypto(&self) -> Option<(Box<dyn HeaderKey>, Box<dyn crypto::PacketKey>)> {
         let keys = self.inner.zero_rtt_keys()?;
         Some((Box::new(keys.header), Box::new(keys.packet)))
+    }
+
+    fn transport_parameters(&self) -> Result<Option<TransportParameters>, TransportError> {
+        match self.inner.quic_transport_parameters() {
+            None => Ok(None),
+            Some(buf) => match TransportParameters::read(self.side(), &mut io::Cursor::new(buf)) {
+                Ok(params) => Ok(Some(params)),
+                Err(e) => Err(e.into()),
+            },
+        }
     }
 }
 

@@ -44,7 +44,7 @@ mod constant_time;
 mod frame;
 /// 14
 mod transport_error;
-pub use crate::transport_error::Error as TransportError;
+pub use crate::transport_error::{Code as TransportErrorCode, Error as TransportError};
 /// 15
 mod cid_queue;
 /// 17.

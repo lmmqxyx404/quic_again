@@ -24,7 +24,8 @@ use crate::{
         EndpointEvent, EndpointEventInner,
     },
     transport_parameters::TransportParameters,
-    ConnectionIdGenerator, Side, Transmit, TransportError, VarInt, MIN_INITIAL_SIZE,
+    ConnectionIdGenerator, Side, Transmit, TransportError, TransportErrorCode, VarInt,
+    MIN_INITIAL_SIZE,
 };
 use bytes::{Bytes, BytesMut};
 
@@ -202,6 +203,10 @@ pub struct Connection {
     idle_timeout: Option<VarInt>,
     /// 41. Loss Detection: The number of times a PTO has been sent without receiving an ack.
     pto_count: u32,
+    /// 42. The CID the peer initially chose, for use during the handshake
+    rem_handshake_cid: ConnectionId,
+    /// 43. Source ConnectionId of the first packet received from the peer
+    orig_rem_cid: ConnectionId,
 }
 
 impl Connection {
@@ -312,6 +317,8 @@ impl Connection {
             datagrams: DatagramState::default(),
             permit_idle_reset: true,
             pto_count: 0,
+            rem_handshake_cid: rem_cid,
+            orig_rem_cid: rem_cid,
         };
 
         if side.is_client() {
@@ -673,7 +680,43 @@ impl Connection {
             Header::Initial(InitialHeader {
                 src_cid: rem_cid, ..
             }) => {
-                todo!()
+                if !state.rem_cid_set {
+                    trace!("switching remote CID to {}", rem_cid);
+                    let mut state = state.clone();
+                    self.rem_cids.update_initial_cid(rem_cid);
+                    self.rem_handshake_cid = rem_cid;
+                    self.orig_rem_cid = rem_cid;
+                    state.rem_cid_set = true;
+                    self.state = State::Handshake(state);
+                } else if rem_cid != self.rem_handshake_cid {
+                    debug!(
+                        "discarding packet with mismatched remote CID: {} != {}",
+                        self.rem_handshake_cid, rem_cid
+                    );
+                    return Ok(());
+                }
+
+                let starting_space = self.highest_space;
+                self.process_early_payload(now, packet)?;
+
+                if self.side.is_server()
+                    && starting_space == SpaceId::Initial
+                    && self.highest_space != SpaceId::Initial
+                {
+                    let params =
+                        self.crypto
+                            .transport_parameters()?
+                            .ok_or_else(|| TransportError {
+                                code: TransportErrorCode::crypto(0x6d),
+                                frame: None,
+                                reason: "transport parameters missing".into(),
+                            })?;
+                    todo!()
+                    /* self.handle_peer_params(params)?;
+                    self.issue_first_cids(now);
+                    self.init_0rtt(); */
+                }
+                Ok(())
             }
             Header::Long {
                 ty: LongType::ZeroRtt,

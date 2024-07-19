@@ -4,6 +4,7 @@ use bytes::BytesMut;
 
 use crate::{
     endpoint::ConnectError, shared::ConnectionId, transport_parameters::TransportParameters, Side,
+    TransportError,
 };
 
 /// 1. Cryptography interface based on *ring*
@@ -30,6 +31,10 @@ pub trait Session: Send + Sync + 'static {
     /// Returns `None` if the key material is not available. This might happen if you have
     /// not connected to this server before.
     fn early_crypto(&self) -> Option<(Box<dyn HeaderKey>, Box<dyn PacketKey>)>;
+    /// 4. The peer's QUIC transport parameters
+    ///
+    /// These are only available after the first flight from the peer has been received.
+    fn transport_parameters(&self) -> Result<Option<TransportParameters>, TransportError>;
 }
 
 /// 1. A key for signing with HMAC-based algorithms

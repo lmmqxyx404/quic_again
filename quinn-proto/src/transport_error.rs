@@ -37,6 +37,13 @@ impl std::error::Error for Error {}
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub struct Code(u64);
 
+impl Code {
+    /// Create QUIC error code from TLS alert code
+    pub fn crypto(code: u8) -> Self {
+        Self(0x100 | u64::from(code))
+    }
+}
+
 macro_rules! errors {
     {$($name:ident($val:expr) $desc:expr;)*} => {
         #[allow(non_snake_case, unused)]
@@ -82,4 +89,5 @@ macro_rules! errors {
 errors! {
     CONNECTION_REFUSED(0x2) "the server refused to accept a new connection";
     PROTOCOL_VIOLATION(0xA) "detected an error with protocol compliance that was not covered by more specific error codes";
+    TRANSPORT_PARAMETER_ERROR(0x8) "received transport parameters that were badly formatted, included an invalid value, was absent even though it is mandatory, was present though it is forbidden, or is otherwise in error";
 }
