@@ -1,4 +1,5 @@
 use std::{
+    cmp,
     collections::{HashMap, VecDeque},
     env,
     io::{self, Write},
@@ -16,7 +17,7 @@ use rustls::{
     pki_types::{CertificateDer, PrivateKeyDer},
     KeyLogFile,
 };
-use tracing::{info, info_span};
+use tracing::{info, info_span, trace};
 
 use crate::{
     config::{ClientConfig, EndpointConfig, ServerConfig},
@@ -124,6 +125,8 @@ pub(super) struct Pair {
     /// Simulates explicit congestion notification
     pub(super) congestion_experienced: bool,
     latency: Duration,
+    /// Start time
+    epoch: Instant,
 }
 
 impl Pair {
@@ -159,6 +162,7 @@ impl Pair {
             last_spin: false,
             congestion_experienced: false,
             latency: Duration::new(0, 0),
+            epoch: now,
         }
     }
     /// 3
@@ -203,7 +207,27 @@ impl Pair {
             return false;
         }
 
-        todo!()
+        let client_t = self.client.next_wakeup();
+        let server_t = self.server.next_wakeup();
+
+        match min_opt(client_t, server_t) {
+            Some(t) if Some(t) == client_t => {
+                if t != self.time {
+                    self.time = self.time.max(t);
+                    trace!("advancing to {:?} for client", self.time - self.epoch);
+                }
+                true
+            }
+            Some(t) if Some(t) == server_t => {
+                if t != self.time {
+                    self.time = self.time.max(t);
+                    trace!("advancing to {:?} for server", self.time - self.epoch);
+                }
+                true
+            }
+            Some(_) => unreachable!(),
+            None => false,
+        }
     }
     /// 8.
     fn finish_connect(&mut self, client_ch: ConnectionHandle, server_ch: ConnectionHandle) {
@@ -443,6 +467,11 @@ impl TestEndpoint {
             }
         }
     }
+    /// 8.
+    pub(super) fn next_wakeup(&self) -> Option<Instant> {
+        let next_inbound = self.inbound.front().map(|x| x.0);
+        min_opt(self.timeout, next_inbound)
+    }
 }
 
 impl ::std::ops::Deref for TestEndpoint {
@@ -506,4 +535,13 @@ fn set_congestion_experienced(
         true => EcnCodepoint::Ce,
         false => codepoint,
     })
+}
+
+pub(super) fn min_opt<T: Ord>(x: Option<T>, y: Option<T>) -> Option<T> {
+    match (x, y) {
+        (Some(x), Some(y)) => Some(cmp::min(x, y)),
+        (Some(x), _) => Some(x),
+        (_, Some(y)) => Some(y),
+        _ => None,
+    }
 }
