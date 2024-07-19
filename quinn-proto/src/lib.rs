@@ -120,6 +120,16 @@ impl Dir {
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct StreamId(#[doc(hidden)] pub u64);
 
+/// used for `id: self.bytes.get()?,`
+impl coding::Codec for StreamId {
+    fn decode<B: bytes::Buf>(buf: &mut B) -> coding::Result<Self> {
+        VarInt::decode(buf).map(|x| Self(x.into_inner()))
+    }
+    fn encode<B: bytes::BufMut>(&self, buf: &mut B) {
+        VarInt::from_u64(self.0).unwrap().encode(buf);
+    }
+}
+
 /// An outgoing packet
 #[derive(Debug)]
 #[must_use]

@@ -7,7 +7,7 @@ use crate::{
     coding::{self, BufExt, BufMutExt, UnexpectedEnd},
     shared::{ConnectionId, EcnCodepoint},
     token::ResetToken,
-    TransportError, VarInt,
+    StreamId, TransportError, VarInt,
 };
 /// 1
 #[derive(Clone, Debug)]
@@ -32,8 +32,25 @@ impl From<ApplicationClose> for Close {
         todo!()
     }
 }
+
+/// 2.
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub struct Type(u64);
+
+impl Type {
+    /// 1
+    fn stream(self) -> Option<StreamInfo> {
+        if STREAM_TYS.contains(&self.0) {
+            Some(StreamInfo(self.0 as u8))
+        } else {
+            None
+        }
+    }
+    /// 2
+    fn datagram(self) -> Option<DatagramInfo> {
+        todo!()
+    }
+}
 
 impl coding::Codec for Type {
     fn decode<B: Buf>(buf: &mut B) -> coding::Result<Self> {
@@ -72,6 +89,34 @@ impl Iter {
     fn try_next(&mut self) -> Result<Frame, IterErr> {
         let ty = self.bytes.get::<Type>()?;
         self.last_ty = Some(ty);
+        Ok(match ty {
+            Type::PADDING => Frame::Padding,
+            _ => {
+                if let Some(s) = ty.stream() {
+                    Frame::Stream(Stream {
+                        id: self.bytes.get()?,
+                        offset: if s.off() { self.bytes.get_var()? } else { 0 },
+                        fin: s.fin(),
+                        data: if s.len() {
+                            self.take_len()?
+                        } else {
+                            self.take_remaining()
+                        },
+                    })
+                } else if let Some(d) = ty.datagram() {
+                    todo!()
+                } else {
+                    return Err(IterErr::InvalidFrameId);
+                }
+            }
+        })
+    }
+
+    fn take_len(&mut self) -> Result<Bytes, UnexpectedEnd> {
+        todo!()
+    }
+
+    fn take_remaining(&mut self) -> Bytes {
         todo!()
     }
 }
@@ -112,6 +157,7 @@ impl From<InvalidFrame> for TransportError {
 pub(crate) enum Frame {
     Padding,
     Ping,
+    Stream(Stream),
 }
 
 impl Frame {
@@ -120,6 +166,16 @@ impl Frame {
         match *self {
             Padding => Type::PADDING,
             Ping => Type::PING,
+            Stream(ref x) => {
+                let mut ty = *STREAM_TYS.start();
+                if x.fin {
+                    ty |= 0x01;
+                }
+                if x.offset != 0 {
+                    ty |= 0x04;
+                }
+                Type(ty)
+            }
         }
     }
 }
@@ -321,6 +377,8 @@ impl std::ops::AddAssign<EcnCodepoint> for EcnCounts {
 enum IterErr {
     /// 1.
     UnexpectedEnd,
+    /// 2.
+    InvalidFrameId,
 }
 
 impl From<UnexpectedEnd> for IterErr {
@@ -328,3 +386,29 @@ impl From<UnexpectedEnd> for IterErr {
         Self::UnexpectedEnd
     }
 }
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+struct StreamInfo(u8);
+
+impl StreamInfo {
+    fn fin(self) -> bool {
+        self.0 & 0x01 != 0
+    }
+    fn len(self) -> bool {
+        self.0 & 0x02 != 0
+    }
+    fn off(self) -> bool {
+        self.0 & 0x04 != 0
+    }
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct Stream {
+    pub(crate) id: StreamId,
+    pub(crate) offset: u64,
+    pub(crate) fin: bool,
+    pub(crate) data: Bytes,
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+struct DatagramInfo(u8);
