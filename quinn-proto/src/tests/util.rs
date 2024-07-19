@@ -316,6 +316,10 @@ pub(super) struct TestEndpoint {
     pub(super) incoming_connection_behavior: IncomingConnectionBehavior,
     /// 10.
     accepted: Option<Result<ConnectionHandle, ConnectionError>>,
+    /// 11.
+    pub(super) captured_packets: Vec<Vec<u8>>,
+    /// 12.
+    pub(super) capture_inbound_packets: bool,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -346,6 +350,8 @@ impl TestEndpoint {
             outbound: VecDeque::new(),
             incoming_connection_behavior: IncomingConnectionBehavior::AcceptAll,
             accepted: None,
+            captured_packets: Vec::new(),
+            capture_inbound_packets: false,
         }
     }
     /// 2
@@ -391,7 +397,12 @@ impl TestEndpoint {
                         }
                     }
                     DatagramEvent::ConnectionEvent(ch, event) => {
-                        todo!()
+                        if self.capture_inbound_packets {
+                            let packet = self.connections[&ch].decode_packet(&event);
+                            self.captured_packets.extend(packet);
+                        }
+
+                        self.conn_events.entry(ch).or_default().push_back(event);
                     }
                     DatagramEvent::Response(transmit) => {
                         todo!()
