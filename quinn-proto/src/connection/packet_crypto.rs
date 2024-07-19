@@ -73,6 +73,11 @@ pub(super) fn decrypt_packet_body(
         return Ok(None);
     }
 
+    let space = packet.header.space();
+    let rx_packet = spaces[space].rx_packet;
+    let number = packet.header.number().ok_or(None)?.expand(rx_packet + 1);
+    let packet_key_phase = packet.header.key_phase();
+
     todo!()
 }
 /// 4.

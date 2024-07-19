@@ -334,6 +334,25 @@ impl Header {
             VersionNegotiate { ref dst_cid, .. } => dst_cid,
         }
     }
+    /// 6.
+    pub(crate) fn number(&self) -> Option<PacketNumber> {
+        use self::Header::*;
+        Some(match *self {
+            Initial(InitialHeader { number, .. }) => number,
+            Long { number, .. } => number,
+            Short { number, .. } => number,
+            _ => {
+                return None;
+            }
+        })
+    }
+    /// 7.
+    pub(crate) fn key_phase(&self) -> bool {
+        match *self {
+            Self::Short { key_phase, .. } => key_phase,
+            _ => false,
+        }
+    }
 }
 
 /// Decodes a QUIC packet's invariant header
