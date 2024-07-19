@@ -1260,7 +1260,16 @@ impl Connection {
                     let max_frame_size = builder.max_size - buf.len();
                     match self.state {
                         State::Closed(state::Closed { ref reason }) => {
-                            todo!()
+                            if space_id == SpaceId::Data || reason.is_transport_layer() {
+                                reason.encode(buf, max_frame_size)
+                            } else {
+                                frame::ConnectionClose {
+                                    error_code: TransportErrorCode::APPLICATION_ERROR,
+                                    frame_type: None,
+                                    reason: Bytes::new(),
+                                }
+                                .encode(buf, max_frame_size)
+                            }
                         }
                         State::Draining => {
                             todo!()

@@ -16,11 +16,16 @@ pub enum Close {
 }
 
 impl Close {
+    /// 1
     pub(crate) fn encode<W: BufMut>(&self, out: &mut W, max_len: usize) {
         match *self {
             Self::Connection(ref x) => x.encode(out, max_len),
             // Self::Application(ref x) => x.encode(out, max_len),
         }
+    }
+    /// 2
+    pub(crate) fn is_transport_layer(&self) -> bool {
+        matches!(*self, Self::Connection(_))
     }
 }
 

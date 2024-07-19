@@ -102,4 +102,5 @@ errors! {
     FRAME_ENCODING_ERROR(0x7) "received a frame that was badly formatted";
     AEAD_LIMIT_REACHED(0xF) "the endpoint has reached the confidentiality or integrity limit for the AEAD algorithm";
     KEY_UPDATE_ERROR(0xE) "key update error";
+    APPLICATION_ERROR(0xC) "the application or application protocol caused the connection to be closed during the handshake";
 }
