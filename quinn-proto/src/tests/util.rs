@@ -356,7 +356,10 @@ impl TestEndpoint {
     }
     /// 2
     pub(super) fn assert_accept(&mut self) -> ConnectionHandle {
-        todo!()
+        self.accepted
+            .take()
+            .expect("server didn't try connecting")
+            .expect("server experienced error connecting")
     }
     /// 3
     fn is_idle(&self) -> bool {
