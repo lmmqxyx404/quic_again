@@ -153,12 +153,12 @@ pub(crate) struct InvalidFrame {
     pub(crate) reason: &'static str,
 }
 
+/// used for `let frame = result?;`
 impl From<InvalidFrame> for TransportError {
     fn from(err: InvalidFrame) -> Self {
-        todo!()
-        /* let mut te = Self::FRAME_ENCODING_ERROR(err.reason);
+        let mut te = Self::FRAME_ENCODING_ERROR(err.reason);
         te.frame = err.ty;
-        te */
+        te
     }
 }
 

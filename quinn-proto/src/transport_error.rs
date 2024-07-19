@@ -90,4 +90,5 @@ errors! {
     CONNECTION_REFUSED(0x2) "the server refused to accept a new connection";
     PROTOCOL_VIOLATION(0xA) "detected an error with protocol compliance that was not covered by more specific error codes";
     TRANSPORT_PARAMETER_ERROR(0x8) "received transport parameters that were badly formatted, included an invalid value, was absent even though it is mandatory, was present though it is forbidden, or is otherwise in error";
+    FRAME_ENCODING_ERROR(0x7) "received a frame that was badly formatted";
 }
