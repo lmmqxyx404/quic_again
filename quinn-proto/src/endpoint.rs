@@ -388,7 +388,24 @@ impl Endpoint {
         ch: ConnectionHandle,
         event: EndpointEvent,
     ) -> Option<ConnectionEvent> {
-        todo!()
+        use EndpointEventInner::*;
+
+        match event.0 {
+            Drained => {
+                if let Some(conn) = self.connections.try_remove(ch.0) {
+                    self.index.remove(&conn);
+                } else {
+                    // This indicates a bug in downstream code, which could cause spurious
+                    // connection loss instead of this error if the CID was (re)allocated prior to
+                    // the illegal call.
+                    tracing::error!(id = ch.0, "unknown connection drained");
+                }
+            }
+            _ => {
+                unreachable!("handle_event {:?}", event);
+            }
+        }
+        None
     }
     /// 8.
     fn stateless_reset(
@@ -778,6 +795,21 @@ impl ConnectionIndex {
         self.connection_ids_initial
             .insert(dst_cid, RouteDatagramTo::Connection(connection));
     }
+    /// 6. Remove all references to a connection
+    fn remove(&mut self, conn: &ConnectionMeta) {
+        if conn.init_cid.len() > 0 {
+            self.connection_ids_initial.remove(&conn.init_cid);
+        }
+        for cid in conn.loc_cids.values() {
+            self.connection_ids.remove(cid);
+        }
+        self.incoming_connection_remotes.remove(&conn.addresses);
+        self.outgoing_connection_remotes
+            .remove(&conn.addresses.remote);
+        if let Some((remote, token)) = conn.reset_token {
+            self.connection_reset_tokens.remove(remote, token);
+        }
+    }
 }
 
 /// 7. Identifies a connection by the combination of remote and local addresses
@@ -824,9 +856,23 @@ struct IncomingBuffer {
 struct ResetTokenTable(HashMap<SocketAddr, HashMap<ResetToken, ConnectionHandle>>);
 
 impl ResetTokenTable {
+    /// 1
     fn get(&self, remote: SocketAddr, token: &[u8]) -> Option<&ConnectionHandle> {
         let token = ResetToken::from(<[u8; RESET_TOKEN_SIZE]>::try_from(token).ok()?);
         self.0.get(&remote)?.get(&token)
+    }
+    /// 2
+    fn remove(&mut self, remote: SocketAddr, token: ResetToken) {
+        use std::collections::hash_map::Entry;
+        match self.0.entry(remote) {
+            Entry::Vacant(_) => {}
+            Entry::Occupied(mut e) => {
+                e.get_mut().remove(&token);
+                if e.get().is_empty() {
+                    e.remove_entry();
+                }
+            }
+        }
     }
 }
 
