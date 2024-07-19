@@ -913,7 +913,22 @@ impl Connection {
     /// `Instant` that was output by `poll_timeout`; however spurious extra calls will simply
     /// no-op and therefore are safe.
     pub fn handle_timeout(&mut self, now: Instant) {
-        todo!()
+        for &timer in &Timer::VALUES {
+            if !self.timers.is_expired(timer, now) {
+                continue;
+            }
+            self.timers.stop(timer);
+            trace!(timer = ?timer, "timeout");
+            match timer {
+                Timer::Close => {
+                    self.state = State::Drained;
+                    self.endpoint_events.push_back(EndpointEventInner::Drained);
+                }
+                _ => {
+                    unreachable!(" handle_timeout {:?}", timer)
+                }
+            }
+        }
     }
 
     /// 23. Return endpoint-facing events
