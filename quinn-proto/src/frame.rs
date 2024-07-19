@@ -48,7 +48,11 @@ impl Type {
     }
     /// 2
     fn datagram(self) -> Option<DatagramInfo> {
-        todo!()
+        if DATAGRAM_TYS.contains(&self.0) {
+            Some(DatagramInfo(self.0 as u8))
+        } else {
+            None
+        }
     }
 }
 
@@ -132,7 +136,10 @@ impl Iterator for Iter {
             Err(e) => {
                 // Corrupt frame, skip it and everything that follows
                 self.bytes = io::Cursor::new(Bytes::new());
-                todo!()
+                Some(Err(InvalidFrame {
+                    ty: self.last_ty,
+                    reason: e.reason(),
+                }))
             }
         }
     }
@@ -140,7 +147,9 @@ impl Iterator for Iter {
 
 #[derive(Debug)]
 pub(crate) struct InvalidFrame {
-    // pub(crate) ty: Option<Type>,
+    /// 2
+    pub(crate) ty: Option<Type>,
+    /// 1
     pub(crate) reason: &'static str,
 }
 
@@ -384,6 +393,17 @@ enum IterErr {
 impl From<UnexpectedEnd> for IterErr {
     fn from(_: UnexpectedEnd) -> Self {
         Self::UnexpectedEnd
+    }
+}
+
+impl IterErr {
+    fn reason(&self) -> &'static str {
+        use self::IterErr::*;
+        match *self {
+            UnexpectedEnd => "unexpected end",
+            InvalidFrameId => "invalid frame ID",
+            // Malformed => "malformed",
+        }
     }
 }
 
