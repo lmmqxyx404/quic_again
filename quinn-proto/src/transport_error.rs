@@ -101,4 +101,5 @@ errors! {
     TRANSPORT_PARAMETER_ERROR(0x8) "received transport parameters that were badly formatted, included an invalid value, was absent even though it is mandatory, was present though it is forbidden, or is otherwise in error";
     FRAME_ENCODING_ERROR(0x7) "received a frame that was badly formatted";
     AEAD_LIMIT_REACHED(0xF) "the endpoint has reached the confidentiality or integrity limit for the AEAD algorithm";
+    KEY_UPDATE_ERROR(0xE) "key update error";
 }

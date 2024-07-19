@@ -353,6 +353,16 @@ impl Header {
             _ => false,
         }
     }
+    /// 8.
+    pub(crate) fn is_0rtt(&self) -> bool {
+        matches!(
+            *self,
+            Self::Long {
+                ty: LongType::ZeroRtt,
+                ..
+            }
+        )
+    }
 }
 
 /// Decodes a QUIC packet's invariant header
