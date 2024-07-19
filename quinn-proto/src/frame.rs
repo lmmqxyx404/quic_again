@@ -26,7 +26,7 @@ impl Close {
 
 impl From<TransportError> for Close {
     fn from(x: TransportError) -> Self {
-        todo!()
+        Self::Connection(x.into())
     }
 }
 
@@ -211,12 +211,22 @@ pub struct ConnectionClose {
 
 impl fmt::Display for ConnectionClose {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        // todo
+        self.error_code.fmt(f)?;
         if !self.reason.as_ref().is_empty() {
             f.write_str(": ")?;
             f.write_str(&String::from_utf8_lossy(&self.reason))?;
         }
         Ok(())
+    }
+}
+
+impl From<TransportError> for ConnectionClose {
+    fn from(x: TransportError) -> Self {
+        Self {
+            error_code: x.code,
+            frame_type: x.frame,
+            reason: x.reason.into(),
+        }
     }
 }
 
