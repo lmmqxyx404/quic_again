@@ -218,8 +218,12 @@ pub struct Retransmits {
 impl Retransmits {
     /// todo: change the fn
     pub(super) fn is_empty(&self, streams: &StreamsState) -> bool {
-        tracing::error!("to delete is_empty");
-        self.crypto.is_empty() && self.new_cids.is_empty() && !self.ack_frequency
+        // tracing::error!("to delete is_empty");
+        self.crypto.is_empty()
+            && self.new_cids.is_empty()
+            && !self.ack_frequency
+            && !self.handshake_done
+            && self.retire_cids.is_empty()
     }
 }
 
