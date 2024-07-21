@@ -1,7 +1,12 @@
-use std::{fmt, io, ops::RangeInclusive};
+use std::{
+    fmt,
+    io::{self, Read},
+    ops::RangeInclusive,
+};
 
 use bytes::{Buf, BufMut, Bytes};
 use tinyvec::TinyVec;
+use tracing::info;
 
 use crate::{
     coding::{self, BufExt, BufMutExt, UnexpectedEnd},
@@ -87,6 +92,18 @@ pub(crate) struct Iter {
 
 impl Iter {
     pub(crate) fn new(payload: Bytes) -> Result<Self, TransportError> {
+        tracing::trace!(
+            "Iter::new called by process_early_payload started deep, {:?} {:?}",
+            payload.len(),
+            payload.bytes()
+        );
+
+        /* todo: delete
+        TransportParameters len is 31, TransportParameters { max_idle_timeout: 0, max_udp_payload_size: 65527, initial_max_data: 0, initial_max_stream_data_bidi_local: 0, initial_max_stream_data_bidi_remote: 0, initial_max_stream_data_uni: 0, initial_max_streams_bidi: 0, initial_max_streams_uni: 0, ack_delay_exponent: 3, max_ack_delay: 25, active_connection_id_limit: 2, disable_active_migration: false, max_datagram_frame_size: None, initial_src_cid: None, grease_quic_bit: false, min_ack_delay: None, original_dst_cid: Some([6, 184, 88, 236, 111, 128, 69, 43]), retry_src_cid: None, stateless_reset_token: Some(ResetToken([111, 33, 234, 36, 132, 196, 165, 100, 162, 116, 227, 90, 78, 245, 68, 118])), preferred_address: None }
+
+        TransportParameters len is 31, TransportParameters { max_idle_timeout: 0, max_udp_payload_size: 65527, initial_max_data: 0, initial_max_stream_data_bidi_local: 0, initial_max_stream_data_bidi_remote: 0, initial_max_stream_data_uni: 0, initial_max_streams_bidi: 0, initial_max_streams_uni: 0, ack_delay_exponent: 3, max_ack_delay: 25, active_connection_id_limit: 2, disable_active_migration: false, max_datagram_frame_size: None, initial_src_cid: None, grease_quic_bit: false, min_ack_delay: None, original_dst_cid: Some([6, 184, 88, 236, 111, 128, 69, 43]), retry_src_cid: None, stateless_reset_token: Some(ResetToken([81, 23, 231, 169, 184, 0, 89, 10, 206, 198, 14, 157, 73, 253, 71, 111])), preferred_address: None }
+        */
+
         if payload.is_empty() {
             // "An endpoint MUST treat receipt of a packet containing no frames as a
             // connection error of type PROTOCOL_VIOLATION."
@@ -106,9 +123,17 @@ impl Iter {
 
     fn try_next(&mut self) -> Result<Frame, IterErr> {
         let ty = self.bytes.get::<Type>()?;
+        info!("ty is {}", ty);
         self.last_ty = Some(ty);
         Ok(match ty {
             Type::PADDING => Frame::Padding,
+            Type::CRYPTO => {
+                info!("deal Type::CRYPTO");
+                Frame::Crypto(Crypto {
+                    offset: self.bytes.get_var()?,
+                    data: self.take_len()?,
+                })
+            }
             _ => {
                 if let Some(s) = ty.stream() {
                     Frame::Stream(Stream {
@@ -131,7 +156,13 @@ impl Iter {
     }
 
     fn take_len(&mut self) -> Result<Bytes, UnexpectedEnd> {
-        todo!()
+        let len = self.bytes.get_var()?;
+        if len > self.bytes.remaining() as u64 {
+            return Err(UnexpectedEnd);
+        }
+        let start = self.bytes.position() as usize;
+        self.bytes.advance(len as usize);
+        Ok(self.bytes.get_ref().slice(start..(start + len as usize)))
     }
 
     fn take_remaining(&mut self) -> Bytes {
@@ -181,6 +212,7 @@ pub(crate) enum Frame {
     Padding,
     Ping,
     Stream(Stream),
+    Crypto(Crypto),
 }
 
 impl Frame {
@@ -199,6 +231,7 @@ impl Frame {
                 }
                 Type(ty)
             }
+            Crypto(_) => Type::CRYPTO,
         }
     }
 }

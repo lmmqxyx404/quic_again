@@ -84,3 +84,12 @@ this.init_0rtt();
 ```
 ## 在 `4c8ab712de949a` 之后一个 commit
 就让 `fn version_negotiate_client` 通过test了
+
+## 3. about `try_next`
+解析数据时，要知道quic 协议连接的细节
+
+# quic connection details
+无状态连接，与有状态连接
+## first packet
+注意第一个包的发送与接收
+## 2. stateless connection
