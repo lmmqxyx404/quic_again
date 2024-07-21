@@ -2016,6 +2016,10 @@ impl Connection {
             return Err(TransportError::CRYPTO_BUFFER_EXCEEDED(""));
         }
 
+        space
+            .crypto_stream
+            .insert(crypto.offset, crypto.data.clone(), payload_len);
+
         todo!()
     }
 }
