@@ -779,6 +779,11 @@ impl Connection {
                 Frame::Padding => continue,
                 _ => Some(trace_span!("frame", ty = %frame.ty())),
             };
+
+            self.stats.frame_rx.record(&frame);
+
+            let _guard = span.as_ref().map(|x| x.enter());
+
             todo!()
         }
         todo!()

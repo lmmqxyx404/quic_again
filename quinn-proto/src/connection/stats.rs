@@ -1,3 +1,5 @@
+use crate::frame::Frame;
+
 /// 1. Connection statistics
 #[derive(Debug, Default, Copy, Clone)]
 #[non_exhaustive]
@@ -10,6 +12,8 @@ pub struct ConnectionStats {
     pub udp_tx: UdpStats,
     /// 4. Statistics related to the current transmission path
     pub path: PathStats,
+    /// 5. Statistics about frames received on a connection
+    pub frame_rx: FrameStats,
 }
 
 /// 2. Statistics about UDP datagrams transmitted or received on a connection
@@ -61,6 +65,11 @@ pub struct FrameStats {
     pub stream: u64,
 }
 
+impl FrameStats {
+    pub(crate) fn record(&mut self, frame: &Frame) {
+        todo!()
+    }
+}
 impl std::fmt::Debug for FrameStats {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("FrameStats")
