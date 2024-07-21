@@ -33,8 +33,8 @@ impl Assembler {
     pub(super) fn bytes_read(&self) -> u64 {
         self.bytes_read
     }
-    // Note: If a packet contains many frames from the same stream, the estimated over-allocation
-    // will be much higher because we are counting the same allocation multiple times.
+    /// 3. Note: If a packet contains many frames from the same stream, the estimated over-allocation
+    /// will be much higher because we are counting the same allocation multiple times.
     pub(super) fn insert(&mut self, mut offset: u64, mut bytes: Bytes, allocation_size: usize) {
         debug_assert!(
             bytes.len() <= allocation_size,
@@ -63,7 +63,29 @@ impl Assembler {
         self.buffered += buffer.bytes.len();
         self.allocated += buffer.allocation_size;
         self.data.push(buffer);
-
+        // `self.buffered` also counts duplicate bytes, therefore we use
+        // `self.end - self.bytes_read` as an upper bound of buffered unique
+        // bytes. This will cause a defragmentation if the amount of duplicate
+        // bytes exceedes a proportion of the receive window size.
+        let buffered = self.buffered.min((self.end - self.bytes_read) as usize);
+        let over_allocation = self.allocated - buffered;
+        // Rationale: on the one hand, we want to defragment rarely, ideally never
+        // in non-pathological scenarios. However, a pathological or malicious
+        // peer could send us one-byte frames, and since we use reference-counted
+        // buffers in order to prevent copying, this could result in keeping a lot
+        // of memory allocated. This limits over-allocation in proportion to the
+        // buffered data. The constants are chosen somewhat arbitrarily and try to
+        // balance between defragmentation overhead and over-allocation.
+        let threshold = 32768.max(buffered * 3 / 2);
+        if over_allocation > threshold {
+            self.defragment()
+        }
+    }
+    /// 4. Copy fragmented chunk data to new chunks backed by a single buffer
+    ///
+    /// This makes sure we're not unnecessarily holding on to many larger allocations.
+    /// We merge contiguous chunks in the process of doing so.
+    fn defragment(&mut self) {
         todo!()
     }
 }
