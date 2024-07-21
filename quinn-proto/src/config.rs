@@ -282,6 +282,8 @@ pub struct TransportConfig {
     pub(crate) keep_alive_interval: Option<Duration>,
     /// 16.
     pub(crate) max_idle_timeout: Option<VarInt>,
+    /// 17.
+    pub(crate) crypto_buffer_size: usize,
 }
 
 impl TransportConfig {
@@ -321,6 +323,8 @@ impl Default for TransportConfig {
 
             keep_alive_interval: None,
             max_idle_timeout: Some(VarInt(10_000)),
+            crypto_buffer_size: 16 * 1024,
+
         }
     }
 }

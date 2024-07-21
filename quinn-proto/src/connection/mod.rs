@@ -2010,6 +2010,12 @@ impl Connection {
             ));
         }
 
+        let space = &mut self.spaces[space];
+        let max = end.saturating_sub(space.crypto_stream.bytes_read());
+        if max > self.config.crypto_buffer_size as u64 {
+            return Err(TransportError::CRYPTO_BUFFER_EXCEEDED(""));
+        }
+
         todo!()
     }
 }
