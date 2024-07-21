@@ -13,6 +13,8 @@ pub(super) struct Assembler {
     end: u64,
     /// 3.
     state: State,
+    /// 4. Total number of buffered bytes, including duplicates in ordered mode.
+    buffered: usize,
 }
 
 impl Assembler {
@@ -51,6 +53,9 @@ impl Assembler {
             return;
         }
 
+        let buffer = Buffer::new(offset, bytes, allocation_size);
+        self.buffered += buffer.bytes.len();
+
         todo!()
     }
 }
@@ -68,5 +73,23 @@ enum State {
 impl Default for State {
     fn default() -> Self {
         Self::Ordered
+    }
+}
+
+#[derive(Debug, Eq)]
+struct Buffer {
+    offset: u64,
+    bytes: Bytes,
+}
+impl Buffer {
+    /// Constructs a new fragmented Buffer
+    fn new(offset: u64, bytes: Bytes, allocation_size: usize) -> Self {
+        Self { offset, bytes }
+    }
+}
+
+impl PartialEq for Buffer {
+    fn eq(&self, other: &Self) -> bool {
+        (self.offset, self.bytes.len()) == (other.offset, other.bytes.len())
     }
 }
