@@ -9,6 +9,7 @@ use std::ops::{Bound, Index, IndexMut};
 use std::time::Instant;
 use std::{cmp, mem};
 
+use super::assembler::Assembler;
 use super::streams::StreamsState;
 
 /// 1.
@@ -55,6 +56,8 @@ pub(super) struct PacketSpace {
     pub(super) ecn_counters: frame::EcnCounts,
     /// 19. Highest received packet number
     pub(super) rx_packet: u64,
+    /// Incoming cryptographic handshake stream
+    pub(super) crypto_stream: Assembler,
 }
 
 impl PacketSpace {
@@ -84,6 +87,8 @@ impl PacketSpace {
             ecn_counters: frame::EcnCounts::ZERO,
 
             rx_packet: 0,
+
+            crypto_stream: Assembler::new(),
         }
     }
 
