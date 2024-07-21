@@ -63,11 +63,28 @@ pub struct FrameStats {
     pub datagram: u64,
     /// 10.
     pub stream: u64,
+    /// 11.
+    pub ping: u64,
+    /// 12.
+    pub acks: u64,
+    /// 13.
+    pub connection_close: u64,
 }
 
 impl FrameStats {
+    /// 1.
     pub(crate) fn record(&mut self, frame: &Frame) {
-        todo!()
+        match frame {
+            Frame::Padding => {}
+            Frame::Ping => self.ping += 1,
+            Frame::Ack(_) => self.acks += 1,
+
+            Frame::Crypto(_) => self.crypto += 1,
+
+            Frame::Stream(_) => self.stream += 1,
+            
+            Frame::Close(_) => self.connection_close += 1,
+        }
     }
 }
 impl std::fmt::Debug for FrameStats {
