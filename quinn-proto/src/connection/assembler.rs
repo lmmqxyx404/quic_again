@@ -1,4 +1,4 @@
-use bytes::Bytes;
+use bytes::{Buf, Bytes};
 
 use crate::range_set::RangeSet;
 
@@ -37,7 +37,20 @@ impl Assembler {
         self.end = self.end.max(offset + bytes.len() as u64);
         if let State::Unordered { ref mut recvd } = self.state {
             todo!()
-        };
+        } else if offset < self.bytes_read {
+            if (offset + bytes.len() as u64) <= self.bytes_read {
+                return;
+            } else {
+                let diff = self.bytes_read - offset;
+                offset += diff;
+                bytes.advance(diff as usize);
+            }
+        }
+
+        if bytes.is_empty() {
+            return;
+        }
+
         todo!()
     }
 }
