@@ -35,6 +35,18 @@ pub trait Session: Send + Sync + 'static {
     ///
     /// These are only available after the first flight from the peer has been received.
     fn transport_parameters(&self) -> Result<Option<TransportParameters>, TransportError>;
+    /// 5. Read bytes of handshake data
+    ///
+    /// This should be called with the contents of `CRYPTO` frames. If it returns `Ok`, the
+    /// caller should call `write_handshake()` to check if the crypto protocol has anything
+    /// to send to the peer. This method will only return `true` the first time that
+    /// handshake data is available. Future calls will always return false.
+    ///
+    /// On success, returns `true` iff `self.handshake_data()` has been populated.
+    fn read_handshake(&mut self, buf: &[u8]) -> Result<bool, TransportError>;
+
+    /// 6.Returns `true` until the connection is fully established.
+    fn is_handshaking(&self) -> bool;
 }
 
 /// 1. A key for signing with HMAC-based algorithms

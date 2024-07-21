@@ -9,7 +9,7 @@ use rustls::{
 
 use crate::{
     crypto, endpoint::ConnectError, shared::ConnectionId,
-    transport_parameters::TransportParameters, Side, TransportError,
+    transport_parameters::TransportParameters, Side, TransportError, TransportErrorCode,
 };
 
 use super::{CryptoError, HeaderKey, KeyPair, Keys, UnsupportedVersion};
@@ -194,6 +194,38 @@ impl crypto::Session for TlsSession {
                 Err(e) => Err(e.into()),
             },
         }
+    }
+
+    fn read_handshake(&mut self, buf: &[u8]) -> Result<bool, TransportError> {
+        self.inner.read_hs(buf).map_err(|e| {
+            if let Some(alert) = self.inner.alert() {
+                TransportError {
+                    code: TransportErrorCode::crypto(alert.into()),
+                    frame: None,
+                    reason: e.to_string(),
+                }
+            } else {
+                TransportError::PROTOCOL_VIOLATION(format!("TLS error: {e}"))
+            }
+        })?;
+        if !self.got_handshake_data {
+            // Hack around the lack of an explicit signal from rustls to reflect ClientHello being
+            // ready on incoming connections, or ALPN negotiation completing on outgoing
+            // connections.
+            let have_server_name = match self.inner {
+                Connection::Client(_) => false,
+                Connection::Server(ref session) => session.server_name().is_some(),
+            };
+            if self.inner.alpn_protocol().is_some() || have_server_name || !self.is_handshaking() {
+                self.got_handshake_data = true;
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+    
+    fn is_handshaking(&self) -> bool {
+        self.inner.is_handshaking()
     }
 }
 

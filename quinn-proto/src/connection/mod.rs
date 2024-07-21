@@ -2022,12 +2022,12 @@ impl Connection {
 
         while let Some(chunk) = space.crypto_stream.read(usize::MAX, true) {
             trace!("consumed read_crypto {} CRYPTO bytes", chunk.bytes.len());
-            todo!()
-            /* if self.crypto.read_handshake(&chunk.bytes)? {
+
+            if self.crypto.read_handshake(&chunk.bytes)? {
                 self.events.push_back(Event::HandshakeDataReady);
-            } */
+            }
         }
-        todo!()
+        Ok(())
     }
 }
 
@@ -2155,6 +2155,8 @@ pub enum Event {
     Stream(StreamEvent),
     /// 3. One or more application datagrams have been sent after blocking
     DatagramsUnblocked,
+    /// 4. The connection's handshake data is ready
+    HandshakeDataReady,
 }
 
 /// 1. The maximum amount of datagrams that are sent in a single transmit
