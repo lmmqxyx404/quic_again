@@ -1,5 +1,7 @@
 use bytes::Bytes;
 
+use crate::range_set::RangeSet;
+
 /// Helper to assemble unordered stream frames into an ordered stream
 #[derive(Debug, Default)]
 pub(super) struct Assembler {
@@ -9,6 +11,8 @@ pub(super) struct Assembler {
     bytes_read: u64,
     /// 2.
     end: u64,
+    /// 3.
+    state: State,
 }
 
 impl Assembler {
@@ -21,9 +25,8 @@ impl Assembler {
     pub(super) fn bytes_read(&self) -> u64 {
         self.bytes_read
     }
-
-    /// 3.Note: If a packet contains many frames from the same stream, the estimated over-allocation
-    /// will be much higher because we are counting the same allocation multiple times.
+    // Note: If a packet contains many frames from the same stream, the estimated over-allocation
+    // will be much higher because we are counting the same allocation multiple times.
     pub(super) fn insert(&mut self, mut offset: u64, mut bytes: Bytes, allocation_size: usize) {
         debug_assert!(
             bytes.len() <= allocation_size,
@@ -32,7 +35,25 @@ impl Assembler {
             bytes.len()
         );
         self.end = self.end.max(offset + bytes.len() as u64);
-
+        if let State::Unordered { ref mut recvd } = self.state {
+            todo!()
+        };
         todo!()
+    }
+}
+
+#[derive(Debug)]
+enum State {
+    Ordered,
+    Unordered {
+        /// The set of offsets that have been received from the peer, including portions not yet
+        /// read by the application.
+        recvd: RangeSet,
+    },
+}
+
+impl Default for State {
+    fn default() -> Self {
+        Self::Ordered
     }
 }
