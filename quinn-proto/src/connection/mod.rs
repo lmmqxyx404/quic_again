@@ -784,6 +784,7 @@ impl Connection {
 
             let _guard = span.as_ref().map(|x| x.enter());
 
+            ack_eliciting |= frame.is_ack_eliciting();
             todo!()
         }
         todo!()

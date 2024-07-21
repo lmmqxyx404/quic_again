@@ -213,9 +213,12 @@ pub(crate) enum Frame {
     Ping,
     Stream(Stream),
     Crypto(Crypto),
+    Ack(Ack),
+    Close(Close),
 }
 
 impl Frame {
+    /// 1.
     pub(crate) fn ty(&self) -> Type {
         use self::Frame::*;
         match *self {
@@ -232,7 +235,14 @@ impl Frame {
                 Type(ty)
             }
             Crypto(_) => Type::CRYPTO,
+            Ack(_) => Type::ACK,
+            Close(self::Close::Connection(_)) => Type::CONNECTION_CLOSE,
+            // Close(self::Close::Application(_)) => Type::APPLICATION_CLOSE,
         }
+    }
+    /// 2.
+    pub(crate) fn is_ack_eliciting(&self) -> bool {
+        !matches!(*self, Self::Ack(_) | Self::Padding | Self::Close(_))
     }
 }
 
@@ -360,7 +370,7 @@ frame_types! {
     PADDING = 0x00,
     PING = 0x01,
     CONNECTION_CLOSE = 0x1c,
-
+    ACK = 0x02,
 }
 
 const STREAM_TYS: RangeInclusive<u64> = RangeInclusive::new(0x08, 0x0f);
@@ -510,3 +520,12 @@ pub(crate) struct Stream {
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 struct DatagramInfo(u8);
+
+#[derive(Clone, Eq, PartialEq)]
+pub struct Ack {}
+
+impl fmt::Debug for Ack {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        todo!()
+    }
+}
