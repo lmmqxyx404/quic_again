@@ -1977,7 +1977,7 @@ impl Connection {
 
         Some(packet.payload.to_vec())
     }
-
+    /// 43    
     fn read_crypto(
         &mut self,
         space: SpaceId,
@@ -2020,6 +2020,13 @@ impl Connection {
             .crypto_stream
             .insert(crypto.offset, crypto.data.clone(), payload_len);
 
+        while let Some(chunk) = space.crypto_stream.read(usize::MAX, true) {
+            trace!("consumed read_crypto {} CRYPTO bytes", chunk.bytes.len());
+            todo!()
+            /* if self.crypto.read_handshake(&chunk.bytes)? {
+                self.events.push_back(Event::HandshakeDataReady);
+            } */
+        }
         todo!()
     }
 }

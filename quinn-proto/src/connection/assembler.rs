@@ -1,4 +1,7 @@
-use std::{cmp::Ordering, collections::BinaryHeap};
+use std::{
+    cmp::Ordering,
+    collections::{binary_heap::PeekMut, BinaryHeap},
+};
 
 use bytes::{Buf, Bytes};
 
@@ -88,6 +91,47 @@ impl Assembler {
     fn defragment(&mut self) {
         todo!()
     }
+    /// 5. Get the the next chunk
+    pub(super) fn read(&mut self, max_length: usize, ordered: bool) -> Option<Chunk> {
+        loop {
+            let mut chunk = self.data.peek_mut()?;
+
+            if ordered {
+                if chunk.offset > self.bytes_read {
+                    // Next chunk is after current read index
+                    return None;
+                } else if (chunk.offset + chunk.bytes.len() as u64) <= self.bytes_read {
+                    // Next chunk is useless as the read index is beyond its end
+                    self.buffered -= chunk.bytes.len();
+                    self.allocated -= chunk.allocation_size;
+                    PeekMut::pop(chunk);
+                    continue;
+                }
+
+                // Determine `start` and `len` of the slice of useful data in chunk
+                let start = (self.bytes_read - chunk.offset) as usize;
+                if start > 0 {
+                    chunk.bytes.advance(start);
+                    chunk.offset += start as u64;
+                    self.buffered -= start;
+                }
+            }
+
+            return Some(if max_length < chunk.bytes.len() {
+                self.bytes_read += max_length as u64;
+                let offset = chunk.offset;
+                chunk.offset += max_length as u64;
+                self.buffered -= max_length;
+                Chunk::new(offset, chunk.bytes.split_to(max_length))
+            } else {
+                self.bytes_read += chunk.bytes.len() as u64;
+                self.buffered -= chunk.bytes.len();
+                self.allocated -= chunk.allocation_size;
+                let chunk = PeekMut::pop(chunk);
+                Chunk::new(chunk.offset, chunk.bytes)
+            });
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -146,5 +190,20 @@ impl PartialOrd for Buffer {
 impl PartialEq for Buffer {
     fn eq(&self, other: &Self) -> bool {
         (self.offset, self.bytes.len()) == (other.offset, other.bytes.len())
+    }
+}
+
+/// A chunk of data from the receive stream
+#[derive(Debug, PartialEq, Eq)]
+pub struct Chunk {
+    /// The offset in the stream
+    pub offset: u64,
+    /// The contents of the chunk
+    pub bytes: Bytes,
+}
+
+impl Chunk {
+    fn new(offset: u64, bytes: Bytes) -> Self {
+        Self { offset, bytes }
     }
 }
