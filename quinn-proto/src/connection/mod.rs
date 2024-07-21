@@ -785,7 +785,31 @@ impl Connection {
             let _guard = span.as_ref().map(|x| x.enter());
 
             ack_eliciting |= frame.is_ack_eliciting();
-            todo!()
+
+            // Process frames
+            match frame {
+                Frame::Padding | Frame::Ping => {}
+                Frame::Crypto(frame) => {
+                    trace!("prepare to self.read_crypto");
+                    self.read_crypto(packet.header.space(), &frame, payload_len)?;
+                }
+                Frame::Ack(ack) => {
+                    unreachable!("Frame::Ack");
+                    // self.on_ack_received(now, packet.header.space(), ack)?;
+                }
+                Frame::Close(reason) => {
+                    unreachable!("Frame::Close");
+                    /*  self.error = Some(reason.into());
+                    self.state = State::Draining; */
+                    return Ok(());
+                }
+                _ => {
+                    let mut err =
+                        TransportError::PROTOCOL_VIOLATION("illegal frame type in handshake");
+                    err.frame = Some(frame.ty());
+                    return Err(err);
+                }
+            }
         }
         todo!()
     }
@@ -1948,6 +1972,15 @@ impl Connection {
         .ok()?;
 
         Some(packet.payload.to_vec())
+    }
+
+    fn read_crypto(
+        &mut self,
+        space: SpaceId,
+        crypto: &frame::Crypto,
+        payload_len: usize,
+    ) -> Result<(), TransportError> {
+        todo!()
     }
 }
 
