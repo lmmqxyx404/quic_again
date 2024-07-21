@@ -1,3 +1,5 @@
+use std::{cmp::Ordering, collections::BinaryHeap};
+
 use bytes::{Buf, Bytes};
 
 use crate::range_set::RangeSet;
@@ -15,6 +17,10 @@ pub(super) struct Assembler {
     state: State,
     /// 4. Total number of buffered bytes, including duplicates in ordered mode.
     buffered: usize,
+    /// 5. Estimated number of allocated bytes, will never be less than `buffered`.
+    allocated: usize,
+    /// 6. pay attention to use `BinaryHeap` that required the inner to implement `Ord` trait.
+    data: BinaryHeap<Buffer>,
 }
 
 impl Assembler {
@@ -55,6 +61,8 @@ impl Assembler {
 
         let buffer = Buffer::new(offset, bytes, allocation_size);
         self.buffered += buffer.bytes.len();
+        self.allocated += buffer.allocation_size;
+        self.data.push(buffer);
 
         todo!()
     }
@@ -80,11 +88,36 @@ impl Default for State {
 struct Buffer {
     offset: u64,
     bytes: Bytes,
+    /// Size of the allocation behind `bytes`, if `defragmented == false`.
+    /// Otherwise this will be set to `bytes.len()` by `try_mark_defragment`.
+    /// Will never be less than `bytes.len()`.
+    allocation_size: usize,
 }
 impl Buffer {
     /// Constructs a new fragmented Buffer
     fn new(offset: u64, bytes: Bytes, allocation_size: usize) -> Self {
-        Self { offset, bytes }
+        Self {
+            offset,
+            bytes,
+            allocation_size,
+        }
+    }
+}
+
+impl Ord for Buffer {
+    // Invert ordering based on offset (max-heap, min offset first),
+    // prioritize longer chunks at the same offset.
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.offset
+            .cmp(&other.offset)
+            .reverse()
+            .then(self.bytes.len().cmp(&other.bytes.len()))
+    }
+}
+
+impl PartialOrd for Buffer {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
     }
 }
 
