@@ -84,7 +84,18 @@ impl CidState {
 
     /// 3. Update cid state when `NewIdentifiers` event is received
     pub(crate) fn new_cids(&mut self, ids: &[IssuedCid], now: Instant) {
-        todo!()
+        // `ids` could be `None` once active_connection_id_limit is set to 1 by peer
+        let last_cid = match ids.last() {
+            Some(cid) => cid,
+            None => return,
+        };
+        self.issued += ids.len() as u64;
+        // Record the timestamp of CID with the largest seq number
+        let sequence = last_cid.sequence;
+        ids.iter().for_each(|frame| {
+            self.active_seq.insert(frame.sequence);
+        });
+        self.track_lifetime(sequence, now);
     }
     /// 4. The value for `retire_prior_to` field in `NEW_CONNECTION_ID` frame
     pub(crate) fn retire_prior_to(&self) -> u64 {
