@@ -58,8 +58,10 @@ pub(super) struct PacketSpace {
     pub(super) ecn_counters: frame::EcnCounts,
     /// 19. Highest received packet number
     pub(super) rx_packet: u64,
-    /// Incoming cryptographic handshake stream
+    /// 20.Incoming cryptographic handshake stream
     pub(super) crypto_stream: Assembler,
+    /// 21
+    pub(super) largest_acked_packet_sent: Instant,
 }
 
 impl PacketSpace {
@@ -91,6 +93,7 @@ impl PacketSpace {
             rx_packet: 0,
 
             crypto_stream: Assembler::new(),
+            largest_acked_packet_sent: now,
         }
     }
 
@@ -535,6 +538,8 @@ pub(super) struct SentPacket {
     pub(super) size: u16,
     /// Whether an acknowledgement is expected directly in response to this packet.
     pub(super) ack_eliciting: bool,
+    /// The time the packet was sent.
+    pub(super) time_sent: Instant,
 }
 
 /// Ensures we can always fit all our ACKs in a single minimum-MTU packet with room to spare

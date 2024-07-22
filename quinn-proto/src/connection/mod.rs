@@ -2213,7 +2213,25 @@ impl Connection {
         if ack.largest >= self.spaces[space].next_packet_number {
             return Err(TransportError::PROTOCOL_VIOLATION("unsent packet acked"));
         }
-        
+        let new_largest = {
+            let space = &mut self.spaces[space];
+            if space
+                .largest_acked_packet
+                .map_or(true, |pn| ack.largest > pn)
+            {
+                space.largest_acked_packet = Some(ack.largest);
+                if let Some(info) = space.sent_packets.get(&ack.largest) {
+                    // This should always succeed, but a misbehaving peer might ACK a packet we
+                    // haven't sent. At worst, that will result in us spuriously reducing the
+                    // congestion window.
+                    space.largest_acked_packet_sent = info.time_sent;
+                }
+                true
+            } else {
+                false
+            }
+        };
+
         todo!()
     }
 }
