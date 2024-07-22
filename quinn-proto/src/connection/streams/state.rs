@@ -179,7 +179,15 @@ impl StreamsState {
             };
             todo!()
         }
-        todo!()
+
+        // MAX_STREAMS
+        for dir in Dir::iter() {
+            trace!("for dir in Dir::iter()");
+            if !pending.max_stream_id[dir as usize] || buf.len() + 9 >= max_size {
+                continue;
+            }
+            todo!()
+        }
     }
     /// 5.
     pub(crate) fn write_stream_frames(

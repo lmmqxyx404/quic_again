@@ -228,6 +228,8 @@ pub struct Retransmits {
     pub(super) max_data: bool,
     /// 9.
     pub(super) max_stream_data: FxHashSet<StreamId>,
+    /// 10.
+    pub(super) max_stream_id: [bool; 2],
 }
 
 impl Retransmits {
