@@ -5,7 +5,7 @@ use tracing::trace;
 use crate::packet::SpaceId;
 use crate::range_set::ArrayRangeSet;
 use crate::{crypto::Keys, shared::IssuedCid};
-use crate::{frame, StreamId, VarInt};
+use crate::{frame, StreamId, TransportError, VarInt};
 use std::collections::{BTreeMap, VecDeque};
 use std::ops::{Bound, Index, IndexMut};
 use std::time::{Duration, Instant};
@@ -385,6 +385,21 @@ impl PacketNumberFilter {
         self.exponent = next_exponent;
 
         space.get_tx_number()
+    }
+    /// 5.
+    pub(super) fn check_ack(
+        &self,
+        space_id: SpaceId,
+        range: std::ops::RangeInclusive<u64>,
+    ) -> Result<(), TransportError> {
+        if space_id == SpaceId::Data
+            && self
+                .prev_skipped_packet_number
+                .map_or(false, |x| range.contains(&x))
+        {
+            return Err(TransportError::PROTOCOL_VIOLATION("unsent packet acked"));
+        }
+        Ok(())
     }
 }
 

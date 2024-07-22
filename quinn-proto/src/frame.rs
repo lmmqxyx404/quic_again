@@ -147,7 +147,10 @@ impl Iter {
                 let start = self.bytes.position() as usize;
                 scan_ack_blocks(&mut self.bytes, largest, extra_blocks)?;
                 let end = self.bytes.position() as usize;
-                Frame::Ack(Ack { largest })
+                Frame::Ack(Ack {
+                    largest,
+                    additional: self.bytes.get_ref().slice(start..end),
+                })
             }
             _ => {
                 #[cfg(test)]
@@ -567,11 +570,21 @@ struct DatagramInfo(u8);
 #[derive(Clone, Eq, PartialEq)]
 pub struct Ack {
     pub largest: u64,
+    pub additional: Bytes,
 }
 
 impl fmt::Debug for Ack {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         todo!()
+    }
+}
+
+impl<'a> IntoIterator for &'a Ack {
+    type Item = RangeInclusive<u64>;
+    type IntoIter = AckIter<'a>;
+
+    fn into_iter(self) -> AckIter<'a> {
+        AckIter::new(self.largest, &self.additional[..])
     }
 }
 
@@ -605,6 +618,37 @@ impl Ack {
         if let Some(x) = ecn {
             x.encode(buf)
         }
+    }
+    pub fn iter(&self) -> AckIter<'_> {
+        self.into_iter()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct AckIter<'a> {
+    largest: u64,
+    data: io::Cursor<&'a [u8]>,
+}
+
+impl<'a> AckIter<'a> {
+    fn new(largest: u64, payload: &'a [u8]) -> Self {
+        let data = io::Cursor::new(payload);
+        Self { largest, data }
+    }
+}
+
+impl<'a> Iterator for AckIter<'a> {
+    type Item = RangeInclusive<u64>;
+    fn next(&mut self) -> Option<RangeInclusive<u64>> {
+        if !self.data.has_remaining() {
+            return None;
+        }
+        let block = self.data.get_var().unwrap();
+        let largest = self.largest;
+        if let Ok(gap) = self.data.get_var() {
+            self.largest -= block + gap + 2;
+        }
+        Some(largest - block..=largest)
     }
 }
 

@@ -19,6 +19,7 @@ use crate::{
         FixedLengthConnectionIdParser, Header, InitialHeader, InitialPacket, LongType, Packet,
         PacketNumber, PartialDecode, SpaceId,
     },
+    range_set::ArrayRangeSet,
     shared::{
         ConnectionEvent, ConnectionEventInner, ConnectionId, DatagramConnectionEvent, EcnCodepoint,
         EndpointEvent, EndpointEventInner,
@@ -2232,6 +2233,14 @@ impl Connection {
             }
         };
 
+        // Avoid DoS from unreasonably huge ack ranges by filtering out just the new acks.
+        let mut newly_acked = ArrayRangeSet::new();
+        for range in ack.iter() {
+            self.packet_number_filter.check_ack(space, range.clone())?;
+            for (&pn, _) in self.spaces[space].sent_packets.range(range) {
+                newly_acked.insert_one(pn);
+            }
+        }
         todo!()
     }
 }

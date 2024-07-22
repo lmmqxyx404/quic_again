@@ -115,4 +115,8 @@ impl ArrayRangeSet {
     pub fn iter(&self) -> impl DoubleEndedIterator<Item = Range<u64>> + '_ {
         self.0.iter().cloned()
     }
+    /// 8
+    pub fn new() -> Self {
+        Default::default()
+    }
 }

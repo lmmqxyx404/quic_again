@@ -69,8 +69,8 @@ impl PacketBuilder {
         let packet = SentPacket {
             size,
             ack_eliciting,
-            /* largest_acked: sent.largest_acked,
             time_sent: now,
+            /* largest_acked: sent.largest_acked,
             size,
             ack_eliciting,
             retransmits: sent.retransmits,
