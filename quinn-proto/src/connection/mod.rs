@@ -16,8 +16,8 @@ use crate::{
     crypto::{self, KeyPair, Keys, PacketKey},
     frame::{self, Close, Datagram, Frame, FrameStruct, StreamMetaVec},
     packet::{
-        Header, InitialHeader, InitialPacket, LongType, Packet, PacketNumber, PartialDecode,
-        SpaceId,
+        FixedLengthConnectionIdParser, Header, InitialHeader, InitialPacket, LongType, Packet,
+        PacketNumber, PartialDecode, SpaceId,
     },
     shared::{
         ConnectionEvent, ConnectionEventInner, ConnectionId, DatagramConnectionEvent, EcnCodepoint,
@@ -216,6 +216,8 @@ pub struct Connection {
     /// 45. The value that the server included in the Source Connection ID field of a Retry packet, if
     /// one was received
     retry_src_cid: Option<ConnectionId>,
+    /// 46.
+    endpoint_config: Arc<EndpointConfig>,
 }
 
 impl Connection {
@@ -331,6 +333,7 @@ impl Connection {
 
             initial_dst_cid: init_cid,
             retry_src_cid: None,
+            endpoint_config,
         };
 
         if side.is_client() {
@@ -434,7 +437,25 @@ impl Connection {
         ecn: Option<EcnCodepoint>,
         data: BytesMut,
     ) {
-        todo!()
+        self.path.total_recvd = self.path.total_recvd.saturating_add(data.len() as u64);
+        let mut remaining = Some(data);
+        while let Some(data) = remaining {
+            match PartialDecode::new(
+                data,
+                &FixedLengthConnectionIdParser::new(self.local_cid_state.cid_len()),
+                &[self.version],
+                self.endpoint_config.grease_quic_bit,
+            ) {
+                Ok((partial_decode, rest)) => {
+                    remaining = rest;
+                    self.handle_decode(now, remote, ecn, partial_decode);
+                }
+                Err(e) => {
+                    trace!("malformed header: {}", e);
+                    return;
+                }
+            }
+        }
     }
     /// 5.
     fn set_loss_detection_timer(&mut self, now: Instant) {
