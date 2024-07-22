@@ -2091,6 +2091,14 @@ impl Connection {
     }
     /// 47
     fn set_peer_params(&mut self, params: TransportParameters) {
+        self.streams.set_params(&params);
+        self.idle_timeout = match (self.config.max_idle_timeout, params.max_idle_timeout) {
+            (None, VarInt(0)) => None,
+            (None, x) => Some(x),
+            (Some(x), VarInt(0)) => Some(x),
+            (Some(x), y) => Some(cmp::min(x, y)),
+        };
+
         todo!()
     }
 }

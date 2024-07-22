@@ -4,7 +4,7 @@ use crate::{
     connection::{
         spaces::{Retransmits, ThinRetransmits},
         stats::FrameStats,
-    }, frame::StreamMetaVec, Dir, Side, StreamId, VarInt
+    }, frame::StreamMetaVec, transport_parameters::TransportParameters, Dir, Side, StreamId, VarInt
 };
 
 use super::{send::Send, StreamEvent};
@@ -106,6 +106,10 @@ impl StreamsState {
         buf: &mut Vec<u8>,
         max_buf_size: usize,
     ) -> StreamMetaVec {
+        todo!()
+    }
+    /// 6.
+    pub(crate) fn set_params(&mut self, params: &TransportParameters) {
         todo!()
     }
 }
