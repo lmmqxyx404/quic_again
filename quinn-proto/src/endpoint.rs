@@ -2,6 +2,7 @@ use std::{
     collections::{hash_map, HashMap},
     mem,
     net::{IpAddr, SocketAddr},
+    ops::{Index, IndexMut},
     sync::Arc,
     time::{Duration, Instant},
 };
@@ -26,7 +27,7 @@ use crate::{
     },
     shared::{
         ConnectionEvent, ConnectionEventInner, ConnectionId, DatagramConnectionEvent, EcnCodepoint,
-        EndpointEvent, EndpointEventInner,
+        EndpointEvent, EndpointEventInner, IssuedCid,
     },
     token::ResetToken,
     transport_parameters::{PreferredAddress, TransportParameters},
@@ -560,7 +561,7 @@ impl Endpoint {
                 - self.index.connection_ids.len())
                 < 2usize.pow(self.local_cid_generator.cid_len() as u32 * 8 - 2)
     }
-    /// Attempt to accept this incoming connection (an error may still occur)
+    /// 13 Attempt to accept this incoming connection (an error may still occur)
     pub fn accept(
         &mut self,
         mut incoming: Incoming,
@@ -701,20 +702,46 @@ impl Endpoint {
             }
         }
     }
-
+    /// 14.
     fn send_new_identifiers(
         &mut self,
         now: Instant,
         ch: ConnectionHandle,
         num: u64,
     ) -> ConnectionEvent {
-        todo!()
+        let mut ids = vec![];
+        for _ in 0..num {
+            let id = self.new_cid(ch);
+            let meta = &mut self.connections[ch];
+            let sequence = meta.cids_issued;
+            meta.cids_issued += 1;
+            meta.loc_cids.insert(sequence, id);
+            ids.push(IssuedCid {
+                sequence,
+                id,
+                reset_token: ResetToken::new(&*self.config.reset_key, &id),
+            });
+        }
+        ConnectionEvent(ConnectionEventInner::NewIdentifiers(ids, now))
     }
 }
 
 /// 2. Internal identifier for a `Connection` currently associated with an endpoint
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash, Ord, PartialOrd)]
 pub struct ConnectionHandle(pub usize);
+
+impl Index<ConnectionHandle> for Slab<ConnectionMeta> {
+    type Output = ConnectionMeta;
+    fn index(&self, ch: ConnectionHandle) -> &ConnectionMeta {
+        &self[ch.0]
+    }
+}
+
+impl IndexMut<ConnectionHandle> for Slab<ConnectionMeta> {
+    fn index_mut(&mut self, ch: ConnectionHandle) -> &mut ConnectionMeta {
+        &mut self[ch.0]
+    }
+}
 
 /// 3. Errors in the parameters being used to create a new connection
 ///
