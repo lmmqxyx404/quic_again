@@ -165,6 +165,20 @@ impl StreamsState {
             retransmits.get_or_create().stop_sending.push(frame);
             stats.stop_sending += 1;
         }
+
+        // MAX_DATA
+        if pending.max_data && buf.len() + 9 < max_size {
+            todo!()
+        }
+
+        // MAX_STREAM_DATA
+        while buf.len() + 17 < max_size {
+            let id = match pending.max_stream_data.iter().next() {
+                Some(x) => *x,
+                None => break,
+            };
+            todo!()
+        }
         todo!()
     }
     /// 5.

@@ -1,4 +1,5 @@
 use rand::Rng;
+use rustc_hash::FxHashSet;
 use tracing::trace;
 
 use crate::packet::SpaceId;
@@ -223,6 +224,10 @@ pub struct Retransmits {
     pub(super) reset_stream: Vec<(StreamId, VarInt)>,
     /// 7.
     pub(super) stop_sending: Vec<frame::StopSending>,
+    /// 8.
+    pub(super) max_data: bool,
+    /// 9.
+    pub(super) max_stream_data: FxHashSet<StreamId>,
 }
 
 impl Retransmits {
