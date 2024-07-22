@@ -57,10 +57,17 @@ impl MtuDiscovery {
             .and_then(|state| state.poll_transmit(now, self.current_mtu, next_pn))
     }
 
-    /// Notifies the [`MtuDiscovery`] that the peer's `max_udp_payload_size` transport parameter has
+    /// 6. Notifies the [`MtuDiscovery`] that the peer's `max_udp_payload_size` transport parameter has
     /// been received
     pub(crate) fn on_peer_max_udp_payload_size_received(&mut self, peer_max_udp_payload_size: u16) {
-        todo!()
+        self.current_mtu = self.current_mtu.min(peer_max_udp_payload_size);
+
+        if let Some(state) = self.state.as_mut() {
+            // MTUD is only active after the connection has been fully established, so it is
+            // guaranteed we will receive the peer's transport parameters before we start probing
+            debug_assert!(matches!(state.phase, Phase::Initial));
+            state.peer_max_udp_payload_size = peer_max_udp_payload_size;
+        }
     }
 }
 
