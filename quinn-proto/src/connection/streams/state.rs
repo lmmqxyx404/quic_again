@@ -149,4 +149,8 @@ impl StreamsState {
     pub(crate) fn received_max_data(&mut self, n: VarInt) {
         self.max_data = self.max_data.max(n.into());
     }
+    /// 8. Whether any stream data is queued, regardless of control frames
+    pub(crate) fn can_send_stream_data(&self) -> bool {
+        todo!()
+    }
 }

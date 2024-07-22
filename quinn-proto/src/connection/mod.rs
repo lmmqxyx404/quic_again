@@ -1102,6 +1102,8 @@ impl Connection {
                 segment_size.saturating_sub(self.predict_1rtt_overhead(Some(pn)));
 
             // Is there data or a close message to send in this space?
+            #[cfg(test)]
+            trace!("call self.space_can_send");
             let can_send = self.space_can_send(space_id, frame_space_1rtt);
             if can_send.is_empty() && (!close || self.spaces[space_id].crypto.is_none()) {
                 space_idx += 1;
@@ -1239,6 +1241,7 @@ impl Connection {
                         if space_id == SpaceId::Data {
                             let frame_space_1rtt =
                                 segment_size.saturating_sub(self.predict_1rtt_overhead(Some(pn)));
+
                             if self.space_can_send(space_id, frame_space_1rtt).is_empty() {
                                 break;
                             }
@@ -1544,6 +1547,8 @@ impl Connection {
         }
         let mut can_send = self.spaces[space_id].can_send(&self.streams);
         if space_id == SpaceId::Data {
+            #[cfg(test)]
+            trace!("call can_send_1rtt");
             can_send.other |= self.can_send_1rtt(frame_space_1rtt);
         }
         can_send
@@ -1553,7 +1558,18 @@ impl Connection {
     ///
     /// See also `self.space(SpaceId::Data).can_send()`
     fn can_send_1rtt(&self, max_size: usize) -> bool {
-        todo!()
+        self.streams.can_send_stream_data()
+            || self.path.challenge_pending
+            || self
+                .prev_path
+                .as_ref()
+                .map_or(false, |(_, x)| x.challenge_pending)
+            || !self.path_responses.is_empty()
+            || self
+                .datagrams
+                .outgoing
+                .front()
+                .map_or(false, |x| x.size(true) <= max_size)
     }
     /// 30
     fn discard_space(&mut self, now: Instant, space_id: SpaceId) {
@@ -1610,7 +1626,7 @@ impl Connection {
 
         #[cfg(test)]
         trace!("to delete frame::Ack::encode is vital");
-        
+
         frame::Ack::encode(delay as _, space.pending_acks.ranges(), ecn, buf);
         stats.frame_tx.acks += 1;
     }

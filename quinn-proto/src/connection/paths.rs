@@ -182,7 +182,9 @@ impl InFlight {
 }
 
 #[derive(Default)]
-pub(crate) struct PathResponses {}
+pub(crate) struct PathResponses {
+    pending: Vec<PathResponse>,
+}
 
 impl PathResponses {
     /// 1
@@ -193,4 +195,11 @@ impl PathResponses {
     pub(crate) fn pop_on_path(&mut self, remote: &SocketAddr) -> Option<u64> {
         todo!()
     }
+    /// 3.
+    pub(crate) fn is_empty(&self) -> bool {
+        self.pending.is_empty()
+    }
 }
+
+#[derive(Copy, Clone)]
+struct PathResponse {}

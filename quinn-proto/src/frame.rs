@@ -385,6 +385,16 @@ impl FrameStruct for Datagram {
     const SIZE_BOUND: usize = 1 + 8;
 }
 
+impl Datagram {
+    pub(crate) fn size(&self, length: bool) -> usize {
+        1 + if length {
+            VarInt::from_u64(self.data.len() as u64).unwrap().size()
+        } else {
+            0
+        } + self.data.len()
+    }
+}
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub(crate) struct AckFrequency {
     pub(crate) sequence: VarInt,
