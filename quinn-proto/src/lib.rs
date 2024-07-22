@@ -8,8 +8,8 @@ pub mod coding;
 mod varint;
 
 use std::net::{IpAddr, SocketAddr};
-use std::ops;
 use std::time::Duration;
+use std::{fmt, ops};
 
 use shared::EcnCodepoint;
 pub use varint::{VarInt, VarIntBoundsExceeded};
@@ -135,10 +135,50 @@ impl Dir {
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct StreamId(#[doc(hidden)] pub u64);
 
+impl fmt::Display for StreamId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let initiator = match self.initiator() {
+            Side::Client => "client",
+            Side::Server => "server",
+        };
+        let dir = match self.dir() {
+            Dir::Uni => "uni",
+            Dir::Bi => "bi",
+        };
+        write!(
+            f,
+            "{} {}directional stream {}",
+            initiator,
+            dir,
+            self.index()
+        )
+    }
+}
+
 impl StreamId {
     /// Create a new StreamId
     pub fn new(initiator: Side, dir: Dir, index: u64) -> Self {
         Self(index << 2 | (dir as u64) << 1 | initiator as u64)
+    }
+    /// Which side of a connection initiated the stream
+    pub fn initiator(self) -> Side {
+        if self.0 & 0x1 == 0 {
+            Side::Client
+        } else {
+            Side::Server
+        }
+    }
+    /// Which directions data flows in
+    pub fn dir(self) -> Dir {
+        if self.0 & 0x2 == 0 {
+            Dir::Bi
+        } else {
+            Dir::Uni
+        }
+    }
+    /// Distinguishes streams of the same initiator and directionality
+    pub fn index(self) -> u64 {
+        self.0 >> 2
     }
 }
 

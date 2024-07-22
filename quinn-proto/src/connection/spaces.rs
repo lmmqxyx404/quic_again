@@ -1,7 +1,7 @@
 use rand::Rng;
 use tracing::trace;
 
-use crate::frame;
+use crate::{frame, StreamId, VarInt};
 use crate::packet::SpaceId;
 use crate::range_set::ArrayRangeSet;
 use crate::{crypto::Keys, shared::IssuedCid};
@@ -219,6 +219,8 @@ pub struct Retransmits {
     pub(super) handshake_done: bool,
     /// 5.
     pub(super) retire_cids: Vec<u64>,
+    /// 6.
+    pub(super) reset_stream: Vec<(StreamId, VarInt)>,
 }
 
 impl Retransmits {

@@ -69,6 +69,8 @@ pub struct FrameStats {
     pub acks: u64,
     /// 13.
     pub connection_close: u64,
+    /// 14.
+    pub reset_stream: u64,
 }
 
 impl FrameStats {
@@ -82,7 +84,7 @@ impl FrameStats {
             Frame::Crypto(_) => self.crypto += 1,
 
             Frame::Stream(_) => self.stream += 1,
-            
+
             Frame::Close(_) => self.connection_close += 1,
         }
     }

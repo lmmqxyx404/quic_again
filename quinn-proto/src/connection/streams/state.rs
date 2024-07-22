@@ -1,11 +1,12 @@
 use rustc_hash::FxHashMap;
+use tracing::trace;
 
 use crate::{
     connection::{
         spaces::{Retransmits, ThinRetransmits},
         stats::FrameStats,
     },
-    frame::StreamMetaVec,
+    frame::{self, FrameStruct, StreamMetaVec},
     transport_parameters::TransportParameters,
     Dir, Side, StreamId, VarInt,
 };
@@ -123,6 +124,29 @@ impl StreamsState {
         stats: &mut FrameStats,
         max_size: usize,
     ) {
+        // RESET_STREAM
+        while buf.len() + frame::ResetStream::SIZE_BOUND < max_size {
+            let (id, error_code) = match pending.reset_stream.pop() {
+                Some(x) => x,
+                None => break,
+            };
+            let stream = match self.send.get_mut(&id).and_then(|s| s.as_mut()) {
+                Some(x) => x,
+                None => continue,
+            };
+            trace!(stream = %id, "RESET_STREAM");
+            retransmits
+                .get_or_create()
+                .reset_stream
+                .push((id, error_code));
+            frame::ResetStream {
+                id,
+                error_code,
+                final_offset: VarInt::try_from(stream.offset()).expect("impossibly large offset"),
+            }
+            .encode(buf);
+            stats.reset_stream += 1;
+        }
         todo!()
     }
     /// 5.

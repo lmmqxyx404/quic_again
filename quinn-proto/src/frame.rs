@@ -369,6 +369,8 @@ frame_types! {
     CONNECTION_CLOSE = 0x1c,
     ACK = 0x02,
     ACK_ECN = 0x03,
+    RESET_STREAM = 0x04,
+
 }
 
 const STREAM_TYS: RangeInclusive<u64> = RangeInclusive::new(0x08, 0x0f);
@@ -573,5 +575,27 @@ impl Ack {
         if let Some(x) = ecn {
             x.encode(buf)
         }
+    }
+}
+
+#[allow(unreachable_pub)] // fuzzing only
+#[cfg_attr(feature = "arbitrary", derive(Arbitrary))]
+#[derive(Debug, Copy, Clone)]
+pub struct ResetStream {
+    pub(crate) id: StreamId,
+    pub(crate) error_code: VarInt,
+    pub(crate) final_offset: VarInt,
+}
+
+impl FrameStruct for ResetStream {
+    const SIZE_BOUND: usize = 1 + 8 + 8 + 8;
+}
+
+impl ResetStream {
+    pub(crate) fn encode<W: BufMut>(&self, out: &mut W) {
+        out.write(Type::RESET_STREAM); // 1 byte
+        out.write(self.id); // <= 8 bytes
+        out.write(self.error_code); // <= 8 bytes
+        out.write(self.final_offset); // <= 8 bytes
     }
 }
