@@ -4,6 +4,8 @@ pub(super) struct Send {
     pub(super) connection_blocked: bool,
     /// 2.
     pub(super) max_data: u64,
+    /// 3.
+    pub(super) state: SendState,
 }
 
 impl Send {
@@ -17,4 +19,14 @@ impl Send {
         todo!()
         //   self.pending.offset()
     }
+    /// 3. Whether the stream has been reset
+    pub(super) fn is_reset(&self) -> bool {
+        matches!(self.state, SendState::ResetSent { .. })
+    }
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub(super) enum SendState {
+    /// Sent RESET
+    ResetSent,
 }

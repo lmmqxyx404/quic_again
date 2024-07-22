@@ -1,4 +1,6 @@
 mod state;
+use std::collections::BinaryHeap;
+
 #[allow(unreachable_pub)] // fuzzing only
 pub use state::StreamsState;
 
@@ -21,4 +23,27 @@ pub enum StreamEvent {
         /// Which stream is now writable
         id: StreamId,
     },
+}
+
+/// A queue of streams with pending outgoing data, sorted by priority
+struct PendingStreamsQueue {
+    streams: BinaryHeap<PendingStream>,
+}
+
+impl PendingStreamsQueue {
+    fn new() -> Self {
+        Self {
+            streams: BinaryHeap::new(),
+            // recency: u64::MAX,
+        }
+    }
+}
+
+/// The [`StreamId`] of a stream with pending data queued, ordered by its priority and recency
+#[derive(PartialEq, Eq, PartialOrd, Ord)]
+struct PendingStream {
+    /// The ID of the stream
+    // The way this type is used ensures that every instance has a unique `recency` value, so this field should be kept below
+    // the `priority` and `recency` fields, so that it does not interfere with the behaviour of the `Ord` derive
+    id: StreamId,
 }

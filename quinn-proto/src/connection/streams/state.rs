@@ -10,7 +10,7 @@ use crate::{
     Dir, Side, StreamId, VarInt,
 };
 
-use super::{send::Send, StreamEvent};
+use super::{send::Send, PendingStreamsQueue, StreamEvent};
 use std::{collections::VecDeque, mem};
 
 #[allow(unreachable_pub)] // fuzzing only
@@ -47,6 +47,8 @@ pub struct StreamsState {
     /// connection so far, per direction
     pub(super) max_remote: [u64; 2],
     pub(super) side: Side,
+    /// Streams with outgoing data queued, sorted by priority
+    pub(super) pending: PendingStreamsQueue,
 }
 
 impl StreamsState {
@@ -74,6 +76,8 @@ impl StreamsState {
             max: [0, 0],
             max_remote: [max_remote_bi.into(), max_remote_uni.into()],
             side,
+            pending: PendingStreamsQueue::new(),
+
         };
 
         this
@@ -151,6 +155,12 @@ impl StreamsState {
     }
     /// 8. Whether any stream data is queued, regardless of control frames
     pub(crate) fn can_send_stream_data(&self) -> bool {
-        todo!()
+        // Reset streams may linger in the pending stream list, but will never produce stream frames
+        self.pending.streams.iter().any(|stream| {
+            self.send
+                .get(&stream.id)
+                .and_then(|s| s.as_ref())
+                .map_or(false, |s| !s.is_reset())
+        })
     }
 }
