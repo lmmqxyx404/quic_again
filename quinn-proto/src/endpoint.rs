@@ -7,6 +7,7 @@ use std::{
 };
 
 use bytes::{Bytes, BytesMut};
+use hex_literal::hex;
 use rand::{rngs::StdRng, Rng, RngCore, SeedableRng};
 use rustc_hash::FxHashMap;
 use slab::Slab;
@@ -14,13 +15,23 @@ use thiserror::Error;
 use tracing::{debug, trace};
 
 use crate::{
-    coding::BufMutExt, config::{ClientConfig, EndpointConfig, ServerConfig, TransportConfig}, connection::{Connection, ConnectionError}, crypto::{self, Keys}, frame, packet::{
+    coding::BufMutExt,
+    config::{ClientConfig, EndpointConfig, ServerConfig, TransportConfig},
+    connection::{Connection, ConnectionError},
+    crypto::{self, Keys},
+    frame,
+    packet::{
         FixedLengthConnectionIdParser, Header, InitialHeader, InitialPacket, Packet,
         PacketDecodeError, PacketNumber, PartialDecode, ProtectedInitialHeader,
-    }, shared::{
+    },
+    shared::{
         ConnectionEvent, ConnectionEventInner, ConnectionId, DatagramConnectionEvent, EcnCodepoint,
         EndpointEvent, EndpointEventInner,
-    }, token::ResetToken, transport_parameters::{PreferredAddress, TransportParameters}, ConnectionIdGenerator, Side, Transmit, TransportError, INITIAL_MTU, MIN_INITIAL_SIZE, RESET_TOKEN_SIZE
+    },
+    token::ResetToken,
+    transport_parameters::{PreferredAddress, TransportParameters},
+    ConnectionIdGenerator, Side, Transmit, TransportError, INITIAL_MTU, MIN_INITIAL_SIZE,
+    RESET_TOKEN_SIZE,
 };
 
 /// 1. The main entry point to the library
@@ -87,7 +98,18 @@ impl Endpoint {
         remote: SocketAddr,
         server_name: &str,
     ) -> Result<(ConnectionHandle, Connection), ConnectError> {
-        let remote_id = (config.initial_dst_cid_provider)();
+        let remote_id = {
+            #[cfg(test)]
+            {
+                ConnectionId::new(&hex!("06b858ec6f80452b"))
+            }
+            #[cfg(not(test))]
+            {
+                (config.initial_dst_cid_provider)()
+            }
+        };
+        // ConnectionId::new(&hex!("06b858ec6f80452b"));// (config.initial_dst_cid_provider)();
+        // let remote_id = (config.initial_dst_cid_provider)();
         trace!(initial_dcid = %remote_id);
 
         let ch = ConnectionHandle(self.connections.vacant_key());

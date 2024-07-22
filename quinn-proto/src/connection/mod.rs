@@ -815,7 +815,15 @@ impl Connection {
                 }
             }
         }
-        todo!()
+        if ack_eliciting {
+            // In the initial and handshake spaces, ACKs must be sent immediately
+            self.spaces[packet.header.space()]
+                .pending_acks
+                .set_immediate_ack_required();
+        }
+
+        self.write_crypto();
+        Ok(())
     }
     /// 14
     fn close_common(&mut self) {
@@ -1977,14 +1985,16 @@ impl Connection {
 
         Some(packet.payload.to_vec())
     }
-    /// 43    
+    /// 43
     fn read_crypto(
         &mut self,
         space: SpaceId,
         crypto: &frame::Crypto,
         payload_len: usize,
     ) -> Result<(), TransportError> {
-        // tracing::trace!("read_crypto started");
+        #[cfg(test)]
+        tracing::trace!("read_crypto started");
+
         let expected = if !self.state.is_handshake() {
             SpaceId::Data
         } else if self.highest_space == SpaceId::Initial {
