@@ -4,7 +4,7 @@ use bytes::{Buf, BufMut};
 use thiserror::Error;
 
 use crate::{
-    coding::BufMutExt,
+    coding::{BufExt, BufMutExt, UnexpectedEnd},
     config::{EndpointConfig, ServerConfig, TransportConfig},
     shared::ConnectionId,
     ConnectionIdGenerator, ResetToken, Side, TransportError, VarInt,
@@ -206,6 +206,31 @@ impl TransportParameters {
 
     /// Decode `TransportParameters` from buffer
     pub fn read<R: Buf>(side: Side, r: &mut R) -> Result<Self, Error> {
+        // Initialize to protocol-specified defaults
+        let mut params = Self::default();
+
+        // State to check for duplicate transport parameters.
+        macro_rules! param_state {
+                 {$($(#[$doc:meta])* $name:ident ($code:expr) = $default:expr,)*} => {{
+                     struct ParamState {
+                         $($name: bool,)*
+                     }
+
+                     ParamState {
+                         $($name: false,)*
+                     }
+                 }}
+             }
+        let mut got = apply_params!(param_state);
+        while r.has_remaining() {
+            // pay attention to the following code
+            let id = r.get_var()?;
+            let len = r.get_var()?;
+            if (r.remaining() as u64) < len {
+                return Err(Error::Malformed);
+            }
+            todo!()
+        }
         todo!()
     }
 }
@@ -242,5 +267,11 @@ impl From<Error> for TransportError {
             Error::IllegalValue => Self::TRANSPORT_PARAMETER_ERROR("illegal value"),
             Error::Malformed => Self::TRANSPORT_PARAMETER_ERROR("malformed"),
         }
+    }
+}
+
+impl From<UnexpectedEnd> for Error {
+    fn from(_: UnexpectedEnd) -> Self {
+        Self::Malformed
     }
 }

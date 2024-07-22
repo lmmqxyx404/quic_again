@@ -71,6 +71,15 @@ impl IndexMut<SpaceId> for [PacketSpace; 3]
 `Controller::on_sent`
 这个成员就是一个默认实现
 
+## 6. 扩展第三方struct，并为其实现新的trait
+那么在使用的时候，注意既要引入第三方 crate, 也需要引入自定义的 trait
+具体代码示例请看,
+```Rust
+let id = r.get_var()?;
+let len = r.get_var()?;
+```
+以上代码的错误处理也需要关注
+
 # dev history
 ## 1. 在 `4c8ab712de949a` 之后一个 commit
 就让 `fn version_negotiate_client` 通过test了，注意之后的 `assert_matches!`.
