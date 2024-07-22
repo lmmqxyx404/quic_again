@@ -71,6 +71,8 @@ pub struct FrameStats {
     pub connection_close: u64,
     /// 14.
     pub reset_stream: u64,
+    /// 15.
+    pub stop_sending: u64,
 }
 
 impl FrameStats {

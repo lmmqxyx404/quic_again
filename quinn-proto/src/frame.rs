@@ -370,6 +370,7 @@ frame_types! {
     ACK = 0x02,
     ACK_ECN = 0x03,
     RESET_STREAM = 0x04,
+    STOP_SENDING = 0x05,
 
 }
 
@@ -597,5 +598,23 @@ impl ResetStream {
         out.write(self.id); // <= 8 bytes
         out.write(self.error_code); // <= 8 bytes
         out.write(self.final_offset); // <= 8 bytes
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
+pub(crate) struct StopSending {
+    pub(crate) id: StreamId,
+    pub(crate) error_code: VarInt,
+}
+
+impl FrameStruct for StopSending {
+    const SIZE_BOUND: usize = 1 + 8 + 8;
+}
+
+impl StopSending {
+    pub(crate) fn encode<W: BufMut>(&self, out: &mut W) {
+        out.write(Type::STOP_SENDING); // 1 byte
+        out.write(self.id); // <= 8 bytes
+        out.write(self.error_code) // <= 8 bytes
     }
 }

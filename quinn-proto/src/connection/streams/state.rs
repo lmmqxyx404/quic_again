@@ -78,7 +78,6 @@ impl StreamsState {
             max_remote: [max_remote_bi.into(), max_remote_uni.into()],
             side,
             pending: PendingStreamsQueue::new(),
-
         };
 
         this
@@ -146,6 +145,25 @@ impl StreamsState {
             }
             .encode(buf);
             stats.reset_stream += 1;
+        }
+
+        // STOP_SENDING
+        while buf.len() + frame::StopSending::SIZE_BOUND < max_size {
+            let frame = match pending.stop_sending.pop() {
+                Some(x) => x,
+                None => break,
+            };
+            // We may need to transmit STOP_SENDING even for streams whose state we have discarded,
+            // because we are able to discard local state for stopped streams immediately upon
+            // receiving FIN, even if the peer still has arbitrarily large amounts of data to
+            // (re)transmit due to loss or unconventional sending strategy. We could fine-tune this
+            // a little by dropping the frame if we specifically know the stream's been reset by the
+            // peer, but we discard that information as soon as the application consumes it, so it
+            // can't be relied upon regardless.
+            trace!(stream = %frame.id, "STOP_SENDING");
+            frame.encode(buf);
+            retransmits.get_or_create().stop_sending.push(frame);
+            stats.stop_sending += 1;
         }
         todo!()
     }

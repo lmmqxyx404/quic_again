@@ -1,10 +1,10 @@
 use rand::Rng;
 use tracing::trace;
 
-use crate::{frame, StreamId, VarInt};
 use crate::packet::SpaceId;
 use crate::range_set::ArrayRangeSet;
 use crate::{crypto::Keys, shared::IssuedCid};
+use crate::{frame, StreamId, VarInt};
 use std::collections::{BTreeMap, VecDeque};
 use std::ops::{Bound, Index, IndexMut};
 use std::time::{Duration, Instant};
@@ -221,6 +221,8 @@ pub struct Retransmits {
     pub(super) retire_cids: Vec<u64>,
     /// 6.
     pub(super) reset_stream: Vec<(StreamId, VarInt)>,
+    /// 7.
+    pub(super) stop_sending: Vec<frame::StopSending>,
 }
 
 impl Retransmits {
