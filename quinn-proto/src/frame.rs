@@ -147,7 +147,7 @@ impl Iter {
                 let start = self.bytes.position() as usize;
                 scan_ack_blocks(&mut self.bytes, largest, extra_blocks)?;
                 let end = self.bytes.position() as usize;
-                todo!()
+                Frame::Ack(Ack {})
             }
             _ => {
                 #[cfg(test)]
