@@ -722,10 +722,10 @@ impl Connection {
                                 frame: None,
                                 reason: "transport parameters missing".into(),
                             })?;
-                    todo!()
-                    /* self.handle_peer_params(params)?;
+
+                    self.handle_peer_params(params)?;
                     self.issue_first_cids(now);
-                    self.init_0rtt(); */
+                    self.init_0rtt();
                 }
                 Ok(())
             }
@@ -1970,7 +1970,7 @@ impl Connection {
             self.spin = self.side.is_client() ^ spin;
         }
     }
-    /// Decodes a packet, returning its decrypted payload, so it can be inspected in tests
+    /// 43. Decodes a packet, returning its decrypted payload, so it can be inspected in tests
     #[cfg(test)]
     pub(crate) fn decode_packet(&self, event: &ConnectionEvent) -> Option<Vec<u8>> {
         let (first_decode, remaining) = match &event.0 {
@@ -2006,7 +2006,7 @@ impl Connection {
 
         Some(packet.payload.to_vec())
     }
-    /// 43
+    /// 44
     fn read_crypto(
         &mut self,
         space: SpaceId,
@@ -2059,6 +2059,15 @@ impl Connection {
             }
         }
         Ok(())
+    }
+
+    /// 45. Handle transport parameters received from the peer
+    fn handle_peer_params(&mut self, params: TransportParameters) -> Result<(), TransportError> {
+        todo!()
+    }
+    /// 46. Issue an initial set of connection IDs to the peer upon connection
+    fn issue_first_cids(&mut self, now: Instant) {
+        todo!()
     }
 }
 
