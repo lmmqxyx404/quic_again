@@ -7,7 +7,8 @@ use crate::{
     coding::{BufExt, BufMutExt, UnexpectedEnd},
     config::{EndpointConfig, ServerConfig, TransportConfig},
     shared::ConnectionId,
-    ConnectionIdGenerator, ResetToken, Side, TransportError, VarInt,
+    ConnectionIdGenerator, ResetToken, Side, TransportError, VarInt, MAX_CID_SIZE,
+    RESET_TOKEN_SIZE,
 };
 // Apply a given macro to a list of all the transport parameters having integer types, along with
 // their codes and default values. Using this helps us avoid error-prone duplication of the
@@ -124,6 +125,27 @@ pub(crate) struct PreferredAddress {
     pub(crate) stateless_reset_token: ResetToken,
 }
 
+impl PreferredAddress {
+    /// 1
+    fn wire_size(&self) -> u16 {
+        4 + 2 + 16 + 2 + 1 + self.connection_id.len() as u16 + 16
+    }
+    /// 2
+    fn write<W: BufMut>(&self, w: &mut W) {
+        w.write(self.address_v4.map_or(Ipv4Addr::UNSPECIFIED, |x| *x.ip()));
+        w.write::<u16>(self.address_v4.map_or(0, |x| x.port()));
+        w.write(self.address_v6.map_or(Ipv6Addr::UNSPECIFIED, |x| *x.ip()));
+        w.write::<u16>(self.address_v6.map_or(0, |x| x.port()));
+        w.write::<u8>(self.connection_id.len() as u8);
+        w.put_slice(&self.connection_id);
+        w.put_slice(&self.stateless_reset_token);
+    }
+    /// 3
+    fn read<R: Buf>(r: &mut R) -> Result<Self, Error> {
+        todo!()
+    }
+}
+
 impl TransportParameters {
     /// 1
     pub(crate) fn new(
@@ -229,24 +251,71 @@ impl TransportParameters {
             if (r.remaining() as u64) < len {
                 return Err(Error::Malformed);
             }
-            todo!()
+
+            let len = len as usize;
+
+            #[cfg(test)]
+            {
+                tracing::info!("TransportParameters id is {}", id);
+            }
+            match id {
+                0x00 => decode_cid(len, &mut params.original_dst_cid, r)?,
+                0x02 => {
+                    if len != 16 || params.stateless_reset_token.is_some() {
+                        return Err(Error::Malformed);
+                    }
+                    let mut tok = [0; RESET_TOKEN_SIZE];
+                    r.copy_to_slice(&mut tok);
+                    params.stateless_reset_token = Some(tok.into());
+                }
+                0x0c => {
+                    if len != 0 || params.disable_active_migration {
+                        return Err(Error::Malformed);
+                    }
+                    params.disable_active_migration = true;
+                }
+                0x0d => {
+                    if params.preferred_address.is_some() {
+                        return Err(Error::Malformed);
+                    }
+                    params.preferred_address = Some(PreferredAddress::read(&mut r.take(len))?);
+                }
+                0x0f => decode_cid(len, &mut params.initial_src_cid, r)?,
+                0x10 => decode_cid(len, &mut params.retry_src_cid, r)?,
+                0x20 => {
+                    if len > 8 || params.max_datagram_frame_size.is_some() {
+                        return Err(Error::Malformed);
+                    }
+                    params.max_datagram_frame_size = Some(r.get().unwrap());
+                }
+                0x2ab2 => match len {
+                    0 => params.grease_quic_bit = true,
+                    _ => return Err(Error::Malformed),
+                },
+                0xff04de1a => params.min_ack_delay = Some(r.get().unwrap()),
+                _ => {
+                    #[cfg(test)]
+                    {
+                        tracing::info!("TransportParameters default id is {}", id);
+                    }
+                    macro_rules! parse {
+                        {$($(#[$doc:meta])* $name:ident ($code:expr) = $default:expr,)*} => {
+                            match id {
+                                $($code => {
+                                    let value = r.get::<VarInt>()?;
+                                    if len != value.size() || got.$name { return Err(Error::Malformed); }
+                                    params.$name = value.into();
+                                    got.$name = true;
+                                })*
+                                _ => r.advance(len as usize),
+                            }
+                        }
+                    }
+                    apply_params!(parse);
+                }
+            }
         }
         todo!()
-    }
-}
-impl PreferredAddress {
-    fn wire_size(&self) -> u16 {
-        4 + 2 + 16 + 2 + 1 + self.connection_id.len() as u16 + 16
-    }
-
-    fn write<W: BufMut>(&self, w: &mut W) {
-        w.write(self.address_v4.map_or(Ipv4Addr::UNSPECIFIED, |x| *x.ip()));
-        w.write::<u16>(self.address_v4.map_or(0, |x| x.port()));
-        w.write(self.address_v6.map_or(Ipv6Addr::UNSPECIFIED, |x| *x.ip()));
-        w.write::<u16>(self.address_v6.map_or(0, |x| x.port()));
-        w.write::<u8>(self.connection_id.len() as u8);
-        w.put_slice(&self.connection_id);
-        w.put_slice(&self.stateless_reset_token);
     }
 }
 
@@ -274,4 +343,13 @@ impl From<UnexpectedEnd> for Error {
     fn from(_: UnexpectedEnd) -> Self {
         Self::Malformed
     }
+}
+
+fn decode_cid(len: usize, value: &mut Option<ConnectionId>, r: &mut impl Buf) -> Result<(), Error> {
+    if len > MAX_CID_SIZE || value.is_some() || r.remaining() < len {
+        return Err(Error::Malformed);
+    }
+
+    *value = Some(ConnectionId::from_buf(r, len));
+    Ok(())
 }
