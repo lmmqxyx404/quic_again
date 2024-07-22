@@ -1,4 +1,5 @@
 use rand::Rng;
+use tracing::trace;
 
 use crate::frame;
 use crate::packet::SpaceId;
@@ -316,6 +317,10 @@ impl Dedup {
 pub(super) struct PacketNumberFilter {
     /// Next outgoing packet number to skip
     next_skipped_packet_number: u64,
+    /// Most recently skipped packet number
+    prev_skipped_packet_number: Option<u64>,
+    /// Next packet number to skip is randomly selected from 2^n..2^n+1
+    exponent: u32,
 }
 
 impl PacketNumberFilter {
@@ -325,6 +330,8 @@ impl PacketNumberFilter {
         let exponent = 6;
         Self {
             next_skipped_packet_number: rng.gen_range(0..2u64.saturating_pow(exponent)),
+            prev_skipped_packet_number: None,
+            exponent,
         }
     }
     /// 2
@@ -332,6 +339,8 @@ impl PacketNumberFilter {
     pub(super) fn disabled() -> Self {
         Self {
             next_skipped_packet_number: u64::MAX,
+            prev_skipped_packet_number: None,
+            exponent: u32::MAX,
         }
     }
     /// 3
@@ -348,7 +357,20 @@ impl PacketNumberFilter {
         rng: &mut (impl Rng + ?Sized),
         space: &mut PacketSpace,
     ) -> u64 {
-        todo!()
+        let n = space.get_tx_number();
+        if n != self.next_skipped_packet_number {
+            return n;
+        }
+
+        trace!("skipping pn {n}");
+        // Skip this packet number, and choose the next one to skip
+        self.prev_skipped_packet_number = Some(self.next_skipped_packet_number);
+        let next_exponent = self.exponent.saturating_add(1);
+        self.next_skipped_packet_number =
+            rng.gen_range(2u64.saturating_pow(self.exponent)..2u64.saturating_pow(next_exponent));
+        self.exponent = next_exponent;
+
+        space.get_tx_number()
     }
 }
 
