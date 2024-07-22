@@ -1,4 +1,6 @@
-use crate::{shared::ConnectionId, token::ResetToken};
+use std::ops::Range;
+
+use crate::{frame::NewConnectionId, shared::ConnectionId, token::ResetToken};
 
 /// DataType stored in CidQueue buffer
 type CidData = (ConnectionId, Option<ResetToken>);
@@ -39,4 +41,17 @@ impl CidQueue {
         debug_assert_eq!(self.offset, 0);
         self.buffer[self.cursor] = Some((cid, None));
     }
+    /// 4. Handle a `NEW_CONNECTION_ID` frame
+    ///
+    /// Returns a non-empty range of retired sequence numbers and the reset token of the new active
+    /// CID iff any CIDs were retired.
+    pub(crate) fn insert(
+        &mut self,
+        cid: NewConnectionId,
+    ) -> Result<Option<(Range<u64>, ResetToken)>, InsertError> {
+        todo!()
+    }
 }
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub(crate) enum InsertError {}

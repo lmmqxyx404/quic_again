@@ -2099,6 +2099,15 @@ impl Connection {
             (Some(x), y) => Some(cmp::min(x, y)),
         };
 
+        if let Some(ref info) = params.preferred_address {
+            self.rem_cids.insert(frame::NewConnectionId {
+                sequence: 1,
+                id: info.connection_id,
+                reset_token: info.stateless_reset_token,
+                retire_prior_to: 0,
+            }).expect("preferred address CID is the first received, and hence is guaranteed to be legal");
+        }
+
         todo!()
     }
 }
