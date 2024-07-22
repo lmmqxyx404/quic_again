@@ -56,6 +56,12 @@ impl MtuDiscovery {
             .as_mut()
             .and_then(|state| state.poll_transmit(now, self.current_mtu, next_pn))
     }
+
+    /// Notifies the [`MtuDiscovery`] that the peer's `max_udp_payload_size` transport parameter has
+    /// been received
+    pub(crate) fn on_peer_max_udp_payload_size_received(&mut self, peer_max_udp_payload_size: u16) {
+        todo!()
+    }
 }
 
 #[derive(Debug, Clone, Copy)]

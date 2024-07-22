@@ -2108,7 +2108,11 @@ impl Connection {
             }).expect("preferred address CID is the first received, and hence is guaranteed to be legal");
         }
 
-        todo!()
+        self.ack_frequency.peer_max_ack_delay = get_max_ack_delay(&params);
+        self.peer_params = params;
+        self.path.mtud.on_peer_max_udp_payload_size_received(
+            u16::try_from(self.peer_params.max_udp_payload_size.into_inner()).unwrap_or(u16::MAX),
+        );
     }
 }
 

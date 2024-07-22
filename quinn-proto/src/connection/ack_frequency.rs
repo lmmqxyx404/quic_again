@@ -3,12 +3,16 @@ use std::time::Duration;
 use crate::{config::AckFrequencyConfig, transport_parameters::TransportParameters, VarInt};
 
 /// State associated to ACK frequency
-pub(super) struct AckFrequencyState {}
+pub(super) struct AckFrequencyState {
+    pub(super) peer_max_ack_delay: Duration,
+}
 
 impl AckFrequencyState {
     /// 1
     pub(super) fn new(default_max_ack_delay: Duration) -> Self {
-        Self {}
+        Self {
+            peer_max_ack_delay: default_max_ack_delay,
+        }
     }
 
     /// 2. Returns the `max_ack_delay` for the purposes of calculating the PTO
