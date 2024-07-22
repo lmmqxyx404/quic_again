@@ -368,6 +368,7 @@ frame_types! {
     PING = 0x01,
     CONNECTION_CLOSE = 0x1c,
     ACK = 0x02,
+    ACK_ECN = 0x03,
 }
 
 const STREAM_TYS: RangeInclusive<u64> = RangeInclusive::new(0x08, 0x0f);
@@ -450,6 +451,11 @@ impl EcnCounts {
         ect1: 0,
         ce: 0,
     };
+    pub fn encode<W: BufMut>(&self, out: &mut W) {
+        out.write_var(self.ect0);
+        out.write_var(self.ect1);
+        out.write_var(self.ce);
+    }
 }
 
 impl std::ops::AddAssign<EcnCodepoint> for EcnCounts {
@@ -534,6 +540,28 @@ impl Ack {
         ecn: Option<&EcnCounts>,
         buf: &mut W,
     ) {
-        todo!()
+        let mut rest = ranges.iter().rev();
+        let first = rest.next().unwrap();
+        let largest = first.end - 1;
+        let first_size = first.end - first.start;
+        buf.write(if ecn.is_some() {
+            Type::ACK_ECN
+        } else {
+            Type::ACK
+        });
+        buf.write_var(largest);
+        buf.write_var(delay);
+        buf.write_var(ranges.len() as u64 - 1);
+        buf.write_var(first_size - 1);
+        let mut prev = first.start;
+        for block in rest {
+            let size = block.end - block.start;
+            buf.write_var(prev - block.end - 1);
+            buf.write_var(size - 1);
+            prev = block.start;
+        }
+        if let Some(x) = ecn {
+            x.encode(buf)
+        }
     }
 }
