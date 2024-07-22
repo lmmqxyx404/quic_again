@@ -474,7 +474,9 @@ impl Connection {
     }
     /// 6.
     fn reset_cid_retirement(&mut self) {
-        todo!()
+        if let Some(t) = self.local_cid_state.next_timeout() {
+            self.timers.set(Timer::PushNewCid, t);
+        }
     }
     /// 7.
     fn handle_packet(
