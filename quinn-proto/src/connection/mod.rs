@@ -1584,7 +1584,35 @@ impl Connection {
         buf: &mut Vec<u8>,
         stats: &mut ConnectionStats,
     ) {
-        todo!()
+        debug_assert!(!space.pending_acks.ranges().is_empty());
+
+        // 0-RTT packets must never carry acks (which would have to be of handshake packets)
+        debug_assert!(space.crypto.is_some(), "tried to send ACK in 0-RTT");
+        let ecn = if receiving_ecn {
+            Some(&space.ecn_counters)
+        } else {
+            None
+        };
+        sent.largest_acked = space.pending_acks.ranges().max();
+
+        let delay_micros = space.pending_acks.ack_delay(now).as_micros() as u64;
+
+        // TODO: This should come from `TransportConfig` if that gets configurable.
+        let ack_delay_exp = TransportParameters::default().ack_delay_exponent;
+        let delay = delay_micros >> ack_delay_exp.into_inner();
+
+        trace!(
+            "ACK {:?}, Delay = {}us, ack_delay_exp is {:?}",
+            space.pending_acks.ranges(),
+            delay_micros,
+            ack_delay_exp,
+        );
+
+        #[cfg(test)]
+        trace!("to delete frame::Ack::encode is vital");
+        
+        frame::Ack::encode(delay as _, space.pending_acks.ranges(), ecn, buf);
+        stats.frame_tx.acks += 1;
     }
     /// 35
     fn populate_packet(
@@ -1618,6 +1646,8 @@ impl Connection {
         }
 
         // ACK
+        #[cfg(test)]
+        tracing::info!("ack ready populate_acks");
         if space.pending_acks.can_send() {
             Self::populate_acks(
                 now,

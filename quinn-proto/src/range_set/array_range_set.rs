@@ -107,4 +107,12 @@ impl ArrayRangeSet {
             None
         }
     }
+    /// 6.
+    pub fn max(&self) -> Option<u64> {
+        self.iter().next_back().map(|x| x.end - 1)
+    }
+    /// 7.
+    pub fn iter(&self) -> impl DoubleEndedIterator<Item = Range<u64>> + '_ {
+        self.0.iter().cloned()
+    }
 }

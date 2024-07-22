@@ -6,7 +6,7 @@ use crate::range_set::ArrayRangeSet;
 use crate::{crypto::Keys, shared::IssuedCid};
 use std::collections::{BTreeMap, VecDeque};
 use std::ops::{Bound, Index, IndexMut};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use std::{cmp, mem};
 
 use super::assembler::Assembler;
@@ -447,6 +447,12 @@ impl PendingAcks {
             self.ranges.pop_min();
         }
     }
+    /// 8. Returns the delay since the packet with the largest packet number was received
+    pub(super) fn ack_delay(&self, now: Instant) -> Duration {
+        self.largest_packet
+            .map_or(Duration::default(), |(_, received)| now - received)
+    }
+
 }
 
 /// A variant of `Retransmits` which only allocates storage when required

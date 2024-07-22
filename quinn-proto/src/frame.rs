@@ -10,6 +10,7 @@ use tracing::info;
 
 use crate::{
     coding::{self, BufExt, BufMutExt, UnexpectedEnd},
+    range_set::ArrayRangeSet,
     shared::{ConnectionId, EcnCodepoint},
     token::ResetToken,
     StreamId, TransportError, TransportErrorCode, VarInt,
@@ -522,6 +523,17 @@ pub struct Ack {}
 
 impl fmt::Debug for Ack {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        todo!()
+    }
+}
+
+impl Ack {
+    pub fn encode<W: BufMut>(
+        delay: u64,
+        ranges: &ArrayRangeSet,
+        ecn: Option<&EcnCounts>,
+        buf: &mut W,
+    ) {
         todo!()
     }
 }
