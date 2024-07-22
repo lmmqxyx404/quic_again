@@ -189,11 +189,25 @@ pub(crate) struct PathResponses {
 impl PathResponses {
     /// 1
     pub(crate) fn pop_off_path(&mut self, remote: &SocketAddr) -> Option<(u64, SocketAddr)> {
-        todo!()
+        let response = *self.pending.last()?;
+        if response.remote == *remote {
+            // We don't bother searching further because we expect that the on-path response will
+            // get drained in the immediate future by a call to `pop_on_path`
+            return None;
+        }
+        self.pending.pop();
+        Some((response.token, response.remote))
     }
     /// 2
     pub(crate) fn pop_on_path(&mut self, remote: &SocketAddr) -> Option<u64> {
-        todo!()
+        let response = *self.pending.last()?;
+        if response.remote != *remote {
+            // We don't bother searching further because we expect that the off-path response will
+            // get drained in the immediate future by a call to `pop_off_path`
+            return None;
+        }
+        self.pending.pop();
+        Some(response.token)
     }
     /// 3.
     pub(crate) fn is_empty(&self) -> bool {
@@ -202,4 +216,8 @@ impl PathResponses {
 }
 
 #[derive(Copy, Clone)]
-struct PathResponse {}
+struct PathResponse {
+    token: u64,
+    /// The address the corresponding PATH_CHALLENGE was received from
+    remote: SocketAddr,
+}
