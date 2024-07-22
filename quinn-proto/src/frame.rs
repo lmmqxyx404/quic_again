@@ -534,6 +534,10 @@ pub(crate) struct Stream {
     pub(crate) data: Bytes,
 }
 
+impl FrameStruct for Stream {
+    const SIZE_BOUND: usize = 1 + 8 + 8 + 8;
+}
+
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 struct DatagramInfo(u8);
 

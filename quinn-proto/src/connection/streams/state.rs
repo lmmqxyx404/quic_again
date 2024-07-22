@@ -195,7 +195,23 @@ impl StreamsState {
         buf: &mut Vec<u8>,
         max_buf_size: usize,
     ) -> StreamMetaVec {
-        todo!()
+        let mut stream_frames = StreamMetaVec::new();
+        while buf.len() + frame::Stream::SIZE_BOUND < max_buf_size {
+            if max_buf_size
+                .checked_sub(buf.len() + frame::Stream::SIZE_BOUND)
+                .is_none()
+            {
+                break;
+            }
+
+            // Pop the stream of the highest priority that currently has pending data
+            // If the stream still has some pending data left after writing, it will be reinserted, otherwise not
+            let Some(stream) = self.pending.streams.pop() else {
+                break;
+            };
+            todo!()
+        }
+        stream_frames
     }
     /// 6.
     pub(crate) fn set_params(&mut self, params: &TransportParameters) {
