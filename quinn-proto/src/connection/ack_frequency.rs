@@ -4,7 +4,10 @@ use crate::{config::AckFrequencyConfig, transport_parameters::TransportParameter
 
 /// State associated to ACK frequency
 pub(super) struct AckFrequencyState {
+    /// 1
     pub(super) peer_max_ack_delay: Duration,
+    /// 2. Sending ACK_FREQUENCY frames
+    in_flight_ack_frequency_frame: Option<(u64, Duration)>,
 }
 
 impl AckFrequencyState {
@@ -12,6 +15,7 @@ impl AckFrequencyState {
     pub(super) fn new(default_max_ack_delay: Duration) -> Self {
         Self {
             peer_max_ack_delay: default_max_ack_delay,
+            in_flight_ack_frequency_frame: None,
         }
     }
 
@@ -22,7 +26,11 @@ impl AckFrequencyState {
     /// might be already in use by the peer).
     pub(super) fn max_ack_delay_for_pto(&self) -> Duration {
         // Note: we have at most one in-flight ACK_FREQUENCY frame
-        todo!()
+        if let Some((_, max_ack_delay)) = self.in_flight_ack_frequency_frame {
+            self.peer_max_ack_delay.max(max_ack_delay)
+        } else {
+            self.peer_max_ack_delay
+        }
     }
 
     /// 3.Returns true if we should send an ACK_FREQUENCY frame
