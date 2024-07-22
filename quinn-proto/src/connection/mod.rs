@@ -833,9 +833,8 @@ impl Connection {
                     // self.on_ack_received(now, packet.header.space(), ack)?;
                 }
                 Frame::Close(reason) => {
-                    unreachable!("Frame::Close");
-                    /*  self.error = Some(reason.into());
-                    self.state = State::Draining; */
+                    self.error = Some(reason.into());
+                    self.state = State::Draining;
                     return Ok(());
                 }
                 _ => {
@@ -2311,6 +2310,16 @@ pub enum ConnectionError {
     #[error("CIDs exhausted")]
     CidsExhausted,
 }
+
+impl From<Close> for ConnectionError {
+    fn from(x: Close) -> Self {
+        match x {
+            Close::Connection(reason) => Self::ConnectionClosed(reason),
+            // Close::Application(reason) => Self::ApplicationClosed(reason),
+        }
+    }
+}
+
 /// used for AckFrequencyState::new
 fn get_max_ack_delay(params: &TransportParameters) -> Duration {
     Duration::from_micros(params.max_ack_delay.0 * 1000)
