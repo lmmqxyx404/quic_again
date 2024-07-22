@@ -223,9 +223,18 @@ impl crypto::Session for TlsSession {
         }
         Ok(false)
     }
-    
+
     fn is_handshaking(&self) -> bool {
         self.inner.is_handshaking()
+    }
+
+    fn next_1rtt_keys(&mut self) -> Option<KeyPair<Box<dyn crypto::PacketKey>>> {
+        let secrets = self.next_secrets.as_mut()?;
+        let keys = secrets.next_packet_keys();
+        Some(KeyPair {
+            local: Box::new(keys.local),
+            remote: Box::new(keys.remote),
+        })
     }
 }
 

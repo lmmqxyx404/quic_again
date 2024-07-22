@@ -44,9 +44,10 @@ pub trait Session: Send + Sync + 'static {
     ///
     /// On success, returns `true` iff `self.handshake_data()` has been populated.
     fn read_handshake(&mut self, buf: &[u8]) -> Result<bool, TransportError>;
-
     /// 6.Returns `true` until the connection is fully established.
     fn is_handshaking(&self) -> bool;
+    /// 7.Compute keys for the next key update
+    fn next_1rtt_keys(&mut self) -> Option<KeyPair<Box<dyn PacketKey>>>;
 }
 
 /// 1. A key for signing with HMAC-based algorithms

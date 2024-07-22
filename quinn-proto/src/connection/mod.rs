@@ -909,7 +909,28 @@ impl Connection {
 
     /// 19. Switch to stronger cryptography during handshake
     fn upgrade_crypto(&mut self, space: SpaceId, crypto: Keys) {
-        todo!()
+        debug_assert!(
+            self.spaces[space].crypto.is_none(),
+            "already reached packet space {space:?}"
+        );
+        #[cfg(test)]
+        tracing::info!("upgrade_crypto space is {:?}", space);
+        if space == SpaceId::Data {
+            // Precompute the first key update
+            self.next_crypto = Some(
+                self.crypto
+                    .next_1rtt_keys()
+                    .expect("handshake should be complete"),
+            );
+        }
+
+        self.spaces[space].crypto = Some(crypto);
+        debug_assert!(space as usize > self.highest_space as usize);
+        self.highest_space = space;
+        if space == SpaceId::Data && self.side.is_client() {
+            // Discard 0-RTT keys because 1-RTT keys are available.
+            self.zero_rtt_crypto = None;
+        }
     }
 
     /// 20. Returns application-facing events
