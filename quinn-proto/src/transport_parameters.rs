@@ -155,7 +155,10 @@ impl TransportParameters {
         initial_src_cid: ConnectionId,
         server_config: Option<&ServerConfig>,
     ) -> Self {
-        Self { ..Self::default() }
+        Self {
+            initial_src_cid: Some(initial_src_cid),
+            ..Self::default()
+        }
     }
 }
 

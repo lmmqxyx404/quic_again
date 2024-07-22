@@ -211,6 +211,11 @@ pub struct Connection {
     rem_handshake_cid: ConnectionId,
     /// 43. Source ConnectionId of the first packet received from the peer
     orig_rem_cid: ConnectionId,
+    /// 44. Destination ConnectionId sent by the client on the first Initial
+    initial_dst_cid: ConnectionId,
+    /// 45. The value that the server included in the Source Connection ID field of a Retry packet, if
+    /// one was received
+    retry_src_cid: Option<ConnectionId>,
 }
 
 impl Connection {
@@ -323,6 +328,9 @@ impl Connection {
             pto_count: 0,
             rem_handshake_cid: rem_cid,
             orig_rem_cid: rem_cid,
+
+            initial_dst_cid: init_cid,
+            retry_src_cid: None,
         };
 
         if side.is_client() {
@@ -2063,10 +2071,26 @@ impl Connection {
 
     /// 45. Handle transport parameters received from the peer
     fn handle_peer_params(&mut self, params: TransportParameters) -> Result<(), TransportError> {
-        todo!()
+        if Some(self.orig_rem_cid) != params.initial_src_cid
+            || (self.side.is_client()
+                && (Some(self.initial_dst_cid) != params.original_dst_cid
+                    || self.retry_src_cid != params.retry_src_cid))
+        {
+            return Err(TransportError::TRANSPORT_PARAMETER_ERROR(
+                "CID authentication failure",
+            ));
+        }
+
+        self.set_peer_params(params);
+
+        Ok(())
     }
     /// 46. Issue an initial set of connection IDs to the peer upon connection
     fn issue_first_cids(&mut self, now: Instant) {
+        todo!()
+    }
+    /// 47
+    fn set_peer_params(&mut self, params: TransportParameters) {
         todo!()
     }
 }

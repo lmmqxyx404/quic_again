@@ -97,6 +97,12 @@ this.init_0rtt();
 ## 3. about `try_next`
 解析数据时，要知道quic 协议连接的细节
 
+## 4. about `TransportParameters`
+pay attention to the new fn.
+wrong parameters will result in different error.
+### `initial_src_cid: Some(initial_src_cid),`
+The above is related with `Connection::handle_peer_params`
+
 # quic connection details
 无状态连接，与有状态连接
 ## first packet
