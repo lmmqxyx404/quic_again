@@ -103,6 +103,9 @@ wrong parameters will result in different error.
 ### `initial_src_cid: Some(initial_src_cid),`
 The above is related with `Connection::handle_peer_params`
 
+## 5. about `std::ops::Not` trait
+impl the trait so that to support bool operation
+
 # quic connection details
 无状态连接，与有状态连接
 ## first packet

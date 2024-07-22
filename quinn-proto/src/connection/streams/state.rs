@@ -4,7 +4,10 @@ use crate::{
     connection::{
         spaces::{Retransmits, ThinRetransmits},
         stats::FrameStats,
-    }, frame::StreamMetaVec, transport_parameters::TransportParameters, Dir, Side, StreamId, VarInt
+    },
+    frame::StreamMetaVec,
+    transport_parameters::TransportParameters,
+    Dir, Side, StreamId, VarInt,
 };
 
 use super::{send::Send, StreamEvent};
@@ -32,6 +35,18 @@ pub struct StreamsState {
     pub(super) unacked_data: u64,
     /// Configured upper bound for `unacked_data`
     pub(super) send_window: u64,
+    /// Pertinent state from the TransportParameters supplied by the peer
+    initial_max_stream_data_uni: VarInt,
+    initial_max_stream_data_bidi_local: VarInt,
+    initial_max_stream_data_bidi_remote: VarInt,
+
+    /// Maximum number of locally-initiated streams that may be opened over the lifetime of the
+    /// connection so far, per direction
+    pub(super) max: [u64; 2],
+    /// Maximum number of remotely-initiated streams that may be opened over the lifetime of the
+    /// connection so far, per direction
+    pub(super) max_remote: [u64; 2],
+    pub(super) side: Side,
 }
 
 impl StreamsState {
@@ -53,6 +68,12 @@ impl StreamsState {
             data_sent: 0,
             unacked_data: 0,
             send_window,
+            initial_max_stream_data_uni: 0u32.into(),
+            initial_max_stream_data_bidi_local: 0u32.into(),
+            initial_max_stream_data_bidi_remote: 0u32.into(),
+            max: [0, 0],
+            max_remote: [max_remote_bi.into(), max_remote_uni.into()],
+            side,
         };
 
         this
@@ -110,6 +131,22 @@ impl StreamsState {
     }
     /// 6.
     pub(crate) fn set_params(&mut self, params: &TransportParameters) {
-        todo!()
+        self.initial_max_stream_data_uni = params.initial_max_stream_data_uni;
+        self.initial_max_stream_data_bidi_local = params.initial_max_stream_data_bidi_local;
+        self.initial_max_stream_data_bidi_remote = params.initial_max_stream_data_bidi_remote;
+        self.max[Dir::Bi as usize] = params.initial_max_streams_bidi.into();
+        self.max[Dir::Uni as usize] = params.initial_max_streams_uni.into();
+        self.received_max_data(params.initial_max_data);
+        for i in 0..self.max_remote[Dir::Bi as usize] {
+            let id = StreamId::new(!self.side, Dir::Bi, i);
+            if let Some(s) = self.send.get_mut(&id).and_then(|s| s.as_mut()) {
+                s.max_data = params.initial_max_stream_data_bidi_local.into();
+            }
+        }
+    }
+
+    /// 7. Handle increase to connection-level flow control limit
+    pub(crate) fn received_max_data(&mut self, n: VarInt) {
+        self.max_data = self.max_data.max(n.into());
     }
 }

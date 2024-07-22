@@ -8,6 +8,7 @@ pub mod coding;
 mod varint;
 
 use std::net::{IpAddr, SocketAddr};
+use std::ops;
 use std::time::Duration;
 
 use shared::EcnCodepoint;
@@ -90,6 +91,16 @@ impl Side {
     }
 }
 
+impl ops::Not for Side {
+    type Output = Self;
+    fn not(self) -> Self {
+        match self {
+            Self::Client => Self::Server,
+            Self::Server => Self::Client,
+        }
+    }
+}
+
 /// The QUIC protocol version implemented.
 pub const DEFAULT_SUPPORTED_VERSIONS: &[u32] = &[
     0x00000001,
@@ -121,6 +132,13 @@ impl Dir {
 #[cfg_attr(feature = "arbitrary", derive(Arbitrary))]
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct StreamId(#[doc(hidden)] pub u64);
+
+impl StreamId {
+    /// Create a new StreamId
+    pub fn new(initiator: Side, dir: Dir, index: u64) -> Self {
+        Self(index << 2 | (dir as u64) << 1 | initiator as u64)
+    }
+}
 
 /// used for `id: self.bytes.get()?,`
 impl coding::Codec for StreamId {
