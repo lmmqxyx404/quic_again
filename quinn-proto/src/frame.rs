@@ -140,6 +140,15 @@ impl Iter {
                 },
                 reason: self.take_len()?,
             })),
+            Type::ACK | Type::ACK_ECN => {
+                let largest = self.bytes.get_var()?;
+                let delay = self.bytes.get_var()?;
+                let extra_blocks = self.bytes.get_var()? as usize;
+                let start = self.bytes.position() as usize;
+                scan_ack_blocks(&mut self.bytes, largest, extra_blocks)?;
+                let end = self.bytes.position() as usize;
+                todo!()
+            }
             _ => {
                 #[cfg(test)]
                 {
@@ -505,6 +514,7 @@ enum IterErr {
     UnexpectedEnd,
     /// 2.
     InvalidFrameId,
+    Malformed,
 }
 
 impl From<UnexpectedEnd> for IterErr {
@@ -519,7 +529,7 @@ impl IterErr {
         match *self {
             UnexpectedEnd => "unexpected end",
             InvalidFrameId => "invalid frame ID",
-            // Malformed => "malformed",
+            Malformed => "malformed",
         }
     }
 }
@@ -634,4 +644,16 @@ impl StopSending {
         out.write(self.id); // <= 8 bytes
         out.write(self.error_code) // <= 8 bytes
     }
+}
+
+fn scan_ack_blocks(buf: &mut io::Cursor<Bytes>, largest: u64, n: usize) -> Result<(), IterErr> {
+    let first_block = buf.get_var()?;
+    let mut smallest = largest.checked_sub(first_block).ok_or(IterErr::Malformed)?;
+    for _ in 0..n {
+        let gap = buf.get_var()?;
+        smallest = smallest.checked_sub(gap + 2).ok_or(IterErr::Malformed)?;
+        let block = buf.get_var()?;
+        smallest = smallest.checked_sub(block).ok_or(IterErr::Malformed)?;
+    }
+    Ok(())
 }
