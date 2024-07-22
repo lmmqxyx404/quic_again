@@ -829,8 +829,8 @@ impl Connection {
                     self.read_crypto(packet.header.space(), &frame, payload_len)?;
                 }
                 Frame::Ack(ack) => {
-                    unreachable!("Frame::Ack");
-                    // self.on_ack_received(now, packet.header.space(), ack)?;
+                    // unreachable!("Frame::Ack");
+                    self.on_ack_received(now, packet.header.space(), ack)?;
                 }
                 Frame::Close(reason) => {
                     self.error = Some(reason.into());
@@ -2202,6 +2202,19 @@ impl Connection {
         self.path.mtud.on_peer_max_udp_payload_size_received(
             u16::try_from(self.peer_params.max_udp_payload_size.into_inner()).unwrap_or(u16::MAX),
         );
+    }
+    /// 48.
+    fn on_ack_received(
+        &mut self,
+        now: Instant,
+        space: SpaceId,
+        ack: frame::Ack,
+    ) -> Result<(), TransportError> {
+        if ack.largest >= self.spaces[space].next_packet_number {
+            return Err(TransportError::PROTOCOL_VIOLATION("unsent packet acked"));
+        }
+        
+        todo!()
     }
 }
 

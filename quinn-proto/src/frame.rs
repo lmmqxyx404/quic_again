@@ -147,7 +147,7 @@ impl Iter {
                 let start = self.bytes.position() as usize;
                 scan_ack_blocks(&mut self.bytes, largest, extra_blocks)?;
                 let end = self.bytes.position() as usize;
-                Frame::Ack(Ack {})
+                Frame::Ack(Ack { largest })
             }
             _ => {
                 #[cfg(test)]
@@ -565,7 +565,9 @@ impl FrameStruct for Stream {
 struct DatagramInfo(u8);
 
 #[derive(Clone, Eq, PartialEq)]
-pub struct Ack {}
+pub struct Ack {
+    pub largest: u64,
+}
 
 impl fmt::Debug for Ack {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
