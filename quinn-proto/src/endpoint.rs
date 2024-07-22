@@ -405,6 +405,9 @@ impl Endpoint {
         use EndpointEventInner::*;
 
         match event.0 {
+            NeedIdentifiers(now, n) => {
+                return Some(self.send_new_identifiers(now, ch, n));
+            }
             Drained => {
                 if let Some(conn) = self.connections.try_remove(ch.0) {
                     self.index.remove(&conn);
@@ -697,6 +700,15 @@ impl Endpoint {
                 Err(AcceptError { cause: e, response })
             }
         }
+    }
+
+    fn send_new_identifiers(
+        &mut self,
+        now: Instant,
+        ch: ConnectionHandle,
+        num: u64,
+    ) -> ConnectionEvent {
+        todo!()
     }
 }
 
