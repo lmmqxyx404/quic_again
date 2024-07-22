@@ -7,7 +7,7 @@ use tracing::{trace, trace_span};
 use crate::{
     connection::spaces::SentPacket,
     frame::{self, Close},
-    packet::{Header, InitialHeader, PacketNumber, PartialEncode, SpaceId, FIXED_BIT},
+    packet::{Header, InitialHeader, LongType, PacketNumber, PartialEncode, SpaceId, FIXED_BIT},
     shared::ConnectionId,
     TransportErrorCode, INITIAL_MTU,
 };
@@ -175,9 +175,13 @@ impl PacketBuilder {
             SpaceId::Data => {
                 todo!()
             }
-            SpaceId::Handshake => {
-                todo!()
-            }
+            SpaceId::Handshake => Header::Long {
+                ty: LongType::Handshake,
+                src_cid: conn.handshake_cid,
+                dst_cid,
+                number,
+                version,
+            },
             SpaceId::Initial => Header::Initial(InitialHeader {
                 src_cid: conn.handshake_cid,
                 dst_cid,
