@@ -414,7 +414,21 @@ impl PendingAcks {
     ///
     /// This will suppress sending further ACKs until additional ACK eliciting frames arrive
     pub(super) fn acks_sent(&mut self) {
-        todo!()
+        // It is possible (though unlikely) that the ACKs we just sent do not cover all the
+        // ACK-eliciting packets we have received (e.g. if there is not enough room in the packet to
+        // fit all the ranges). To keep things simple, however, we assume they do. If there are
+        // indeed some ACKs that weren't covered, the packets might be ACKed later anyway, because
+        // they are still contained in `self.ranges`. If we somehow fail to send the ACKs at a later
+        // moment, the peer will assume the packets got lost and will retransmit their frames in a
+        // new packet, which is suboptimal, because we already received them. Our assumption here is
+        // that simplicity results in code that is more performant, even in the presence of
+        // occasional redundant retransmits.
+        // todo
+        self.immediate_ack_required = false;
+        // self.ack_eliciting_since_last_ack_sent = 0;
+        self.non_ack_eliciting_since_last_ack_sent = 0;
+        // self.earliest_ack_eliciting_since_last_ack_sent = None;
+        // self.largest_acked = self.largest_ack_eliciting_packet;
     }
     /// 5. Queue an ACK if a significant number of non-ACK-eliciting packets have not yet been
     /// acknowledged
@@ -452,7 +466,6 @@ impl PendingAcks {
         self.largest_packet
             .map_or(Duration::default(), |(_, received)| now - received)
     }
-
 }
 
 /// A variant of `Retransmits` which only allocates storage when required
