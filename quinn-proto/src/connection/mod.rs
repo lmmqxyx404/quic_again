@@ -2341,6 +2341,8 @@ pub enum Event {
     DatagramsUnblocked,
     /// 4. The connection's handshake data is ready
     HandshakeDataReady,
+    /// 5. The connection was successfully established
+    Connected,
 }
 
 /// 1. The maximum amount of datagrams that are sent in a single transmit

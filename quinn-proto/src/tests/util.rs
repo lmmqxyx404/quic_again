@@ -10,6 +10,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+use assert_matches::assert_matches;
 use bytes::{Bytes, BytesMut};
 use lazy_static::lazy_static;
 use rustls::{
@@ -21,7 +22,7 @@ use tracing::{info, info_span, trace};
 
 use crate::{
     config::{ClientConfig, EndpointConfig, ServerConfig},
-    connection::{Connection, ConnectionError},
+    connection::{Connection, ConnectionError, Event},
     crypto::rustls::{QuicClientConfig, QuicServerConfig},
     endpoint::{ConnectionHandle, DatagramEvent, Incoming},
     packet,
@@ -231,7 +232,22 @@ impl Pair {
     }
     /// 8.
     fn finish_connect(&mut self, client_ch: ConnectionHandle, server_ch: ConnectionHandle) {
-        todo!()
+        assert_matches!(
+            self.client_conn_mut(client_ch).poll(),
+            Some(Event::HandshakeDataReady)
+        );
+        assert_matches!(
+            self.client_conn_mut(client_ch).poll(),
+            Some(Event::Connected { .. })
+        );
+        assert_matches!(
+            self.server_conn_mut(server_ch).poll(),
+            Some(Event::HandshakeDataReady)
+        );
+        assert_matches!(
+            self.server_conn_mut(server_ch).poll(),
+            Some(Event::Connected { .. })
+        );
     }
     /// 9
     pub(super) fn drive_client(&mut self) {
@@ -286,6 +302,14 @@ impl Pair {
                 ));
             }
         }
+    }
+
+    pub(super) fn client_conn_mut(&mut self, ch: ConnectionHandle) -> &mut Connection {
+        self.client.connections.get_mut(&ch).unwrap()
+    }
+
+    pub(super) fn server_conn_mut(&mut self, ch: ConnectionHandle) -> &mut Connection {
+        self.server.connections.get_mut(&ch).unwrap()
     }
 }
 
