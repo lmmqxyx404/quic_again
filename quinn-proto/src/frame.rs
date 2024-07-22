@@ -117,10 +117,7 @@ impl Iter {
     /// always used in loop, so called by [`Self::new`]
     fn try_next(&mut self) -> Result<Frame, IterErr> {
         let ty = self.bytes.get::<Type>()?;
-        #[cfg(test)]
-        {
-            // tracing::info!("ty is {}", ty);
-        }
+
         self.last_ty = Some(ty);
         Ok(match ty {
             Type::PADDING => Frame::Padding,
@@ -131,7 +128,23 @@ impl Iter {
                     data: self.take_len()?,
                 })
             }
+            Type::CONNECTION_CLOSE => Frame::Close(Close::Connection(ConnectionClose {
+                error_code: self.bytes.get()?,
+                frame_type: {
+                    let x = self.bytes.get_var()?;
+                    if x == 0 {
+                        None
+                    } else {
+                        Some(Type(x))
+                    }
+                },
+                reason: self.take_len()?,
+            })),
             _ => {
+                #[cfg(test)]
+                {
+                    tracing::info!("ty is {}", ty);
+                }
                 if let Some(s) = ty.stream() {
                     Frame::Stream(Stream {
                         id: self.bytes.get()?,
