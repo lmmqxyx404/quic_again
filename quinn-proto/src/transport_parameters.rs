@@ -4,11 +4,7 @@ use bytes::{Buf, BufMut};
 use thiserror::Error;
 
 use crate::{
-    coding::{BufExt, BufMutExt, UnexpectedEnd},
-    config::{EndpointConfig, ServerConfig, TransportConfig},
-    shared::ConnectionId,
-    ConnectionIdGenerator, ResetToken, Side, TransportError, VarInt, MAX_CID_SIZE,
-    MAX_STREAM_COUNT, RESET_TOKEN_SIZE,
+    coding::{BufExt, BufMutExt, UnexpectedEnd}, config::{EndpointConfig, ServerConfig, TransportConfig}, shared::ConnectionId, ConnectionIdGenerator, ResetToken, Side, TransportError, VarInt, LOC_CID_COUNT, MAX_CID_SIZE, MAX_STREAM_COUNT, RESET_TOKEN_SIZE
 };
 // Apply a given macro to a list of all the transport parameters having integer types, along with
 // their codes and default values. Using this helps us avoid error-prone duplication of the
@@ -159,6 +155,14 @@ impl TransportParameters {
             initial_src_cid: Some(initial_src_cid),
             ..Self::default()
         }
+    }
+
+    /// Maximum number of CIDs to issue to this peer
+    ///
+    /// Consider both a) the active_connection_id_limit from the other end; and
+    /// b) LOC_CID_COUNT used locally
+    pub(crate) fn issue_cids_limit(&self) -> u64 {
+        self.active_connection_id_limit.0.min(LOC_CID_COUNT)
     }
 }
 

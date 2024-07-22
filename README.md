@@ -41,6 +41,9 @@ TransportParameters
 ## about `State::Closed(_)`
 有许多细节需要去查看
 
+## `StreamsState::insert`
+在创建时，就需要调用这个方法
+
 # dev skills
 ## 1. about transport_error::Error
 实现 `Display` 是为了实现 `std::error::Error`

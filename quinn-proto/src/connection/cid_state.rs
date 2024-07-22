@@ -90,6 +90,10 @@ impl CidState {
     pub(crate) fn retire_prior_to(&self) -> u64 {
         self.retire_seq
     }
+    /// 5. Length of local Connection IDs
+    pub(crate) fn cid_len(&self) -> usize {
+        self.cid_len
+    }
 }
 
 /// 2. Data structure that records when issued cids should be retired

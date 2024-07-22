@@ -137,6 +137,8 @@ pub(crate) struct IssuedCid {
 pub(crate) enum EndpointEventInner {
     /// 1. The connection has been drained
     Drained,
+    /// 2. The connection needs connection identifiers
+    NeedIdentifiers(Instant, u64),
 }
 
 /// Events sent from a Connection to an Endpoint

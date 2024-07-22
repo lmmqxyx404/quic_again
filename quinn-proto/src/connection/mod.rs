@@ -2087,7 +2087,14 @@ impl Connection {
     }
     /// 46. Issue an initial set of connection IDs to the peer upon connection
     fn issue_first_cids(&mut self, now: Instant) {
-        todo!()
+        if self.local_cid_state.cid_len() == 0 {
+            return;
+        }
+
+        // Subtract 1 to account for the CID we supplied while handshaking
+        let n = self.peer_params.issue_cids_limit() - 1;
+        self.endpoint_events
+            .push_back(EndpointEventInner::NeedIdentifiers(now, n));
     }
     /// 47
     fn set_peer_params(&mut self, params: TransportParameters) {
