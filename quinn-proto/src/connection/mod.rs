@@ -2296,7 +2296,18 @@ impl Connection {
                     Some((space, self.spaces[space].next_packet_number));
             }
         }
-        todo!()
+        // Must be called before crypto/pto_count are clobbered
+        self.detect_lost_packets(now, space, true);
+
+        if self.peer_completed_address_validation() {
+            self.pto_count = 0;
+        }
+        // Explicit congestion notification
+        if self.path.sending_ecn {
+            todo!()
+        }
+        self.set_loss_detection_timer(now);
+        Ok(())
     }
     /// 49. Not timing-aware, so it's safe to call this for inferred acks, such as arise from
     /// high-latency handshakes
@@ -2336,6 +2347,10 @@ impl Connection {
                 return;
             }
         }
+    }
+    /// 50
+    fn detect_lost_packets(&mut self, now: Instant, pn_space: SpaceId, due_to_ack: bool) {
+        todo!()
     }
 }
 
