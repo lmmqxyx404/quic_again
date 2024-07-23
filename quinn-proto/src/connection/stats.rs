@@ -109,4 +109,6 @@ impl std::fmt::Debug for FrameStats {
 pub struct PathStats {
     /// 1. The amount of packets sent on this path
     pub sent_packets: u64,
+    /// 2. Congestion events on the connection
+    pub congestion_events: u64,
 }

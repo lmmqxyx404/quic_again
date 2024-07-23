@@ -53,6 +53,16 @@ impl Controller for Cubic {
         }
         todo!()
     }
+
+    fn on_congestion_event(
+        &mut self,
+        now: Instant,
+        sent: Instant,
+        is_persistent_congestion: bool,
+        _lost_bytes: u64,
+    ) {
+        todo!()
+    }
 }
 
 /// Configuration for the `Cubic` congestion controller

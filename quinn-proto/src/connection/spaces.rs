@@ -62,6 +62,13 @@ pub(super) struct PacketSpace {
     pub(super) crypto_stream: Assembler,
     /// 21
     pub(super) largest_acked_packet_sent: Instant,
+    /// 22. Recent ECN counters sent by the peer in ACK frames
+    ///
+    /// Updated (and inspected) whenever we receive an ACK with a new highest acked packet
+    /// number. Stored per-space to simplify verification, which would otherwise have difficulty
+    /// distinguishing between ECN bleaching and counts having been updated by a near-simultaneous
+    /// ACK already processed in another space.
+    pub(super) ecn_feedback: frame::EcnCounts,
 }
 
 impl PacketSpace {
@@ -94,6 +101,7 @@ impl PacketSpace {
 
             crypto_stream: Assembler::new(),
             largest_acked_packet_sent: now,
+            ecn_feedback: frame::EcnCounts::ZERO,
         }
     }
 
@@ -152,7 +160,7 @@ impl PacketSpace {
         self.sent_with_keys += 1;
         x
     }
-    /// Returns the number of bytes to *remove* from the connection's in-flight count
+    /// 5. Returns the number of bytes to *remove* from the connection's in-flight count
     pub(super) fn sent(&mut self, number: u64, packet: SentPacket) -> u64 {
         // Retain state for at most this many non-ACK-eliciting packets sent after the most recently
         // sent ACK-eliciting packet. We're never guaranteed to receive an ACK for those, and we
@@ -195,7 +203,7 @@ impl PacketSpace {
         forgotten_bytes
     }
 
-    /// Stop tracking sent packet `number`, and return what we knew about it
+    /// 6. Stop tracking sent packet `number`, and return what we knew about it
     pub(super) fn take(&mut self, number: u64) -> Option<SentPacket> {
         let packet = self.sent_packets.remove(&number)?;
         self.in_flight -= u64::from(packet.size);
@@ -204,6 +212,38 @@ impl PacketSpace {
                 self.unacked_non_ack_eliciting_tail.checked_sub(1).unwrap();
         }
         Some(packet)
+    }
+    /// 7.Verifies sanity of an ECN block and returns whether congestion was encountered.
+    pub(super) fn detect_ecn(
+        &mut self,
+        newly_acked: u64,
+        ecn: frame::EcnCounts,
+    ) -> Result<bool, &'static str> {
+        let ect0_increase = ecn
+            .ect0
+            .checked_sub(self.ecn_feedback.ect0)
+            .ok_or("peer ECT(0) count regression")?;
+        let ect1_increase = ecn
+            .ect1
+            .checked_sub(self.ecn_feedback.ect1)
+            .ok_or("peer ECT(1) count regression")?;
+        let ce_increase = ecn
+            .ce
+            .checked_sub(self.ecn_feedback.ce)
+            .ok_or("peer CE count regression")?;
+        let total_increase = ect0_increase + ect1_increase + ce_increase;
+        if total_increase < newly_acked {
+            return Err("ECN bleaching");
+        }
+        if (ect0_increase + ce_increase) < newly_acked || ect1_increase != 0 {
+            return Err("ECN corruption");
+        }
+        // If total_increase > newly_acked (which happens when ACKs are lost), this is required by
+        // the draft so that long-term drift does not occur. If =, then the only question is whether
+        // to count CE packets as CE or ECT0. Recording them as CE is more consistent and keeps the
+        // congestion check obvious.
+        self.ecn_feedback = ecn;
+        Ok(ce_increase != 0)
     }
 }
 

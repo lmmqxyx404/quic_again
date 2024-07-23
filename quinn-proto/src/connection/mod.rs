@@ -2413,7 +2413,25 @@ impl Connection {
         ecn: frame::EcnCounts,
         largest_sent_time: Instant,
     ) {
-        todo!()
+        match self.spaces[space].detect_ecn(newly_acked, ecn) {
+            Err(e) => {
+                debug!("halting ECN due to verification failure: {}", e);
+                self.path.sending_ecn = false;
+                // Wipe out the existing value because it might be garbage and could interfere with
+                // future attempts to use ECN on new paths.
+                self.spaces[space].ecn_feedback = frame::EcnCounts::ZERO;
+            }
+            Ok(false) => {}
+            Ok(true) => {
+                self.stats.path.congestion_events += 1;
+                self.path
+                    .congestion
+                    .on_congestion_event(now, largest_sent_time, false, 0);
+            }
+            _ => {
+                todo!()
+            }
+        }
     }
 }
 

@@ -40,6 +40,19 @@ pub trait Controller: Send + Sync {
         largest_packet_num_acked: Option<u64>,
     ) {
     }
+    /// 6. Packets were deemed lost or marked congested
+    ///
+    /// `in_persistent_congestion` indicates whether all packets sent within the persistent
+    /// congestion threshold period ending when the most recent packet in this batch was sent were
+    /// lost.
+    /// `lost_bytes` indicates how many bytes were lost. This value will be 0 for ECN triggers.
+    fn on_congestion_event(
+        &mut self,
+        now: Instant,
+        sent: Instant,
+        is_persistent_congestion: bool,
+        lost_bytes: u64,
+    );
 }
 
 /// Constructs controllers on demand
