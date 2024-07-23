@@ -151,6 +151,15 @@ impl Iter {
                     largest,
                     additional: self.bytes.get_ref().slice(start..end),
                     delay,
+                    ecn: if ty != Type::ACK_ECN {
+                        None
+                    } else {
+                        Some(EcnCounts {
+                            ect0: self.bytes.get_var()?,
+                            ect1: self.bytes.get_var()?,
+                            ce: self.bytes.get_var()?,
+                        })
+                    },
                 })
             }
             _ => {
@@ -576,6 +585,8 @@ pub struct Ack {
     pub additional: Bytes,
     /// 3
     pub delay: u64,
+    /// 4.
+    pub ecn: Option<EcnCounts>,
 }
 
 impl fmt::Debug for Ack {

@@ -2304,7 +2304,18 @@ impl Connection {
         }
         // Explicit congestion notification
         if self.path.sending_ecn {
-            todo!()
+            if let Some(ecn) = ack.ecn {
+                // We only examine ECN counters from ACKs that we are certain we received in transmit
+                // order, allowing us to compute an increase in ECN counts to compare against the number
+                // of newly acked packets that remains well-defined in the presence of arbitrary packet
+                // reordering.
+                if new_largest {
+                    let sent = self.spaces[space].largest_acked_packet_sent;
+                    self.process_ecn(now, space, newly_acked.len() as u64, ecn, sent);
+                }
+            } else {
+                todo!()
+            }
         }
         self.set_loss_detection_timer(now);
         Ok(())
@@ -2348,7 +2359,7 @@ impl Connection {
             }
         }
     }
-    /// 50
+    /// 51
     fn detect_lost_packets(&mut self, now: Instant, pn_space: SpaceId, due_to_ack: bool) {
         let mut lost_packets = Vec::<u64>::new();
         let mut lost_mtu_probe: Option<u64> = None;
@@ -2392,6 +2403,17 @@ impl Connection {
         if let Some(packet) = lost_mtu_probe {
             todo!()
         }
+    }
+    /// 52. Process a new ECN block from an in-order ACK
+    fn process_ecn(
+        &mut self,
+        now: Instant,
+        space: SpaceId,
+        newly_acked: u64,
+        ecn: frame::EcnCounts,
+        largest_sent_time: Instant,
+    ) {
+        todo!()
     }
 }
 
