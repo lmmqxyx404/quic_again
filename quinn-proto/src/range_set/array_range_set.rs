@@ -119,4 +119,52 @@ impl ArrayRangeSet {
     pub fn new() -> Self {
         Default::default()
     }
+    /// 9.
+    pub fn elts(&self) -> impl Iterator<Item = u64> + '_ {
+        self.iter().flatten()
+    }
+    /// 10.
+    pub fn remove(&mut self, x: Range<u64>) -> bool {
+        let mut result = false;
+
+        if x.is_empty() {
+            // Don't try to deal with ranges where x.end <= x.start
+            return false;
+        }
+
+        let mut idx = 0;
+        while idx != self.0.len() && x.start != x.end {
+            let range = self.0[idx].clone();
+
+            if x.end <= range.start {
+                // The range is fully before this range
+                return result;
+            } else if x.start >= range.end {
+                // The range is fully after this range
+                idx += 1;
+                continue;
+            }
+
+            // The range overlaps with this range
+            result = true;
+
+            let left = range.start..x.start;
+            let right = x.end..range.end;
+            if left.is_empty() && right.is_empty() {
+                self.0.remove(idx);
+            } else if left.is_empty() {
+                self.0[idx] = right;
+                idx += 1;
+            } else if right.is_empty() {
+                self.0[idx] = left;
+                idx += 1;
+            } else {
+                self.0[idx] = right;
+                self.0.insert(idx, left);
+                idx += 2;
+            }
+        }
+
+        result
+    }
 }

@@ -2241,6 +2241,25 @@ impl Connection {
                 newly_acked.insert_one(pn);
             }
         }
+
+        if newly_acked.is_empty() {
+            return Ok(());
+        }
+
+        let mut ack_eliciting_acked = false;
+        for packet in newly_acked.elts() {
+            if let Some(info) = self.spaces[space].take(packet) {
+                if let Some(acked) = info.largest_acked {
+                    // Assume ACKs for all packets below the largest acknowledged in `packet` have
+                    // been received. This can cause the peer to spuriously retransmit if some of
+                    // our earlier ACKs were lost, but allows for simpler state tracking. See
+                    // discussion at
+                    // https://www.rfc-editor.org/rfc/rfc9000.html#name-limiting-ranges-by-tracking
+                    self.spaces[space].pending_acks.subtract_below(acked);
+                }
+                todo!()
+            }
+        }
         todo!()
     }
 }

@@ -194,6 +194,17 @@ impl PacketSpace {
         self.sent_packets.insert(number, packet);
         forgotten_bytes
     }
+
+    /// Stop tracking sent packet `number`, and return what we knew about it
+    pub(super) fn take(&mut self, number: u64) -> Option<SentPacket> {
+        let packet = self.sent_packets.remove(&number)?;
+        self.in_flight -= u64::from(packet.size);
+        if !packet.ack_eliciting && number > self.largest_ack_eliciting_sent {
+            self.unacked_non_ack_eliciting_tail =
+                self.unacked_non_ack_eliciting_tail.checked_sub(1).unwrap();
+        }
+        Some(packet)
+    }
 }
 
 impl Index<SpaceId> for [PacketSpace; 3] {
@@ -517,6 +528,10 @@ impl PendingAcks {
         self.largest_packet
             .map_or(Duration::default(), |(_, received)| now - received)
     }
+    /// 9. Remove ACKs of packets numbered at or below `max` from the set of pending ACKs
+    pub(super) fn subtract_below(&mut self, max: u64) {
+        self.ranges.remove(0..(max + 1));
+    }
 }
 
 /// A variant of `Retransmits` which only allocates storage when required
@@ -547,14 +562,16 @@ impl ThinRetransmits {
 /// Represents one or more packets subject to retransmission
 #[derive(Debug, Clone)]
 pub(super) struct SentPacket {
-    /// The number of bytes sent in the packet, not including UDP or IP overhead, but including QUIC
+    /// 1. The number of bytes sent in the packet, not including UDP or IP overhead, but including QUIC
     /// framing overhead. Zero if this packet is not counted towards congestion control, i.e. not an
     /// "in flight" packet.
     pub(super) size: u16,
-    /// Whether an acknowledgement is expected directly in response to this packet.
+    /// 2. Whether an acknowledgement is expected directly in response to this packet.
     pub(super) ack_eliciting: bool,
-    /// The time the packet was sent.
+    /// 3. The time the packet was sent.
     pub(super) time_sent: Instant,
+    /// 4. The largest packet number acknowledged by this packet
+    pub(super) largest_acked: Option<u64>,
 }
 
 /// Ensures we can always fit all our ACKs in a single minimum-MTU packet with room to spare

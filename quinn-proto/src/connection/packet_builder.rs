@@ -70,8 +70,8 @@ impl PacketBuilder {
             size,
             ack_eliciting,
             time_sent: now,
-            /* largest_acked: sent.largest_acked,
-            size,
+            largest_acked: sent.largest_acked,
+            /* size,
             ack_eliciting,
             retransmits: sent.retransmits,
             stream_frames: sent.stream_frames, */
