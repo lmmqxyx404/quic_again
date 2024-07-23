@@ -2375,9 +2375,23 @@ impl Connection {
         space.loss_time = None;
 
         for (&packet, info) in space.sent_packets.range(0..largest_acked_packet) {
+            if prev_packet != Some(packet.wrapping_sub(1)) {
+                // An intervening packet was acknowledged
+                persistent_congestion_start = None;
+            }
+
             todo!()
         }
-        todo!()
+
+        // OnPacketsLost
+        if let Some(largest_lost) = lost_packets.last().cloned() {
+            todo!()
+        }
+
+        // Handle a lost MTU probe
+        if let Some(packet) = lost_mtu_probe {
+            todo!()
+        }
     }
 }
 
