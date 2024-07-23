@@ -142,6 +142,8 @@ pub struct RttEstimator {
     smoothed: Option<Duration>,
     /// 3. The RTT variance, computed as described in RFC6298
     var: Duration,
+    /// 4. The minimum RTT seen in the connection, ignoring ack delay.
+    min: Duration,
 }
 
 impl RttEstimator {
@@ -151,6 +153,7 @@ impl RttEstimator {
             latest: initial_rtt,
             smoothed: None,
             var: initial_rtt / 2,
+            min: initial_rtt,
         }
     }
 
@@ -163,9 +166,19 @@ impl RttEstimator {
     pub fn get(&self) -> Duration {
         self.smoothed.unwrap_or(self.latest)
     }
-
+    /// 4.
     pub(crate) fn update(&mut self, ack_delay: Duration, rtt: Duration) {
-        todo!()
+        self.latest = rtt;
+        // min_rtt ignores ack delay.
+        self.min = cmp::min(self.min, self.latest);
+        // Based on RFC6298.
+        if let Some(smoothed) = self.smoothed {
+            todo!()
+        } else {
+            self.smoothed = Some(self.latest);
+            self.var = self.latest / 2;
+            self.min = self.latest;
+        }
     }
 }
 
