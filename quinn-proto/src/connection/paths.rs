@@ -117,6 +117,15 @@ impl PathData {
         }
         self.in_flight.bytes -= space.sent(pn, packet);
     }
+    /// 5. Remove `packet` with number `pn` from this path's congestion control counters, or return
+    /// `false` if `pn` was sent before this path was established.
+    pub(super) fn remove_in_flight(&mut self, pn: u64, packet: &SentPacket) -> bool {
+        if self.first_packet.map_or(true, |first| first > pn) {
+            return false;
+        }
+        self.in_flight.remove(packet);
+        true
+    }
 }
 
 /// RTT estimation for a particular network path
@@ -174,10 +183,15 @@ impl InFlight {
             ack_eliciting: 0,
         }
     }
-
+    /// 2.
     fn insert(&mut self, packet: &SentPacket) {
         self.bytes += u64::from(packet.size);
         self.ack_eliciting += u64::from(packet.ack_eliciting);
+    }
+    /// 3. Update counters to account for a packet becoming acknowledged, lost, or abandoned
+    fn remove(&mut self, packet: &SentPacket) {
+        self.bytes -= u64::from(packet.size);
+        self.ack_eliciting -= u64::from(packet.ack_eliciting);
     }
 }
 

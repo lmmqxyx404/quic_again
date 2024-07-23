@@ -2272,10 +2272,24 @@ impl Connection {
         }
         todo!()
     }
-    // Not timing-aware, so it's safe to call this for inferred acks, such as arise from
-    // high-latency handshakes
+    /// 49. Not timing-aware, so it's safe to call this for inferred acks, such as arise from
+    /// high-latency handshakes
     fn on_packet_acked(&mut self, now: Instant, pn: u64, info: SentPacket) {
+        self.remove_in_flight(pn, &info);
+
         todo!()
+    }
+    /// 50.Update counters to account for a packet becoming acknowledged, lost, or abandoned
+    fn remove_in_flight(&mut self, pn: u64, packet: &SentPacket) {
+        // Visit known paths from newest to oldest to find the one `pn` was sent on
+        for path in [&mut self.path]
+            .into_iter()
+            .chain(self.prev_path.as_mut().map(|(_, data)| data))
+        {
+            if path.remove_in_flight(pn, packet) {
+                return;
+            }
+        }
     }
 }
 
