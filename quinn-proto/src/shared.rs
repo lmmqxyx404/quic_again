@@ -139,6 +139,8 @@ pub(crate) enum EndpointEventInner {
     Drained,
     /// 2. The connection needs connection identifiers
     NeedIdentifiers(Instant, u64),
+    /// 3. The reset token and/or address eligible for generating resets has been updated
+    ResetToken(SocketAddr, ResetToken),
 }
 
 /// Events sent from a Connection to an Endpoint

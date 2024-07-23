@@ -221,6 +221,8 @@ pub struct Connection {
     retry_src_cid: Option<ConnectionId>,
     /// 46.
     endpoint_config: Arc<EndpointConfig>,
+    /// 47. Whether or not 0-RTT was enabled during the handshake. Does not imply acceptance.
+    zero_rtt_enabled: bool,
 }
 
 impl Connection {
@@ -337,6 +339,7 @@ impl Connection {
             initial_dst_cid: init_cid,
             retry_src_cid: None,
             endpoint_config,
+            zero_rtt_enabled: false,
         };
 
         if side.is_client() {
@@ -720,7 +723,52 @@ impl Connection {
                 src_cid: rem_cid,
                 ..
             } => {
-                todo!()
+                if rem_cid != self.rem_handshake_cid {
+                    debug!(
+                        "discarding packet with mismatched remote CID: {} != {}",
+                        self.rem_handshake_cid, rem_cid
+                    );
+                    return Ok(());
+                }
+
+                self.path.validated = true;
+
+                self.process_early_payload(now, packet)?;
+                if self.state.is_closed() {
+                    return Ok(());
+                }
+
+                if self.crypto.is_handshaking() {
+                    trace!("handshake ongoing");
+                    return Ok(());
+                }
+                if self.side.is_client() {
+                    // Client-only because server params were set from the client's Initial
+                    let params =
+                        self.crypto
+                            .transport_parameters()?
+                            .ok_or_else(|| TransportError {
+                                code: TransportErrorCode::crypto(0x6d),
+                                frame: None,
+                                reason: "transport parameters missing".into(),
+                            })?;
+
+                    if self.has_0rtt() {
+                        todo!()
+                    }
+                    if let Some(token) = params.stateless_reset_token {
+                        self.endpoint_events
+                            .push_back(EndpointEventInner::ResetToken(self.path.remote, token));
+                    }
+                    self.handle_peer_params(params)?;
+                    self.issue_first_cids(now);
+                } else {
+                    todo!()
+                }
+                self.events.push_back(Event::Connected);
+                self.state = State::Established;
+                trace!("established");
+                Ok(())
             }
             Header::Initial(InitialHeader {
                 src_cid: rem_cid, ..
@@ -2432,6 +2480,10 @@ impl Connection {
                 todo!()
             }
         }
+    }
+    /// 53. Whether 0-RTT is/was possible during the handshake
+    pub fn has_0rtt(&self) -> bool {
+        self.zero_rtt_enabled
     }
 }
 
