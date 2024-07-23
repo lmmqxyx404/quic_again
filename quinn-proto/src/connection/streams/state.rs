@@ -11,8 +11,14 @@ use crate::{
     Dir, Side, StreamId, VarInt,
 };
 
-use super::{send::Send, PendingStreamsQueue, StreamEvent};
-use std::{collections::VecDeque, mem};
+use super::{
+    send::{Send, SendState},
+    PendingStreamsQueue, StreamEvent, StreamHalf,
+};
+use std::{
+    collections::{hash_map, VecDeque},
+    mem,
+};
 
 #[allow(unreachable_pub)] // fuzzing only
 pub struct StreamsState {
@@ -242,5 +248,21 @@ impl StreamsState {
                 .and_then(|s| s.as_ref())
                 .map_or(false, |s| !s.is_reset())
         })
+    }
+    /// 9.
+    pub(crate) fn reset_acked(&mut self, id: StreamId) {
+        match self.send.entry(id) {
+            hash_map::Entry::Vacant(_) => {}
+            hash_map::Entry::Occupied(e) => {
+                if let Some(SendState::ResetSent) = e.get().as_ref().map(|s| s.state) {
+                    e.remove_entry();
+                    self.stream_freed(id, StreamHalf::Send);
+                }
+            }
+        }
+    }
+    /// 10. Update counters for removal of a stream
+    pub(super) fn stream_freed(&mut self, id: StreamId, half: StreamHalf) {
+        todo!()
     }
 }

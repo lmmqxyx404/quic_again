@@ -47,3 +47,9 @@ struct PendingStream {
     // the `priority` and `recency` fields, so that it does not interfere with the behaviour of the `Ord` derive
     id: StreamId,
 }
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+enum StreamHalf {
+    Send,
+    Recv,
+}

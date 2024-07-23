@@ -557,6 +557,10 @@ impl ThinRetransmits {
             None => true,
         }
     }
+    /// 3.Returns a reference to the retransmits stored in this box
+    pub(super) fn get(&self) -> Option<&Retransmits> {
+        self.retransmits.as_deref()
+    }
 }
 
 /// Represents one or more packets subject to retransmission
@@ -572,6 +576,10 @@ pub(super) struct SentPacket {
     pub(super) time_sent: Instant,
     /// 4. The largest packet number acknowledged by this packet
     pub(super) largest_acked: Option<u64>,
+    /// 5. Data which needs to be retransmitted in case the packet is lost.
+    /// The data is boxed to minimize `SentPacket` size for the typical case of
+    /// packets only containing ACKs and STREAM frames.
+    pub(super) retransmits: ThinRetransmits,
 }
 
 /// Ensures we can always fit all our ACKs in a single minimum-MTU packet with room to spare

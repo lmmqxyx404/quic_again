@@ -2289,6 +2289,13 @@ impl Connection {
                 &self.path.rtt,
             );
         }
+
+        // Update state for confirmed delivery of frames
+        if let Some(retransmits) = info.retransmits.get() {
+            for (id, _) in retransmits.reset_stream.iter() {
+                self.streams.reset_acked(*id);
+            }
+        }
         todo!()
     }
     /// 50.Update counters to account for a packet becoming acknowledged, lost, or abandoned
