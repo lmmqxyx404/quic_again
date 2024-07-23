@@ -580,6 +580,10 @@ pub(super) struct SentPacket {
     /// The data is boxed to minimize `SentPacket` size for the typical case of
     /// packets only containing ACKs and STREAM frames.
     pub(super) retransmits: ThinRetransmits,
+    /// 6. Metadata for stream frames in a packet
+    ///
+    /// The actual application data is stored with the stream state.
+    pub(super) stream_frames: frame::StreamMetaVec,
 }
 
 /// Ensures we can always fit all our ACKs in a single minimum-MTU packet with room to spare

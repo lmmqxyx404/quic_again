@@ -72,9 +72,10 @@ impl PacketBuilder {
             time_sent: now,
             largest_acked: sent.largest_acked,
             retransmits: sent.retransmits,
+            stream_frames: sent.stream_frames,
             /* size,
             ack_eliciting,
-            stream_frames: sent.stream_frames, */
+             */
         };
 
         conn.path

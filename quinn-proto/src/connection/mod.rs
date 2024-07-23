@@ -2296,7 +2296,10 @@ impl Connection {
                 self.streams.reset_acked(*id);
             }
         }
-        todo!()
+
+        for frame in info.stream_frames {
+            self.streams.received_ack_of(frame);
+        }
     }
     /// 50.Update counters to account for a packet becoming acknowledged, lost, or abandoned
     fn remove_in_flight(&mut self, pn: u64, packet: &SentPacket) {

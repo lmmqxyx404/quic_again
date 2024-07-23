@@ -265,4 +265,8 @@ impl StreamsState {
     pub(super) fn stream_freed(&mut self, id: StreamId, half: StreamHalf) {
         todo!()
     }
+    /// 11.
+    pub(crate) fn received_ack_of(&mut self, frame: frame::StreamMeta) {
+        todo!()
+    }
 }
