@@ -26,7 +26,7 @@ use crate::{
     },
     transport_parameters::TransportParameters,
     ConnectionIdGenerator, Side, Transmit, TransportError, TransportErrorCode, VarInt,
-    MIN_INITIAL_SIZE,
+    MIN_INITIAL_SIZE, TIMER_GRANULARITY,
 };
 use bytes::{Bytes, BytesMut};
 
@@ -2350,6 +2350,33 @@ impl Connection {
     }
     /// 50
     fn detect_lost_packets(&mut self, now: Instant, pn_space: SpaceId, due_to_ack: bool) {
+        let mut lost_packets = Vec::<u64>::new();
+        let mut lost_mtu_probe: Option<u64> = None;
+        let in_flight_mtu_probe = self.path.mtud.in_flight_mtu_probe();
+        let rtt = self.path.rtt.conservative();
+        let loss_delay = cmp::max(rtt.mul_f32(self.config.time_threshold), TIMER_GRANULARITY);
+
+        // Packets sent before this time are deemed lost.
+        let lost_send_time = now.checked_sub(loss_delay).unwrap();
+        let largest_acked_packet = self.spaces[pn_space].largest_acked_packet.unwrap();
+        let packet_threshold = self.config.packet_threshold as u64;
+        let mut size_of_lost_packets = 0u64;
+
+        // InPersistentCongestion: Determine if all packets in the time period before the newest
+        // lost packet, including the edges, are marked lost. PTO computation must always
+        // include max ACK delay, i.e. operate as if in Data space (see RFC9001 §7.6.1).
+        let congestion_period =
+            self.pto(SpaceId::Data) * self.config.persistent_congestion_threshold;
+        let mut persistent_congestion_start: Option<Instant> = None;
+        let mut prev_packet: Option<u64> = None;
+        let mut in_persistent_congestion = false;
+
+        let space = &mut self.spaces[pn_space];
+        space.loss_time = None;
+
+        for (&packet, info) in space.sent_packets.range(0..largest_acked_packet) {
+            todo!()
+        }
         todo!()
     }
 }

@@ -284,6 +284,12 @@ pub struct TransportConfig {
     pub(crate) max_idle_timeout: Option<VarInt>,
     /// 17.
     pub(crate) crypto_buffer_size: usize,
+    /// 18.
+    pub(crate) time_threshold: f32,
+    /// 19.
+    pub(crate) packet_threshold: u32,
+    /// 20.
+    pub(crate) persistent_congestion_threshold: u32,
 }
 
 impl TransportConfig {
@@ -324,7 +330,9 @@ impl Default for TransportConfig {
             keep_alive_interval: None,
             max_idle_timeout: Some(VarInt(10_000)),
             crypto_buffer_size: 16 * 1024,
-
+            time_threshold: 9.0 / 8.0,
+            packet_threshold: 3,
+            persistent_congestion_threshold: 3,
         }
     }
 }

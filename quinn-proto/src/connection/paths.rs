@@ -180,6 +180,13 @@ impl RttEstimator {
             self.min = self.latest;
         }
     }
+    /// 5. Conservative estimate of RTT
+    ///
+    /// Takes the maximum of smoothed and latest RTT, as recommended
+    /// in 6.1.2 of the recovery spec (draft 29).
+    pub fn conservative(&self) -> Duration {
+        self.get().max(self.latest)
+    }
 }
 
 /// Summary statistics of packets that have been sent on a particular path, but which have not yet

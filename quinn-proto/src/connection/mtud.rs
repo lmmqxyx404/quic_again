@@ -80,14 +80,32 @@ impl MtuDiscovery {
 
         todo!()
     }
+
+    /// 8. Returns the packet number of the in-flight MTU probe, if any
+    pub(crate) fn in_flight_mtu_probe(&self) -> Option<u64> {
+        match &self.state {
+            Some(EnabledMtuDiscovery {
+                phase: Phase::Searching(search_state),
+                ..
+            }) => search_state.in_flight_probe,
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
 enum Phase {
-    /// We haven't started polling yet
+    /// 1. We haven't started polling yet
     Initial,
+    /// 2. We are currently searching for a higher PMTU
+    Searching(SearchState),
 }
 
+#[derive(Debug, Clone, Copy)]
+struct SearchState {
+    /// 1. Packet number of an in-flight probe (if any)
+    in_flight_probe: Option<u64>,
+}
 /// Additional state for enabled MTU discovery
 #[derive(Debug, Clone)]
 struct EnabledMtuDiscovery {
