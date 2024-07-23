@@ -2272,6 +2272,30 @@ impl Connection {
                 self.on_packet_acked(now, packet, info);
             }
         }
+
+        self.path.congestion.on_end_acks(
+            now,
+            self.path.in_flight.bytes,
+            self.app_limited,
+            self.spaces[space].largest_acked_packet,
+        );
+
+        if new_largest && ack_eliciting_acked {
+            let ack_delay = if space != SpaceId::Data {
+                Duration::from_micros(0)
+            } else {
+                cmp::min(
+                    self.ack_frequency.peer_max_ack_delay,
+                    Duration::from_micros(ack.delay << self.peer_params.ack_delay_exponent.0),
+                )
+            };
+            let rtt = instant_saturating_sub(now, self.spaces[space].largest_acked_packet_sent);
+            self.path.rtt.update(ack_delay, rtt);
+            if self.path.first_packet_after_rtt_sample.is_none() {
+                self.path.first_packet_after_rtt_sample =
+                    Some((space, self.spaces[space].next_packet_number));
+            }
+        }
         todo!()
     }
     /// 49. Not timing-aware, so it's safe to call this for inferred acks, such as arise from
@@ -2433,6 +2457,14 @@ impl From<Close> for ConnectionError {
 /// used for AckFrequencyState::new
 fn get_max_ack_delay(params: &TransportParameters) -> Duration {
     Duration::from_micros(params.max_ack_delay.0 * 1000)
+}
+
+fn instant_saturating_sub(x: Instant, y: Instant) -> Duration {
+    if x > y {
+        x - y
+    } else {
+        Duration::new(0, 0)
+    }
 }
 
 /// Events of interest to the application

@@ -30,6 +30,16 @@ pub trait Controller: Send + Sync {
         rtt: &RttEstimator,
     ) {
     }
+    /// 5. Packets are acked in batches, all with the same `now` argument. This indicates one of those batches has completed.
+    #[allow(unused_variables)]
+    fn on_end_acks(
+        &mut self,
+        now: Instant,
+        in_flight: u64,
+        app_limited: bool,
+        largest_packet_num_acked: Option<u64>,
+    ) {
+    }
 }
 
 /// Constructs controllers on demand

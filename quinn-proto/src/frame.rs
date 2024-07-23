@@ -150,6 +150,7 @@ impl Iter {
                 Frame::Ack(Ack {
                     largest,
                     additional: self.bytes.get_ref().slice(start..end),
+                    delay,
                 })
             }
             _ => {
@@ -569,8 +570,12 @@ struct DatagramInfo(u8);
 
 #[derive(Clone, Eq, PartialEq)]
 pub struct Ack {
+    /// 1
     pub largest: u64,
+    /// 2
     pub additional: Bytes,
+    /// 3
+    pub delay: u64,
 }
 
 impl fmt::Debug for Ack {

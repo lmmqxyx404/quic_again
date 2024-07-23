@@ -4,7 +4,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::{config::TransportConfig, congestion, TIMER_GRANULARITY};
+use crate::{config::TransportConfig, congestion, packet::SpaceId, TIMER_GRANULARITY};
 
 use super::{
     mtud::MtuDiscovery,
@@ -46,6 +46,10 @@ pub(super) struct PathData {
     first_packet: Option<u64>,
     /// 13. Whether we're enabling ECN on outgoing packets
     pub(super) sending_ecn: bool,
+    /// 14. Packet number of the first packet sent after an RTT sample was collected on this path
+    ///
+    /// Used in persistent congestion determination.
+    pub(super) first_packet_after_rtt_sample: Option<(SpaceId, u64)>,
 }
 
 impl PathData {
@@ -96,6 +100,7 @@ impl PathData {
             challenge_pending: false,
             first_packet: None,
             sending_ecn: true,
+            first_packet_after_rtt_sample: None,
         }
     }
     /// 2. Indicates whether we're a server that hasn't validated the peer's address and hasn't
@@ -157,6 +162,10 @@ impl RttEstimator {
     /// 3.The current best RTT estimation.
     pub fn get(&self) -> Duration {
         self.smoothed.unwrap_or(self.latest)
+    }
+
+    pub(crate) fn update(&mut self, ack_delay: Duration, rtt: Duration) {
+        todo!()
     }
 }
 
