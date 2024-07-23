@@ -5,6 +5,8 @@ mod cubic;
 
 pub use cubic::CubicConfig;
 
+use crate::connection::RttEstimator;
+
 /// Common interface for different congestion controllers
 pub trait Controller: Send + Sync {
     /// 1. Number of ack-eliciting bytes that may be in flight,first used for `self.path.congestion.window()`
@@ -14,6 +16,20 @@ pub trait Controller: Send + Sync {
     /// 3. One or more packets were just sent
     #[allow(unused_variables)]
     fn on_sent(&mut self, now: Instant, bytes: u64, last_packet_number: u64) {}
+    /// 4. Packet deliveries were confirmed
+    ///
+    /// `app_limited` indicates whether the connection was blocked on outgoing
+    /// application data prior to receiving these acknowledgements.
+    #[allow(unused_variables)]
+    fn on_ack(
+        &mut self,
+        now: Instant,
+        sent: Instant,
+        bytes: u64,
+        app_limited: bool,
+        rtt: &RttEstimator,
+    ) {
+    }
 }
 
 /// Constructs controllers on demand

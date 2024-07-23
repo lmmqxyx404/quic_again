@@ -33,7 +33,9 @@ use bytes::{Bytes, BytesMut};
 /// 1.
 mod paths;
 use packet_crypto::{PrevCrypto, ZeroRttCrypto};
+pub use paths::RttEstimator;
 use paths::{PathData, PathResponses};
+
 /// 2.
 mod stats;
 use rand::{rngs::StdRng, Rng, SeedableRng};
@@ -2276,7 +2278,17 @@ impl Connection {
     /// high-latency handshakes
     fn on_packet_acked(&mut self, now: Instant, pn: u64, info: SentPacket) {
         self.remove_in_flight(pn, &info);
-
+        if info.ack_eliciting && self.path.challenge.is_none() {
+            // Only pass ACKs to the congestion controller if we are not validating the current
+            // path, so as to ignore any ACKs from older paths still coming in.
+            self.path.congestion.on_ack(
+                now,
+                info.time_sent,
+                info.size.into(),
+                self.app_limited,
+                &self.path.rtt,
+            );
+        }
         todo!()
     }
     /// 50.Update counters to account for a packet becoming acknowledged, lost, or abandoned

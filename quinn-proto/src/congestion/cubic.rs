@@ -1,6 +1,8 @@
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use crate::connection::RttEstimator;
+
 use super::{Controller, ControllerFactory, BASE_DATAGRAM_SIZE};
 
 /// The RFC8312 congestion controller, as widely used for TCP
@@ -10,6 +12,9 @@ pub struct Cubic {
     window: u64,
     /// 2.
     config: Arc<CubicConfig>,
+    /// 3. The time when QUIC first detects a loss, causing it to enter recovery. When a packet sent
+    /// after this time is acknowledged, QUIC exits recovery.
+    recovery_start_time: Option<Instant>,
 }
 
 impl Cubic {
@@ -18,6 +23,7 @@ impl Cubic {
         Self {
             window: config.initial_window,
             config,
+            recovery_start_time: None,
         }
     }
 }
@@ -28,6 +34,24 @@ impl Controller for Cubic {
 
     fn initial_window(&self) -> u64 {
         self.config.initial_window
+    }
+    fn on_ack(
+        &mut self,
+        now: Instant,
+        sent: Instant,
+        bytes: u64,
+        app_limited: bool,
+        rtt: &RttEstimator,
+    ) {
+        if app_limited
+            || self
+                .recovery_start_time
+                .map(|recovery_start_time| sent <= recovery_start_time)
+                .unwrap_or(false)
+        {
+            return;
+        }
+        todo!()
     }
 }
 
