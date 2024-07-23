@@ -43,7 +43,7 @@ mod cid_state;
 use cid_state::CidState;
 /// 4.
 mod spaces;
-use spaces::{PacketNumberFilter, PacketSpace, SendableFrames, ThinRetransmits};
+use spaces::{PacketNumberFilter, PacketSpace, SendableFrames, SentPacket, ThinRetransmits};
 /// 5.
 mod timer;
 use thiserror::Error;
@@ -2257,9 +2257,24 @@ impl Connection {
                     // https://www.rfc-editor.org/rfc/rfc9000.html#name-limiting-ranges-by-tracking
                     self.spaces[space].pending_acks.subtract_below(acked);
                 }
-                todo!()
+
+                ack_eliciting_acked |= info.ack_eliciting;
+                // Notify MTU discovery that a packet was acked, because it might be an MTU probe
+                let mtu_updated = self.path.mtud.on_acked(space, packet, info.size);
+                if mtu_updated {
+                    todo!()
+                }
+                // Notify ack frequency that a packet was acked, because it might contain an ACK_FREQUENCY frame
+                self.ack_frequency.on_acked(packet);
+
+                self.on_packet_acked(now, packet, info);
             }
         }
+        todo!()
+    }
+    // Not timing-aware, so it's safe to call this for inferred acks, such as arise from
+    // high-latency handshakes
+    fn on_packet_acked(&mut self, now: Instant, pn: u64, info: SentPacket) {
         todo!()
     }
 }

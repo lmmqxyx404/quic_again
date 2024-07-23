@@ -1,6 +1,6 @@
 use std::time::Instant;
 
-use crate::{config::MtuDiscoveryConfig, MAX_UDP_PAYLOAD};
+use crate::{config::MtuDiscoveryConfig, packet::SpaceId, MAX_UDP_PAYLOAD};
 
 /// Implements Datagram Packetization Layer Path Maximum Transmission Unit Discovery
 ///
@@ -68,6 +68,17 @@ impl MtuDiscovery {
             debug_assert!(matches!(state.phase, Phase::Initial));
             state.peer_max_udp_payload_size = peer_max_udp_payload_size;
         }
+    }
+    /// 7. Notifies the [`MtuDiscovery`] that a packet has been ACKed
+    ///
+    /// Returns true if the packet was an MTU probe
+    pub(crate) fn on_acked(&mut self, space: SpaceId, pn: u64, len: u16) -> bool {
+        // MTU probes are only sent in application data space
+        if space != SpaceId::Data {
+            return false;
+        }
+
+        todo!()
     }
 }
 
