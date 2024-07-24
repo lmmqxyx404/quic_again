@@ -763,7 +763,9 @@ impl Connection {
                     self.handle_peer_params(params)?;
                     self.issue_first_cids(now);
                 } else {
-                    todo!()
+                    // Server-only
+                    self.spaces[SpaceId::Data].pending.handshake_done = true;
+                    self.discard_space(now, SpaceId::Handshake);
                 }
                 self.events.push_back(Event::Connected);
                 self.state = State::Established;
