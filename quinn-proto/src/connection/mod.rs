@@ -972,7 +972,20 @@ impl Connection {
         let pending = &mut self.spaces[SpaceId::Data].pending;
         self.streams.queue_max_stream_id(pending);
 
-        todo!()
+        if let Some(reason) = close {
+            self.error = Some(reason.into());
+            self.state = State::Draining;
+            self.close = true;
+        }
+
+        if remote != self.path.remote
+            && !is_probing_packet
+            && number == self.spaces[SpaceId::Data].rx_packet
+        {
+            todo!()
+        }
+
+        Ok(())
     }
     /// 13. Process an Initial or Handshake packet payload
     fn process_early_payload(
