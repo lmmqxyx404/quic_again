@@ -114,7 +114,7 @@ struct SearchState {
 }
 
 impl SearchState {
-    /// Creates a new search state, with the specified lower bound (the upper bound is derived from
+    /// 1. Creates a new search state, with the specified lower bound (the upper bound is derived from
     /// the config and the peer's `max_udp_payload_size` transport parameter)
     fn new(
         mut lower_bound: u16,
@@ -136,6 +136,10 @@ impl SearchState {
             upper_bound,
             minimum_change: config.minimum_change, */
         }
+    }
+    /// 2. Determines the next MTU to probe using binary search
+    fn next_mtu_to_probe(&mut self, last_probe_succeeded: bool) -> Option<u16> {
+        todo!()
     }
 }
 /// Additional state for enabled MTU discovery
@@ -180,6 +184,23 @@ impl EnabledMtuDiscovery {
                 return Some(state.last_probed_mtu);
             }
 
+            let last_probe_succeeded = state.lost_probe_count == 0;
+
+            // The probe is definitely lost (we reached the MAX_PROBE_RETRANSMITS threshold)
+            if !last_probe_succeeded {
+                state.lost_probe_count = 0;
+                state.in_flight_probe = None;
+            }
+
+            if let Some(probe_udp_payload_size) = state.next_mtu_to_probe(last_probe_succeeded) {
+                state.in_flight_probe = Some(next_pn);
+                state.last_probed_mtu = probe_udp_payload_size;
+                return Some(probe_udp_payload_size);
+            } else {
+                let next_mtud_activation = now + self.config.interval;
+                self.phase = Phase::Complete(next_mtud_activation);
+                return None;
+            }
             todo!()
         }
         None

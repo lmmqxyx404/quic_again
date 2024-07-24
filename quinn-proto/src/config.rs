@@ -229,12 +229,18 @@ impl ClientConfig {
 /// independently in order to discover the path's MTU.
 #[derive(Clone, Debug)]
 pub struct MtuDiscoveryConfig {
+    /// 1
     pub(crate) upper_bound: u16,
+    /// 2.
+    pub(crate) interval: Duration,
 }
 
 impl Default for MtuDiscoveryConfig {
     fn default() -> Self {
-        Self { upper_bound: 1452 }
+        Self {
+            upper_bound: 145,
+            interval: Duration::from_secs(600),
+        }
     }
 }
 
