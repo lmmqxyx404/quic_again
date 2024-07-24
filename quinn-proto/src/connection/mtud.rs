@@ -107,6 +107,10 @@ enum Phase {
 struct SearchState {
     /// 1. Packet number of an in-flight probe (if any)
     in_flight_probe: Option<u64>,
+    /// 2. Lost probes at the current probe size
+    lost_probe_count: usize,
+    /// 3. The UDP payload size we last sent a probe for
+    last_probed_mtu: u16,
 }
 
 impl SearchState {
@@ -124,13 +128,13 @@ impl SearchState {
 
         Self {
             in_flight_probe: None,
-            /* lost_probe_count: 0,
-            lower_bound,
-            upper_bound,
-            minimum_change: config.minimum_change, */
+            lost_probe_count: 0,
             // During initialization, we consider the lower bound to have already been
             // successfully probed
-            // last_probed_mtu: lower_bound,
+            last_probed_mtu: lower_bound,
+            /*lower_bound,
+            upper_bound,
+            minimum_change: config.minimum_change, */
         }
     }
 }
@@ -165,8 +169,23 @@ impl EnabledMtuDiscovery {
         }
 
         if let Phase::Searching(state) = &mut self.phase {
+            // Nothing to do while there is a probe in flight
+            if state.in_flight_probe.is_some() {
+                return None;
+            }
+
+            // Retransmit lost probes, if any
+            if 0 < state.lost_probe_count && state.lost_probe_count < MAX_PROBE_RETRANSMITS {
+                state.in_flight_probe = Some(next_pn);
+                return Some(state.last_probed_mtu);
+            }
+
             todo!()
         }
         None
     }
 }
+
+// Corresponds to the RFC's `MAX_PROBES` constant (see
+// https://www.rfc-editor.org/rfc/rfc8899#section-5.1.2)
+const MAX_PROBE_RETRANSMITS: usize = 3;
