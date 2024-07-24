@@ -24,6 +24,7 @@ use crate::{
         ConnectionEvent, ConnectionEventInner, ConnectionId, DatagramConnectionEvent, EcnCodepoint,
         EndpointEvent, EndpointEventInner,
     },
+    token::ResetToken,
     transport_parameters::TransportParameters,
     ConnectionIdGenerator, Side, Transmit, TransportError, TransportErrorCode, VarInt,
     MIN_INITIAL_SIZE, TIMER_GRANULARITY,
@@ -2648,11 +2649,30 @@ impl Connection {
     }
     /// 54. Switch to a previously unused remote connection ID, if possible
     fn update_rem_cid(&mut self) {
+        #[cfg(test)]
+        tracing::debug!("update_rem_cid");
+
         let (reset_token, retired) = match self.rem_cids.next() {
             Some(x) => x,
             None => return,
         };
-        todo!()
+        // Retire the current remote CID and any CIDs we had to skip.
+        self.spaces[SpaceId::Data]
+            .pending
+            .retire_cids
+            .extend(retired);
+        self.set_reset_token(reset_token);
+    }
+    /// 55.
+    fn set_reset_token(&mut self, reset_token: ResetToken) {
+        #[cfg(test)]
+        tracing::debug!("set_reset_token");
+        self.endpoint_events
+            .push_back(EndpointEventInner::ResetToken(
+                self.path.remote,
+                reset_token,
+            ));
+        self.peer_params.stateless_reset_token = Some(reset_token);
     }
 }
 
