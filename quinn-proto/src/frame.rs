@@ -192,7 +192,9 @@ impl Iter {
                 })
             }
             Type::HANDSHAKE_DONE => Frame::HandshakeDone,
-
+            Type::RETIRE_CONNECTION_ID => Frame::RetireConnectionId {
+                sequence: self.bytes.get_var()?,
+            },
             _ => {
                 #[cfg(test)]
                 {
@@ -281,6 +283,7 @@ pub(crate) enum Frame {
     Datagram(Datagram),
     NewConnectionId(NewConnectionId),
     HandshakeDone,
+    RetireConnectionId { sequence: u64 },
 }
 
 impl Frame {
@@ -309,6 +312,7 @@ impl Frame {
             NewConnectionId { .. } => Type::NEW_CONNECTION_ID,
             HandshakeDone => Type::HANDSHAKE_DONE,
 
+            RetireConnectionId { .. } => Type::RETIRE_CONNECTION_ID,
         }
     }
     /// 2.

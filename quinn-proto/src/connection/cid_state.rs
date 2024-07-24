@@ -7,6 +7,7 @@ use rustc_hash::FxHashSet;
 use tracing::trace;
 
 use crate::shared::IssuedCid;
+use crate::TransportError;
 
 /// 1. Local connection ID management
 pub(super) struct CidState {
@@ -112,6 +113,16 @@ impl CidState {
             trace!("CID {} will expire at {:?}", nc.sequence, nc.timestamp);
             nc.timestamp
         })
+    }
+    /// 7. Update CidState for receipt of a `RETIRE_CONNECTION_ID` frame
+    ///
+    /// Returns whether a new CID can be issued, or an error if the frame was illegal.
+    pub(crate) fn on_cid_retirement(
+        &mut self,
+        sequence: u64,
+        limit: u64,
+    ) -> Result<bool, TransportError> {
+        todo!()
     }
 }
 

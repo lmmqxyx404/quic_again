@@ -141,6 +141,9 @@ pub(crate) enum EndpointEventInner {
     NeedIdentifiers(Instant, u64),
     /// 3. The reset token and/or address eligible for generating resets has been updated
     ResetToken(SocketAddr, ResetToken),
+    /// 4. Stop routing connection ID for this sequence number to the connection
+    /// When `bool == true`, a new connection ID will be issued to peer
+    RetireConnectionId(Instant, u64, bool),
 }
 
 /// Events sent from a Connection to an Endpoint

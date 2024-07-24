@@ -974,6 +974,17 @@ impl Connection {
                         self.discard_space(now, SpaceId::Handshake);
                     }
                 }
+                Frame::RetireConnectionId { sequence } => {
+                    let allow_more_cids = self
+                        .local_cid_state
+                        .on_cid_retirement(sequence, self.peer_params.issue_cids_limit())?;
+                    self.endpoint_events
+                        .push_back(EndpointEventInner::RetireConnectionId(
+                            now,
+                            sequence,
+                            allow_more_cids,
+                        ));
+                }
             }
         }
 
