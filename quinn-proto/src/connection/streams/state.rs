@@ -56,6 +56,11 @@ pub struct StreamsState {
     pub(super) side: Side,
     /// Streams with outgoing data queued, sorted by priority
     pub(super) pending: PendingStreamsQueue,
+    /// Value of `max_remote` most recently transmitted to the peer in a `MAX_STREAMS` frame
+    sent_max_remote: [u64; 2],
+    /// Size of the desired stream flow control window. May be smaller than `allocated_remote_count`
+    /// due to `set_max_concurrent` calls.
+    max_concurrent_remote_count: [u64; 2],
 }
 
 impl StreamsState {
@@ -84,6 +89,10 @@ impl StreamsState {
             max_remote: [max_remote_bi.into(), max_remote_uni.into()],
             side,
             pending: PendingStreamsQueue::new(),
+            
+            sent_max_remote: [max_remote_bi.into(), max_remote_uni.into()],
+            // allocated_remote_count: [max_remote_bi.into(), max_remote_uni.into()],
+            max_concurrent_remote_count: [max_remote_bi.into(), max_remote_uni.into()],
         };
 
         this
@@ -269,7 +278,7 @@ impl StreamsState {
     pub(crate) fn received_ack_of(&mut self, frame: frame::StreamMeta) {
         todo!()
     }
-    /// 12Process incoming stream frame
+    /// 12. Process incoming stream frame
     ///
     /// If successful, returns whether a `MAX_DATA` frame needs to be transmitted
     pub(crate) fn received(
@@ -278,5 +287,21 @@ impl StreamsState {
         payload_len: usize,
     ) -> Result<ShouldTransmit, TransportError> {
         todo!()
+    }
+    /// 13. Queues MAX_STREAM_ID frames in `pending` if needed
+    ///
+    /// Returns whether any frames were queued.
+    pub(crate) fn queue_max_stream_id(&mut self, pending: &mut Retransmits) -> bool {
+        let mut queued = false;
+        for dir in Dir::iter() {
+            let diff = self.max_remote[dir as usize] - self.sent_max_remote[dir as usize];
+            // To reduce traffic, only announce updates if at least 1/8 of the flow control window
+            // has been consumed.
+            if diff > self.max_concurrent_remote_count[dir as usize] / 8 {
+                pending.max_stream_id[dir as usize] = true;
+                queued = true;
+            }
+        }
+        queued
     }
 }

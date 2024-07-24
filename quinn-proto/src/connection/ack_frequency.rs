@@ -8,6 +8,8 @@ pub(super) struct AckFrequencyState {
     pub(super) peer_max_ack_delay: Duration,
     /// 2. Sending ACK_FREQUENCY frames
     in_flight_ack_frequency_frame: Option<(u64, Duration)>,
+    /// 3.
+    pub(super) max_ack_delay: Duration,
 }
 
 impl AckFrequencyState {
@@ -16,6 +18,7 @@ impl AckFrequencyState {
         Self {
             peer_max_ack_delay: default_max_ack_delay,
             in_flight_ack_frequency_frame: None,
+            max_ack_delay: default_max_ack_delay,
         }
     }
 

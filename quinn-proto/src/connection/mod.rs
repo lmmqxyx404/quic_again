@@ -961,10 +961,17 @@ impl Connection {
             .pending_acks
             .packet_received(now, number, ack_eliciting, &space.dedup)
         {
-            todo!()
-            /* self.timers
-            .set(Timer::MaxAckDelay, now + self.ack_frequency.max_ack_delay); */
+            self.timers
+                .set(Timer::MaxAckDelay, now + self.ack_frequency.max_ack_delay);
         }
+
+        // Issue stream ID credit due to ACKs of outgoing finish/resets and incoming finish/resets
+        // on stopped streams. Incoming finishes/resets on open streams are not handled here as they
+        // are only freed, and hence only issue credit, once the application has been notified
+        // during a read on the stream.
+        let pending = &mut self.spaces[SpaceId::Data].pending;
+        self.streams.queue_max_stream_id(pending);
+
         todo!()
     }
     /// 13. Process an Initial or Handshake packet payload
