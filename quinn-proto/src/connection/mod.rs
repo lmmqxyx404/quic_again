@@ -920,6 +920,32 @@ impl Connection {
                     todo!()
                 }
                 Frame::NewConnectionId(frame) => {
+                    trace!(
+                        sequence = frame.sequence,
+                        id = %frame.id,
+                        retire_prior_to = frame.retire_prior_to,
+                    );
+                    if self.rem_cids.active().is_empty() {
+                        return Err(TransportError::PROTOCOL_VIOLATION(
+                            "NEW_CONNECTION_ID when CIDs aren't in use",
+                        ));
+                    }
+                    if frame.retire_prior_to > frame.sequence {
+                        return Err(TransportError::PROTOCOL_VIOLATION(
+                            "NEW_CONNECTION_ID retiring unissued CIDs",
+                        ));
+                    }
+
+                    use crate::cid_queue::InsertError;
+                    match self.rem_cids.insert(frame) {
+                        Ok(None) => {}
+                        Ok(Some((retired, reset_token))) => {
+                            todo!()
+                        }
+                        Err(e) => {
+                            unreachable!()
+                        }
+                    };
                     todo!()
                 }
             }
