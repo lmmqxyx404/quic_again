@@ -75,6 +75,10 @@ impl CidQueue {
         }
         todo!()
     }
+    /// 5. Return the sequence number of active remote CID
+    pub(crate) fn active_seq(&self) -> u64 {
+        self.offset
+    }
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]

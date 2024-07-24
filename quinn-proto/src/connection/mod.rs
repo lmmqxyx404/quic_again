@@ -946,7 +946,12 @@ impl Connection {
                             unreachable!()
                         }
                     };
-                    todo!()
+
+                    if self.side.is_server() && self.rem_cids.active_seq() == 0 {
+                        // We're a server still using the initial remote CID for the client, so
+                        // let's switch immediately to enable clientside stateless resets.
+                        self.update_rem_cid();
+                    }
                 }
             }
         }
@@ -2606,6 +2611,10 @@ impl Connection {
     /// 53. Whether 0-RTT is/was possible during the handshake
     pub fn has_0rtt(&self) -> bool {
         self.zero_rtt_enabled
+    }
+    /// 54. Switch to a previously unused remote connection ID, if possible
+    fn update_rem_cid(&mut self) {
+        todo!()
     }
 }
 
