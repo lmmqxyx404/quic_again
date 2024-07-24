@@ -19,6 +19,7 @@ use crate::{
 #[derive(Clone, Debug)]
 pub enum Close {
     Connection(ConnectionClose),
+    Application(ApplicationClose),
 }
 
 impl Close {
@@ -26,7 +27,7 @@ impl Close {
     pub(crate) fn encode<W: BufMut>(&self, out: &mut W, max_len: usize) {
         match *self {
             Self::Connection(ref x) => x.encode(out, max_len),
-            // Self::Application(ref x) => x.encode(out, max_len),
+            Self::Application(ref x) => x.encode(out, max_len),
         }
     }
     /// 2
@@ -162,6 +163,7 @@ impl Iter {
                     },
                 })
             }
+            
             _ => {
                 #[cfg(test)]
                 {
@@ -247,6 +249,7 @@ pub(crate) enum Frame {
     Crypto(Crypto),
     Ack(Ack),
     Close(Close),
+    Datagram(Datagram),
 }
 
 impl Frame {
@@ -269,7 +272,8 @@ impl Frame {
             Crypto(_) => Type::CRYPTO,
             Ack(_) => Type::ACK,
             Close(self::Close::Connection(_)) => Type::CONNECTION_CLOSE,
-            // Close(self::Close::Application(_)) => Type::APPLICATION_CLOSE,
+            Datagram(_) => Type(*DATAGRAM_TYS.start()),
+            Close(self::Close::Application(_)) => Type::APPLICATION_CLOSE,
         }
     }
     /// 2.
@@ -332,11 +336,27 @@ impl ConnectionClose {
 
 /// Reason given by an application for closing the connection
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ApplicationClose {}
+pub struct ApplicationClose {
+    /// Application-specific reason code
+    pub error_code: VarInt,
+    /// Human-readable reason for the close
+    pub reason: Bytes,
+}
 
 impl fmt::Display for ApplicationClose {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         todo!()
+    }
+}
+
+impl ApplicationClose {
+    pub(crate) fn encode<W: BufMut>(&self, out: &mut W, max_len: usize) {
+        out.write(Type::APPLICATION_CLOSE); // 1 byte
+        out.write(self.error_code); // <= 8 bytes
+        let max_len = max_len - 3 - VarInt::from_u64(self.reason.len() as u64).unwrap().size();
+        let actual_len = self.reason.len().min(max_len);
+        out.write_var(actual_len as u64); // <= 8 bytes
+        out.put_slice(&self.reason[0..actual_len]); // whatever's left
     }
 }
 
@@ -406,6 +426,7 @@ frame_types! {
     ACK_ECN = 0x03,
     RESET_STREAM = 0x04,
     STOP_SENDING = 0x05,
+    APPLICATION_CLOSE = 0x1d,
 
 }
 

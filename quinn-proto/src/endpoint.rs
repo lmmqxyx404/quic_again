@@ -13,7 +13,7 @@ use rand::{rngs::StdRng, Rng, RngCore, SeedableRng};
 use rustc_hash::FxHashMap;
 use slab::Slab;
 use thiserror::Error;
-use tracing::{debug, trace};
+use tracing::{debug, trace, warn};
 
 use crate::{
     coding::BufMutExt,
@@ -417,6 +417,14 @@ impl Endpoint {
                     // connection loss instead of this error if the CID was (re)allocated prior to
                     // the illegal call.
                     tracing::error!(id = ch.0, "unknown connection drained");
+                }
+            }
+            ResetToken(remote, token) => {
+                if let Some(old) = self.connections[ch].reset_token.replace((remote, token)) {
+                    self.index.connection_reset_tokens.remove(old.0, old.1);
+                }
+                if self.index.connection_reset_tokens.insert(remote, token, ch) {
+                    warn!("duplicate reset token");
                 }
             }
             _ => {
@@ -951,6 +959,13 @@ impl ResetTokenTable {
                 }
             }
         }
+    }
+    fn insert(&mut self, remote: SocketAddr, token: ResetToken, ch: ConnectionHandle) -> bool {
+        self.0
+            .entry(remote)
+            .or_default()
+            .insert(token, ch)
+            .is_some()
     }
 }
 

@@ -848,6 +848,79 @@ impl Connection {
         number: u64,
         packet: Packet,
     ) -> Result<(), TransportError> {
+        let payload = packet.payload.freeze();
+        let mut is_probing_packet = true;
+        let mut close = None;
+        let payload_len = payload.len();
+        let mut ack_eliciting = false;
+        for result in frame::Iter::new(payload)? {
+            let frame = result?;
+            let span = match frame {
+                Frame::Padding => continue,
+                _ => Some(trace_span!("frame", ty = %frame.ty())),
+            };
+
+            self.stats.frame_rx.record(&frame);
+            // Crypto, Stream and Datagram frames are special cased in order no pollute
+            // the log with payload data
+            match &frame {
+                Frame::Crypto(f) => {
+                    trace!(offset = f.offset, len = f.data.len(), "got crypto frame");
+                }
+                Frame::Stream(f) => {
+                    trace!(id = %f.id, offset = f.offset, len = f.data.len(), fin = f.fin, "got stream frame");
+                }
+                Frame::Datagram(f) => {
+                    trace!(len = f.data.len(), "got datagram frame");
+                }
+                f => {
+                    trace!("got frame {:?}", f);
+                }
+            }
+
+            let _guard = span.as_ref().map(|x| x.enter());
+            if packet.header.is_0rtt() {
+                match frame {
+                    Frame::Crypto(_) | Frame::Close(Close::Application(_)) => {
+                        return Err(TransportError::PROTOCOL_VIOLATION(
+                            "illegal frame type in 0-RTT",
+                        ));
+                    }
+                    _ => {}
+                }
+            }
+            ack_eliciting |= frame.is_ack_eliciting();
+
+            // Check whether this could be a probing packet
+            match frame {
+                Frame::Padding => {}
+                _ => {
+                    is_probing_packet = false;
+                }
+            }
+
+            match frame {
+                Frame::Crypto(frame) => {
+                    self.read_crypto(SpaceId::Data, &frame, payload_len)?;
+                }
+                Frame::Stream(frame) => {
+                    if self.streams.received(frame, payload_len)?.should_transmit() {
+                        self.spaces[SpaceId::Data].pending.max_data = true;
+                    }
+                }
+                Frame::Ack(ack) => {
+                    self.on_ack_received(now, SpaceId::Data, ack)?;
+                }
+                Frame::Padding | Frame::Ping => {}
+
+                Frame::Close(reason) => {
+                    close = Some(reason);
+                }
+                Frame::Datagram(datagram) => {
+                    todo!()
+                }
+            }
+        }
         todo!()
     }
     /// 13. Process an Initial or Handshake packet payload
@@ -1646,7 +1719,22 @@ impl Connection {
     }
     /// 30
     fn discard_space(&mut self, now: Instant, space_id: SpaceId) {
-        todo!()
+        debug_assert!(space_id != SpaceId::Data);
+        trace!("discarding {:?} keys", space_id);
+        if space_id == SpaceId::Initial {
+            // No longer needed
+            self.retry_token = Bytes::new();
+        }
+        let space = &mut self.spaces[space_id];
+        space.crypto = None;
+        space.time_of_last_ack_eliciting_packet = None;
+        space.loss_time = None;
+        space.in_flight = 0;
+        let sent_packets = mem::take(&mut space.sent_packets);
+        for (pn, packet) in sent_packets.into_iter() {
+            self.remove_in_flight(pn, &packet);
+        }
+        self.set_loss_detection_timer(now)
     }
     /// 31
     #[doc(hidden)]
@@ -2597,7 +2685,7 @@ impl From<Close> for ConnectionError {
     fn from(x: Close) -> Self {
         match x {
             Close::Connection(reason) => Self::ConnectionClosed(reason),
-            // Close::Application(reason) => Self::ApplicationClosed(reason),
+            Close::Application(reason) => Self::ApplicationClosed(reason),
         }
     }
 }

@@ -88,6 +88,7 @@ impl FrameStats {
             Frame::Stream(_) => self.stream += 1,
 
             Frame::Close(_) => self.connection_close += 1,
+            Frame::Datagram(_) => self.datagram += 1,
         }
     }
 }

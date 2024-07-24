@@ -8,12 +8,12 @@ use crate::{
     },
     frame::{self, FrameStruct, StreamMetaVec},
     transport_parameters::TransportParameters,
-    Dir, Side, StreamId, VarInt,
+    Dir, Side, StreamId, TransportError, VarInt,
 };
 
 use super::{
     send::{Send, SendState},
-    PendingStreamsQueue, StreamEvent, StreamHalf,
+    PendingStreamsQueue, ShouldTransmit, StreamEvent, StreamHalf,
 };
 use std::{
     collections::{hash_map, VecDeque},
@@ -267,6 +267,16 @@ impl StreamsState {
     }
     /// 11.
     pub(crate) fn received_ack_of(&mut self, frame: frame::StreamMeta) {
+        todo!()
+    }
+    /// 12Process incoming stream frame
+    ///
+    /// If successful, returns whether a `MAX_DATA` frame needs to be transmitted
+    pub(crate) fn received(
+        &mut self,
+        frame: frame::Stream,
+        payload_len: usize,
+    ) -> Result<ShouldTransmit, TransportError> {
         todo!()
     }
 }
