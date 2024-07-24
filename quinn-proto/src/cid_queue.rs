@@ -79,6 +79,25 @@ impl CidQueue {
     pub(crate) fn active_seq(&self) -> u64 {
         self.offset
     }
+
+    /// 6. Switch to next active CID if possible, return
+    /// 1) the corresponding ResetToken and 2) a non-empty range preceding it to retire
+    pub(crate) fn next(&mut self) -> Option<(ResetToken, Range<u64>)> {
+        let (i, cid_data) = self.iter().nth(1)?;
+        self.buffer[self.cursor] = None;
+
+        let orig_offset = self.offset;
+        self.offset += i as u64;
+        self.cursor = (self.cursor + i) % Self::LEN;
+        Some((cid_data.1.unwrap(), orig_offset..self.offset))
+    }
+    /// 7. Iterate CIDs in CidQueue that are not `None`, including the active CID
+    fn iter(&self) -> impl Iterator<Item = (usize, CidData)> + '_ {
+        (0..Self::LEN).filter_map(move |step| {
+            let index = (self.cursor + step) % Self::LEN;
+            self.buffer[index].map(|cid_data| (step, cid_data))
+        })
+    }
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]

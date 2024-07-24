@@ -952,6 +952,8 @@ impl Connection {
                     if self.side.is_server() && self.rem_cids.active_seq() == 0 {
                         // We're a server still using the initial remote CID for the client, so
                         // let's switch immediately to enable clientside stateless resets.
+                        #[cfg(test)]
+                        tracing::debug!("self.update_rem_cid()");
                         self.update_rem_cid();
                     }
                 }
@@ -2646,6 +2648,10 @@ impl Connection {
     }
     /// 54. Switch to a previously unused remote connection ID, if possible
     fn update_rem_cid(&mut self) {
+        let (reset_token, retired) = match self.rem_cids.next() {
+            Some(x) => x,
+            None => return,
+        };
         todo!()
     }
 }
