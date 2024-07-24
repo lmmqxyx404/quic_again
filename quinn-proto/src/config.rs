@@ -228,11 +228,13 @@ impl ClientConfig {
 /// path between B and A. Therefore, each peer in the connection needs to run MTU discovery
 /// independently in order to discover the path's MTU.
 #[derive(Clone, Debug)]
-pub struct MtuDiscoveryConfig {}
+pub struct MtuDiscoveryConfig {
+    pub(crate) upper_bound: u16,
+}
 
 impl Default for MtuDiscoveryConfig {
     fn default() -> Self {
-        Self {}
+        Self { upper_bound: 1452 }
     }
 }
 

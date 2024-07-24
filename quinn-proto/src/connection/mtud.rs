@@ -99,12 +99,40 @@ enum Phase {
     Initial,
     /// 2. We are currently searching for a higher PMTU
     Searching(SearchState),
+    /// 3. Searching has completed and will be triggered again at the provided instant
+    Complete(Instant),
 }
 
 #[derive(Debug, Clone, Copy)]
 struct SearchState {
     /// 1. Packet number of an in-flight probe (if any)
     in_flight_probe: Option<u64>,
+}
+
+impl SearchState {
+    /// Creates a new search state, with the specified lower bound (the upper bound is derived from
+    /// the config and the peer's `max_udp_payload_size` transport parameter)
+    fn new(
+        mut lower_bound: u16,
+        peer_max_udp_payload_size: u16,
+        config: &MtuDiscoveryConfig,
+    ) -> Self {
+        lower_bound = lower_bound.min(peer_max_udp_payload_size);
+        let upper_bound = config
+            .upper_bound
+            .clamp(lower_bound, peer_max_udp_payload_size);
+
+        Self {
+            in_flight_probe: None,
+            /* lost_probe_count: 0,
+            lower_bound,
+            upper_bound,
+            minimum_change: config.minimum_change, */
+            // During initialization, we consider the lower bound to have already been
+            // successfully probed
+            // last_probed_mtu: lower_bound,
+        }
+    }
 }
 /// Additional state for enabled MTU discovery
 #[derive(Debug, Clone)]
@@ -125,6 +153,20 @@ impl EnabledMtuDiscovery {
     }
     /// 2.Returns the amount of bytes that should be sent as an MTU probe, if any
     fn poll_transmit(&mut self, now: Instant, current_mtu: u16, next_pn: u64) -> Option<u16> {
-        todo!()
+        if let Phase::Initial = &self.phase {
+            // Start the first search
+            self.phase = Phase::Searching(SearchState::new(
+                current_mtu,
+                self.peer_max_udp_payload_size,
+                &self.config,
+            ));
+        } else if let Phase::Complete(next_mtud_activation) = &self.phase {
+            todo!()
+        }
+
+        if let Phase::Searching(state) = &mut self.phase {
+            todo!()
+        }
+        None
     }
 }
