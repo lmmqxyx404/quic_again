@@ -233,6 +233,8 @@ pub struct MtuDiscoveryConfig {
     pub(crate) upper_bound: u16,
     /// 2.
     pub(crate) interval: Duration,
+    /// 3.
+    pub(crate) minimum_change: u16,
 }
 
 impl Default for MtuDiscoveryConfig {
@@ -240,6 +242,7 @@ impl Default for MtuDiscoveryConfig {
         Self {
             upper_bound: 145,
             interval: Duration::from_secs(600),
+            minimum_change: 20,
         }
     }
 }

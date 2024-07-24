@@ -111,6 +111,12 @@ struct SearchState {
     lost_probe_count: usize,
     /// 3. The UDP payload size we last sent a probe for
     last_probed_mtu: u16,
+    /// 4. The lower bound for the current binary search
+    lower_bound: u16,
+    /// 5. The upper bound for the current binary search
+    upper_bound: u16,
+    /// 6. The minimum change to stop the current binary search
+    minimum_change: u16,
 }
 
 impl SearchState {
@@ -132,14 +138,34 @@ impl SearchState {
             // During initialization, we consider the lower bound to have already been
             // successfully probed
             last_probed_mtu: lower_bound,
-            /*lower_bound,
+            lower_bound,
             upper_bound,
-            minimum_change: config.minimum_change, */
+            minimum_change: config.minimum_change,
         }
     }
     /// 2. Determines the next MTU to probe using binary search
     fn next_mtu_to_probe(&mut self, last_probe_succeeded: bool) -> Option<u16> {
-        todo!()
+        debug_assert_eq!(self.in_flight_probe, None);
+
+        if last_probe_succeeded {
+            self.lower_bound = self.last_probed_mtu;
+        } else {
+            self.upper_bound = self.last_probed_mtu - 1;
+        }
+        let next_mtu = (self.lower_bound as i32 + self.upper_bound as i32) / 2;
+
+        // Binary search stopping condition
+        if ((next_mtu - self.last_probed_mtu as i32).unsigned_abs() as u16) < self.minimum_change {
+            // Special case: if the upper bound is far enough, we want to probe it as a last
+            // step (otherwise we will never achieve the upper bound)
+            if self.upper_bound.saturating_sub(self.last_probed_mtu) >= self.minimum_change {
+                return Some(self.upper_bound);
+            }
+
+            return None;
+        }
+
+        Some(next_mtu as u16)
     }
 }
 /// Additional state for enabled MTU discovery
