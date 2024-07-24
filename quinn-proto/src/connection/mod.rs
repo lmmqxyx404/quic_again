@@ -1575,9 +1575,12 @@ impl Connection {
                                 .encode(buf, max_frame_size)
                             }
                         }
-                        State::Draining => {
-                            todo!()
+                        State::Draining => frame::ConnectionClose {
+                            error_code: TransportErrorCode::NO_ERROR,
+                            frame_type: None,
+                            reason: Bytes::new(),
                         }
+                        .encode(buf, max_frame_size),
                         _ => unreachable!(
                             "tried to make a close packet when the connection wasn't closed"
                         ),

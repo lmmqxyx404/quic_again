@@ -104,4 +104,6 @@ errors! {
     KEY_UPDATE_ERROR(0xE) "key update error";
     APPLICATION_ERROR(0xC) "the application or application protocol caused the connection to be closed during the handshake";
     CRYPTO_BUFFER_EXCEEDED(0xD) "received more data in CRYPTO frames than can be buffered";
+    NO_ERROR(0x0) "the connection is being closed abruptly in the absence of any error";
+
 }
