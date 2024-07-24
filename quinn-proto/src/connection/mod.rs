@@ -705,7 +705,13 @@ impl Connection {
                         continue;
                     };
 
-                    todo!()
+                    self.stats.frame_rx.record(&frame);
+
+                    if let Frame::Close(_) = frame {
+                        trace!("draining");
+                        self.state = State::Draining;
+                        break;
+                    }
                 }
                 return Ok(());
             }
