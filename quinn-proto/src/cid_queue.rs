@@ -49,9 +49,38 @@ impl CidQueue {
         &mut self,
         cid: NewConnectionId,
     ) -> Result<Option<(Range<u64>, ResetToken)>, InsertError> {
+        // Position of new CID wrt. the current active CID
+        let index = match cid.sequence.checked_sub(self.offset) {
+            None => return Err(InsertError::Retired),
+            Some(x) => x,
+        };
+
+        let retired_count = cid.retire_prior_to.saturating_sub(self.offset);
+        if index >= Self::LEN as u64 + retired_count {
+            return Err(InsertError::ExceedsLimit);
+        }
+
+        // Discard retired CIDs, if any
+        for i in 0..(retired_count.min(Self::LEN as u64) as usize) {
+            self.buffer[(self.cursor + i) % Self::LEN] = None;
+        }
+
+        // Record the new CID
+        let index = ((self.cursor as u64 + index) % Self::LEN as u64) as usize;
+        self.buffer[index] = Some((cid.id, Some(cid.reset_token)));
+
+        if retired_count == 0 {
+            tracing::debug!("returned CidQueue::insert Ok(None)");
+            return Ok(None);
+        }
         todo!()
     }
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub(crate) enum InsertError {}
+pub(crate) enum InsertError {
+    /// 1. CID was already retired
+    Retired,
+    /// 2. Sequence number violates the leading edge of the window
+    ExceedsLimit,
+}
