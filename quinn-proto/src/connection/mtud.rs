@@ -195,6 +195,9 @@ impl EnabledMtuDiscovery {
                 &self.config,
             ));
         } else if let Phase::Complete(next_mtud_activation) = &self.phase {
+            if now < *next_mtud_activation {
+                return None;
+            }
             todo!()
         }
 
