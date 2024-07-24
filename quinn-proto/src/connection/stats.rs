@@ -91,6 +91,7 @@ impl FrameStats {
             Frame::Datagram(_) => self.datagram += 1,
 
             Frame::NewConnectionId(_) => self.new_connection_id += 1,
+            Frame::HandshakeDone => self.handshake_done = self.handshake_done.saturating_add(1),
         }
     }
 }

@@ -191,6 +191,8 @@ impl Iter {
                     reset_token: reset_token.into(),
                 })
             }
+            Type::HANDSHAKE_DONE => Frame::HandshakeDone,
+
             _ => {
                 #[cfg(test)]
                 {
@@ -278,6 +280,7 @@ pub(crate) enum Frame {
     Close(Close),
     Datagram(Datagram),
     NewConnectionId(NewConnectionId),
+    HandshakeDone,
 }
 
 impl Frame {
@@ -304,6 +307,8 @@ impl Frame {
             Close(self::Close::Application(_)) => Type::APPLICATION_CLOSE,
 
             NewConnectionId { .. } => Type::NEW_CONNECTION_ID,
+            HandshakeDone => Type::HANDSHAKE_DONE,
+
         }
     }
     /// 2.

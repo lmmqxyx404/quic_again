@@ -964,6 +964,16 @@ impl Connection {
                         self.update_rem_cid();
                     }
                 }
+                Frame::HandshakeDone => {
+                    if self.side.is_server() {
+                        return Err(TransportError::PROTOCOL_VIOLATION(
+                            "client sent HANDSHAKE_DONE",
+                        ));
+                    }
+                    if self.spaces[SpaceId::Handshake].crypto.is_some() {
+                        self.discard_space(now, SpaceId::Handshake);
+                    }
+                }
             }
         }
 
