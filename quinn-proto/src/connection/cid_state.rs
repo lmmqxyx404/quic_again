@@ -4,7 +4,7 @@ use std::{
 };
 
 use rustc_hash::FxHashSet;
-use tracing::trace;
+use tracing::{debug, trace};
 
 use crate::shared::IssuedCid;
 use crate::TransportError;
@@ -122,7 +122,27 @@ impl CidState {
         sequence: u64,
         limit: u64,
     ) -> Result<bool, TransportError> {
-        todo!()
+        if self.cid_len == 0 {
+            return Err(TransportError::PROTOCOL_VIOLATION(
+                "RETIRE_CONNECTION_ID when CIDs aren't in use",
+            ));
+        }
+        if sequence > self.issued {
+            debug!(
+                sequence,
+                "got RETIRE_CONNECTION_ID for unissued sequence number"
+            );
+            return Err(TransportError::PROTOCOL_VIOLATION(
+                "RETIRE_CONNECTION_ID for unissued sequence number",
+            ));
+        }
+        self.active_seq.remove(&sequence);
+        // Consider a scenario where peer A has active remote cid 0,1,2.
+        // Peer B first send a NEW_CONNECTION_ID with cid 3 and retire_prior_to set to 1.
+        // Peer A processes this NEW_CONNECTION_ID frame; update remote cid to 1,2,3
+        // and meanwhile send a RETIRE_CONNECTION_ID to retire cid 0 to peer B.
+        // If peer B doesn't check the cid limit here and send a new cid again, peer A will then face CONNECTION_ID_LIMIT_ERROR
+        Ok(limit > self.active_seq.len() as u64)
     }
 }
 
