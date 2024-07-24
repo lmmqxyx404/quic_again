@@ -566,6 +566,9 @@ pub(super) struct PendingAcks {
     /// * `1`: an ACK is immediately sent if it is out-of-order according to RFC 9000
     /// * `>1`: an ACK is immediately sent if it is out-of-order according to the ACK frequency draft
     reordering_threshold: u64,
+    /// 9. The earliest ack-eliciting packet since the last ACK was sent, used to calculate the moment
+    /// upon which `max_ack_delay` elapses
+    earliest_ack_eliciting_since_last_ack_sent: Option<Instant>,
 }
 
 impl PendingAcks {
@@ -583,6 +586,8 @@ impl PendingAcks {
             ack_eliciting_threshold: 1,
 
             reordering_threshold: 1,
+
+            earliest_ack_eliciting_since_last_ack_sent: None,
         }
     }
     /// 2. Whether any ACK frames can be sent
@@ -691,7 +696,14 @@ impl PendingAcks {
         // Handle out-of-order packets
         self.immediate_ack_required |=
             self.is_out_of_order(packet_number, prev_largest_ack_eliciting, dedup);
-        todo!()
+
+        // Arm max_ack_delay timer if necessary
+        if self.earliest_ack_eliciting_since_last_ack_sent.is_none() && !self.can_send() {
+            self.earliest_ack_eliciting_since_last_ack_sent = Some(now);
+            return true;
+        }
+
+        false
     }
     /// 11.
     fn is_out_of_order(
