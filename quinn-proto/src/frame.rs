@@ -13,7 +13,7 @@ use crate::{
     range_set::ArrayRangeSet,
     shared::{ConnectionId, EcnCodepoint},
     token::ResetToken,
-    StreamId, TransportError, TransportErrorCode, VarInt,
+    StreamId, TransportError, TransportErrorCode, VarInt, MAX_CID_SIZE, RESET_TOKEN_SIZE,
 };
 /// 1
 #[derive(Clone, Debug)]
@@ -163,7 +163,34 @@ impl Iter {
                     },
                 })
             }
-            
+            Type::NEW_CONNECTION_ID => {
+                let sequence = self.bytes.get_var()?;
+                let retire_prior_to = self.bytes.get_var()?;
+                if retire_prior_to > sequence {
+                    return Err(IterErr::Malformed);
+                }
+                let length = self.bytes.get::<u8>()? as usize;
+                if length > MAX_CID_SIZE || length == 0 {
+                    return Err(IterErr::Malformed);
+                }
+                if length > self.bytes.remaining() {
+                    return Err(IterErr::UnexpectedEnd);
+                }
+                let mut stage = [0; MAX_CID_SIZE];
+                self.bytes.copy_to_slice(&mut stage[0..length]);
+                let id = ConnectionId::new(&stage[..length]);
+                if self.bytes.remaining() < 16 {
+                    return Err(IterErr::UnexpectedEnd);
+                }
+                let mut reset_token = [0; RESET_TOKEN_SIZE];
+                self.bytes.copy_to_slice(&mut reset_token);
+                Frame::NewConnectionId(NewConnectionId {
+                    sequence,
+                    retire_prior_to,
+                    id,
+                    reset_token: reset_token.into(),
+                })
+            }
             _ => {
                 #[cfg(test)]
                 {
@@ -250,6 +277,7 @@ pub(crate) enum Frame {
     Ack(Ack),
     Close(Close),
     Datagram(Datagram),
+    NewConnectionId(NewConnectionId),
 }
 
 impl Frame {
@@ -274,6 +302,8 @@ impl Frame {
             Close(self::Close::Connection(_)) => Type::CONNECTION_CLOSE,
             Datagram(_) => Type(*DATAGRAM_TYS.start()),
             Close(self::Close::Application(_)) => Type::APPLICATION_CLOSE,
+
+            NewConnectionId { .. } => Type::NEW_CONNECTION_ID,
         }
     }
     /// 2.
@@ -427,7 +457,6 @@ frame_types! {
     RESET_STREAM = 0x04,
     STOP_SENDING = 0x05,
     APPLICATION_CLOSE = 0x1d,
-
 }
 
 const STREAM_TYS: RangeInclusive<u64> = RangeInclusive::new(0x08, 0x0f);

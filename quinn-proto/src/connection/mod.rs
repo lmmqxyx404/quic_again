@@ -893,7 +893,7 @@ impl Connection {
 
             // Check whether this could be a probing packet
             match frame {
-                Frame::Padding => {}
+                Frame::Padding | Frame::NewConnectionId(_) => {}
                 _ => {
                     is_probing_packet = false;
                 }
@@ -917,6 +917,9 @@ impl Connection {
                     close = Some(reason);
                 }
                 Frame::Datagram(datagram) => {
+                    todo!()
+                }
+                Frame::NewConnectionId(frame) => {
                     todo!()
                 }
             }
@@ -1008,14 +1011,14 @@ impl Connection {
             if let Some(crypto) = self.crypto.write_handshake(&mut outgoing) {
                 match space {
                     SpaceId::Initial => {
-                        trace!("ini 1{:?}", outgoing);
+                        // trace!("ini 1{:?}", outgoing);
                         self.upgrade_crypto(SpaceId::Handshake, crypto);
-                        trace!("ini 2{:?}", outgoing);
+                        // trace!("ini 2{:?}", outgoing);
                     }
                     SpaceId::Handshake => {
-                        trace!("Handshake 1{:?}", outgoing);
+                        // trace!("Handshake 1{:?}", outgoing);
                         self.upgrade_crypto(SpaceId::Data, crypto);
-                        trace!("Handshake 2{:?}", outgoing);
+                        // trace!("Handshake 2{:?}", outgoing);
                     }
                     _ => unreachable!("got updated secrets during 1-RTT"),
                 }
@@ -1248,8 +1251,8 @@ impl Connection {
                 segment_size.saturating_sub(self.predict_1rtt_overhead(Some(pn)));
 
             // Is there data or a close message to send in this space?
-            #[cfg(test)]
-            trace!("call self.space_can_send");
+            // #[cfg(test)]
+            // trace!("call self.space_can_send");
             let can_send = self.space_can_send(space_id, frame_space_1rtt);
             if can_send.is_empty() && (!close || self.spaces[space_id].crypto.is_none()) {
                 space_idx += 1;
@@ -1786,7 +1789,12 @@ impl Connection {
         );
 
         #[cfg(test)]
-        trace!("to delete frame::Ack::encode is vital");
+        trace!(
+            "ACK {:?}, Delay = {}us, ack_delay_exp is {:?}",
+            space.pending_acks.ranges(),
+            delay_micros,
+            ack_delay_exp,
+        );
 
         frame::Ack::encode(delay as _, space.pending_acks.ranges(), ecn, buf);
         stats.frame_tx.acks += 1;

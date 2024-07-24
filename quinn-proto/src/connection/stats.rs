@@ -89,6 +89,8 @@ impl FrameStats {
 
             Frame::Close(_) => self.connection_close += 1,
             Frame::Datagram(_) => self.datagram += 1,
+
+            Frame::NewConnectionId(_) => self.new_connection_id += 1,
         }
     }
 }

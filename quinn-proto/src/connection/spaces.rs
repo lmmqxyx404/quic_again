@@ -505,6 +505,12 @@ impl PendingAcks {
     }
     /// 2. Whether any ACK frames can be sent
     pub(super) fn can_send(&self) -> bool {
+        trace!(
+            "self.immediate_ack_required is {} ranges is  {:?}",
+            self.immediate_ack_required,
+            self.ranges
+        );
+        // unreachable!();
         self.immediate_ack_required && !self.ranges.is_empty()
     }
     /// 3. Returns the set of currently pending ACK ranges
