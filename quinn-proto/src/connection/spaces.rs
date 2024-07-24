@@ -361,6 +361,65 @@ impl Dedup {
     fn highest(&self) -> u64 {
         self.next - 1
     }
+    /// 4. Returns true if there are any missing packets between the provided interval
+    ///
+    /// The provided packet numbers must have been received before calling this function
+    fn missing_in_interval(&self, lower_bound: u64, upper_bound: u64) -> bool {
+        self.smallest_missing_in_interval(lower_bound, upper_bound)
+            .is_some()
+    }
+    /// 5. Returns the packet number of the smallest packet missing between the provided interval
+    ///
+    /// If there are no missing packets, returns `None`
+    fn smallest_missing_in_interval(&self, lower_bound: u64, upper_bound: u64) -> Option<u64> {
+        debug_assert!(lower_bound <= upper_bound);
+        debug_assert!(upper_bound <= self.highest());
+        const BITFIELD_SIZE: u64 = (mem::size_of::<Window>() * 8) as u64;
+
+        // Since we already know the packets at the boundaries have been received, we only need to
+        // check those in between them (this removes the necessity of extra logic to deal with the
+        // highest packet, which is stored outside the bitfield)
+        let lower_bound = lower_bound + 1;
+        let upper_bound = upper_bound.saturating_sub(1);
+
+        // Note: the offsets are counted from the right
+        // The highest packet is not included in the bitfield, so we subtract 1 to account for that
+        let start_offset = (self.highest() - upper_bound).max(1) - 1;
+        if start_offset >= BITFIELD_SIZE {
+            // The start offset is outside of the window. All packets outside of the window are
+            // considered to be received.
+            return None;
+        }
+
+        let end_offset_exclusive = self.highest().saturating_sub(lower_bound);
+
+        // The range is clamped at the edge of the window, because any earlier packets are
+        // considered to be received
+        let range_len = end_offset_exclusive
+            .saturating_sub(start_offset)
+            .min(BITFIELD_SIZE);
+        if range_len == 0 {
+            return None;
+        }
+
+        // Ensure the shift is within bounds (we already know start_offset < BITFIELD_SIZE,
+        // because of the early return)
+        let mask = if range_len == BITFIELD_SIZE {
+            u128::MAX
+        } else {
+            ((1u128 << range_len) - 1) << start_offset
+        };
+        let gaps = !self.window & mask;
+
+        let smallest_missing_offset = 128 - gaps.leading_zeros() as u64;
+        let smallest_missing_packet = self.highest() - smallest_missing_offset;
+
+        if smallest_missing_packet <= upper_bound {
+            Some(smallest_missing_packet)
+        } else {
+            None
+        }
+    }
 }
 
 /// Helper for mitigating [optimistic ACK attacks]
@@ -491,6 +550,22 @@ pub(super) struct PendingAcks {
     /// 4. The packet with the largest packet number, and the time upon which it was received (used to
     /// calculate ACK delay in [`PendingAcks::ack_delay`])
     largest_packet: Option<(u64, Instant)>,
+    /// 5. The ack-eliciting packet we have received with the largest packet number
+    largest_ack_eliciting_packet: Option<u64>,
+    /// 6. The number of ack-eliciting packets received since the last ACK frame was sent
+    ///
+    /// Once the count _exceeds_ `ack_eliciting_threshold`, an immediate ACK is required
+    ack_eliciting_since_last_ack_sent: u64,
+    /// 7.
+    ack_eliciting_threshold: u64,
+    /// 8. The reordering threshold, controlling how we respond to out-of-order ack-eliciting packets
+    ///
+    /// Different values enable different behavior:
+    ///
+    /// * `0`: no special action is taken
+    /// * `1`: an ACK is immediately sent if it is out-of-order according to RFC 9000
+    /// * `>1`: an ACK is immediately sent if it is out-of-order according to the ACK frequency draft
+    reordering_threshold: u64,
 }
 
 impl PendingAcks {
@@ -501,6 +576,13 @@ impl PendingAcks {
             ranges: ArrayRangeSet::default(),
             non_ack_eliciting_since_last_ack_sent: 0,
             largest_packet: None,
+
+            largest_ack_eliciting_packet: None,
+            ack_eliciting_since_last_ack_sent: 0,
+
+            ack_eliciting_threshold: 1,
+
+            reordering_threshold: 1,
         }
     }
     /// 2. Whether any ACK frames can be sent
@@ -577,6 +659,59 @@ impl PendingAcks {
     /// 9. Remove ACKs of packets numbered at or below `max` from the set of pending ACKs
     pub(super) fn subtract_below(&mut self, max: u64) {
         self.ranges.remove(0..(max + 1));
+    }
+    /// 10. Handle receipt of a new packet
+    ///
+    /// Returns true if the max ack delay timer should be armed
+    pub(super) fn packet_received(
+        &mut self,
+        now: Instant,
+        packet_number: u64,
+        ack_eliciting: bool,
+        dedup: &Dedup,
+    ) -> bool {
+        if !ack_eliciting {
+            self.non_ack_eliciting_since_last_ack_sent += 1;
+            return false;
+        }
+
+        let prev_largest_ack_eliciting = self.largest_ack_eliciting_packet.unwrap_or(0);
+
+        // Track largest ack-eliciting packet
+        self.largest_ack_eliciting_packet = self
+            .largest_ack_eliciting_packet
+            .map(|pn| pn.max(packet_number))
+            .or(Some(packet_number));
+
+        // Handle ack_eliciting_threshold
+        self.ack_eliciting_since_last_ack_sent += 1;
+        self.immediate_ack_required |=
+            self.ack_eliciting_since_last_ack_sent > self.ack_eliciting_threshold;
+
+        // Handle out-of-order packets
+        self.immediate_ack_required |=
+            self.is_out_of_order(packet_number, prev_largest_ack_eliciting, dedup);
+        todo!()
+    }
+    /// 11.
+    fn is_out_of_order(
+        &self,
+        packet_number: u64,
+        prev_largest_ack_eliciting: u64,
+        dedup: &Dedup,
+    ) -> bool {
+        match self.reordering_threshold {
+            0 => false,
+            1 => {
+                // From https://www.rfc-editor.org/rfc/rfc9000#section-13.2.1-7
+                tracing::debug!("fn is_out_of_order 1");
+                packet_number < prev_largest_ack_eliciting
+                    || dedup.missing_in_interval(prev_largest_ack_eliciting, packet_number)
+            }
+            _ => {
+                todo!()
+            }
+        }
     }
 }
 

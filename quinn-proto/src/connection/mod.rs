@@ -955,6 +955,16 @@ impl Connection {
                 }
             }
         }
+
+        let space = &mut self.spaces[SpaceId::Data];
+        if space
+            .pending_acks
+            .packet_received(now, number, ack_eliciting, &space.dedup)
+        {
+            todo!()
+            /* self.timers
+            .set(Timer::MaxAckDelay, now + self.ack_frequency.max_ack_delay); */
+        }
         todo!()
     }
     /// 13. Process an Initial or Handshake packet payload
@@ -1102,7 +1112,7 @@ impl Connection {
             "already reached packet space {space:?}"
         );
         #[cfg(test)]
-        tracing::info!("upgrade_crypto space is {:?}", space);
+        tracing::debug!("upgrade_crypto space is {:?}", space);
         if space == SpaceId::Data {
             // Precompute the first key update
             self.next_crypto = Some(
