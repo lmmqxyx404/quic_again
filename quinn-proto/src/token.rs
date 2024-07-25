@@ -1,13 +1,12 @@
 use std::{
-    net::{IpAddr, SocketAddr},
-    time::{SystemTime, UNIX_EPOCH},
+    io, net::{IpAddr, SocketAddr}, time::{SystemTime, UNIX_EPOCH}
 };
 
 use bytes::BufMut;
 
 use crate::{
     coding::BufMutExt,
-    crypto::{HandshakeTokenKey, HmacKey},
+    crypto::{CryptoError, HandshakeTokenKey, HmacKey},
     shared::ConnectionId,
     RESET_TOKEN_SIZE,
 };
@@ -87,6 +86,11 @@ impl RetryToken {
         retry_src_cid: &ConnectionId,
         raw_token_bytes: &[u8],
     ) -> Result<Self, TokenDecodeError> {
+        let aead_key = key.aead_from_hkdf(retry_src_cid);
+        let mut sealed_token = raw_token_bytes.to_vec();
+
+        let data = aead_key.open(&mut sealed_token, &[])?;
+        let mut reader = io::Cursor::new(data);
         todo!()
     }
 }
@@ -110,4 +114,10 @@ fn encode_addr(buf: &mut Vec<u8>, address: &SocketAddr) {
 pub(crate) enum TokenDecodeError {
     /// 1. Token was not recognized. It should be silently ignored.
     UnknownToken,
+}
+
+impl From<CryptoError> for TokenDecodeError {
+    fn from(CryptoError: CryptoError) -> Self {
+        Self::UnknownToken
+    }
 }

@@ -166,4 +166,10 @@ pub trait HandshakeTokenKey: Send + Sync {
 pub trait AeadKey {
     /// 1. Method for sealing message `data`
     fn seal(&self, data: &mut Vec<u8>, additional_data: &[u8]) -> Result<(), CryptoError>;
+    /// 2. Method for opening a sealed message `data`
+    fn open<'a>(
+        &self,
+        data: &'a mut [u8],
+        additional_data: &[u8],
+    ) -> Result<&'a mut [u8], CryptoError>;
 }
