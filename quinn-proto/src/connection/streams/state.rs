@@ -61,6 +61,8 @@ pub struct StreamsState {
     /// Size of the desired stream flow control window. May be smaller than `allocated_remote_count`
     /// due to `set_max_concurrent` calls.
     max_concurrent_remote_count: [u64; 2],
+
+    pub(super) next: [u64; 2],
 }
 
 impl StreamsState {
@@ -93,6 +95,7 @@ impl StreamsState {
             sent_max_remote: [max_remote_bi.into(), max_remote_uni.into()],
             // allocated_remote_count: [max_remote_bi.into(), max_remote_uni.into()],
             max_concurrent_remote_count: [max_remote_bi.into(), max_remote_uni.into()],
+            next: [0, 0],
         };
 
         this
@@ -306,6 +309,23 @@ impl StreamsState {
     }
     /// 14.
     pub(crate) fn retransmit_all_for_0rtt(&mut self) {
-        todo!()
+        for dir in Dir::iter() {
+            for index in 0..self.next[dir as usize] {
+                let id = StreamId::new(Side::Client, dir, index);
+                let stream = match self.send.get_mut(&id).and_then(|s| s.as_mut()) {
+                    Some(stream) => stream,
+                    None => continue,
+                };
+                if stream.pending.is_fully_acked() && !stream.fin_pending {
+                    // Stream data can't be acked in 0-RTT, so we must not have sent anything on
+                    // this stream
+                    continue;
+                }
+                if !stream.is_pending() {
+                    self.pending.push_pending(id, stream.priority);
+                }
+                stream.pending.retransmit_all_for_0rtt();
+            }
+        }
     }
 }

@@ -27,15 +27,33 @@ pub enum StreamEvent {
 
 /// A queue of streams with pending outgoing data, sorted by priority
 struct PendingStreamsQueue {
+    /// 1.
     streams: BinaryHeap<PendingStream>,
+    /// 2. A monotonically decreasing counter, used to implement round-robin scheduling for streams of the same priority.
+    /// Underflowing is not a practical concern, as it is initialized to u64::MAX and only decremented by 1 in `push_pending`
+    recency: u64,
 }
 
 impl PendingStreamsQueue {
+    /// 1.
     fn new() -> Self {
         Self {
             streams: BinaryHeap::new(),
-            // recency: u64::MAX,
+            recency: u64::MAX,
         }
+    }
+    /// 2. Push a pending stream ID with the given priority, queued after any already-queued streams for the priority
+    fn push_pending(&mut self, id: StreamId, priority: i32) {
+        // As the recency counter is monotonically decreasing, we know that using its value to sort this stream will queue it
+        // after all other queued streams of the same priority.
+        // This is enough to implement round-robin scheduling for streams that are still pending even after being handled,
+        // as in that case they are removed from the `BinaryHeap`, handled, and then immediately reinserted.
+        self.recency -= 1;
+        self.streams.push(PendingStream {
+            // priority,
+            // recency: self.recency,
+            id,
+        });
     }
 }
 

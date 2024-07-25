@@ -78,10 +78,9 @@ mod pacing;
 use datagrams::DatagramState;
 /// 13
 mod assembler;
-// pub use assembler::Chunk;
-
-// #[cfg(fuzzing)]
-// pub use spaces::Retransmits;
+pub use assembler::Chunk;
+/// 14.
+mod send_buffer;
 
 /// Protocol state and logic for a single QUIC connection
 ///

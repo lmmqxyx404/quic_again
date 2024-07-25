@@ -1,3 +1,5 @@
+use crate::connection::send_buffer::SendBuffer;
+
 #[derive(Debug)]
 pub(super) struct Send {
     /// 1. Whether this stream is in the `connection_blocked` list of `Streams`
@@ -6,6 +8,12 @@ pub(super) struct Send {
     pub(super) max_data: u64,
     /// 3.
     pub(super) state: SendState,
+    /// 4.
+    pub(super) pending: SendBuffer,
+    /// 5.
+    pub(super) priority: i32,
+    /// 6.
+    pub(super) fin_pending: bool,
 }
 
 impl Send {
@@ -22,6 +30,10 @@ impl Send {
     /// 3. Whether the stream has been reset
     pub(super) fn is_reset(&self) -> bool {
         matches!(self.state, SendState::ResetSent { .. })
+    }
+    /// 4.
+    pub(super) fn is_pending(&self) -> bool {
+        self.pending.has_unsent_data() || self.fin_pending
     }
 }
 
