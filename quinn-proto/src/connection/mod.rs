@@ -2714,7 +2714,7 @@ impl Connection {
             ));
         self.peer_params.stateless_reset_token = Some(reset_token);
     }
-    /// 55.
+    /// 56.
     fn on_loss_detection_timeout(&mut self, now: Instant) {
         tracing::debug!("fn on_loss_detection_timeout from Timer::LossDetection");
         if let Some((_, pn_space)) = self.loss_time_and_space() {
@@ -2750,6 +2750,11 @@ impl Connection {
         self.spaces[space].loss_probes = self.spaces[space].loss_probes.saturating_add(count);
         self.pto_count = self.pto_count.saturating_add(1);
         self.set_loss_detection_timer(now);
+    }
+    /// 57. Whether explicit congestion notification is in use on outgoing packets.
+    #[cfg(test)]
+    pub(crate) fn using_ecn(&self) -> bool {
+        self.path.sending_ecn
     }
 }
 

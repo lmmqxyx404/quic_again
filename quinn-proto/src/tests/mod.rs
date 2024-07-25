@@ -94,12 +94,14 @@ fn version_negotiate_client() {
     );
 }
 
-
 #[test]
 fn lifecycle() {
     let _guard = subscribe();
     let mut pair = Pair::default();
     let (client_ch, server_ch) = pair.connect();
+    assert_matches!(pair.client_conn_mut(client_ch).poll(), None);
+    assert!(pair.client_conn_mut(client_ch).using_ecn());
+    assert!(pair.server_conn_mut(server_ch).using_ecn());
 
-    
+    todo!()
 }
