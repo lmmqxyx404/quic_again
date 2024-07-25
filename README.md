@@ -44,6 +44,8 @@ TransportParameters
 ## `StreamsState::insert`
 在创建时，就需要调用这个方法
 
+## `pub(super) struct Recv` vital
+
 # dev skills
 ## 1. about transport_error::Error
 实现 `Display` 是为了实现 `std::error::Error`

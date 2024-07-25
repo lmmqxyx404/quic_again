@@ -427,6 +427,15 @@ impl Endpoint {
                     warn!("duplicate reset token");
                 }
             }
+            RetireConnectionId(now, seq, allow_more_cids) => {
+                if let Some(cid) = self.connections[ch].loc_cids.remove(&seq) {
+                    trace!("peer retired CID {}: {}", seq, cid);
+                    self.index.retire(&cid);
+                    if allow_more_cids {
+                        return Some(self.send_new_identifiers(now, ch, 1));
+                    }
+                }
+            }
             _ => {
                 unreachable!("handle_event {:?}", event);
             }
@@ -895,6 +904,10 @@ impl ConnectionIndex {
         if let Some((remote, token)) = conn.reset_token {
             self.connection_reset_tokens.remove(remote, token);
         }
+    }
+    /// 7. Discard a connection ID
+    fn retire(&mut self, dst_cid: &ConnectionId) {
+        self.connection_ids.remove(dst_cid);
     }
 }
 
