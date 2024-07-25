@@ -31,7 +31,15 @@ impl crypto::HandshakeTokenKey for hkdf::Prk {
         okm.fill(&mut key_buffer).unwrap();
 
         let key = aead::UnboundKey::new(&aead::AES_256_GCM, &key_buffer).unwrap();
-        todo!()
-        // Box::new(aead::LessSafeKey::new(key))
+
+        Box::new(aead::LessSafeKey::new(key))
+    }
+}
+
+impl crypto::AeadKey for aead::LessSafeKey {
+    fn seal(&self, data: &mut Vec<u8>, additional_data: &[u8]) -> Result<(), CryptoError> {
+        let aad = ring::aead::Aad::from(additional_data);
+        let zero_nonce = ring::aead::Nonce::assume_unique_for_key([0u8; 12]);
+        Ok(self.seal_in_place_append_tag(zero_nonce, aad, data)?)
     }
 }
