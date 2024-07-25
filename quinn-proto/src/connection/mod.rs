@@ -51,7 +51,7 @@ use spaces::{PacketNumberFilter, PacketSpace, SendableFrames, SentPacket, ThinRe
 mod timer;
 use thiserror::Error;
 use timer::{Timer, TimerTable};
-use tracing::{debug, trace, trace_span, warn};
+use tracing::{debug, error, trace, trace_span, warn};
 /// 7.
 mod ack_frequency;
 /// 6.
@@ -2716,7 +2716,40 @@ impl Connection {
     }
     /// 55.
     fn on_loss_detection_timeout(&mut self, now: Instant) {
-        todo!()
+        tracing::debug!("fn on_loss_detection_timeout from Timer::LossDetection");
+        if let Some((_, pn_space)) = self.loss_time_and_space() {
+            // Time threshold loss Detection
+            self.detect_lost_packets(now, pn_space, false);
+            self.set_loss_detection_timer(now);
+            return;
+        }
+        let (_, space) = match self.pto_time_and_space(now) {
+            Some(x) => x,
+            None => {
+                error!("PTO expired while unset");
+                return;
+            }
+        };
+        trace!(
+            in_flight = self.path.in_flight.bytes,
+            count = self.pto_count,
+            ?space,
+            "PTO fired"
+        );
+
+        let count = match self.path.in_flight.ack_eliciting {
+            // A PTO when we're not expecting any ACKs must be due to handshake anti-amplification
+            // deadlock preventions
+            0 => {
+                debug_assert!(!self.peer_completed_address_validation());
+                1
+            }
+            // Conventional loss probe
+            _ => 2,
+        };
+        self.spaces[space].loss_probes = self.spaces[space].loss_probes.saturating_add(count);
+        self.pto_count = self.pto_count.saturating_add(1);
+        self.set_loss_detection_timer(now);
     }
 }
 
