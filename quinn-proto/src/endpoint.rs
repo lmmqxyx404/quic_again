@@ -741,6 +741,23 @@ impl Endpoint {
         }
         ConnectionEvent(ConnectionEventInner::NewIdentifiers(ids, now))
     }
+    /// 15
+    #[cfg(test)]
+    pub(crate) fn known_connections(&self) -> usize {
+        let x = self.connections.len();
+        debug_assert_eq!(x, self.index.connection_ids_initial.len());
+        // Not all connections have known reset tokens
+        debug_assert!(x >= self.index.connection_reset_tokens.0.len());
+        // Not all connections have unique remotes, and 0-length CIDs might not be in use.
+        debug_assert!(x >= self.index.incoming_connection_remotes.len());
+        debug_assert!(x >= self.index.outgoing_connection_remotes.len());
+        x
+    }
+    /// 16
+    #[cfg(test)]
+    pub(crate) fn known_cids(&self) -> usize {
+        self.index.connection_ids.len()
+    }
 }
 
 /// 2. Internal identifier for a `Connection` currently associated with an endpoint

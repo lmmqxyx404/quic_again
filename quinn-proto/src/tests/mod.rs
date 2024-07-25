@@ -4,6 +4,7 @@ use crate::{
     config::EndpointConfig,
     connection::{ConnectionError, Event},
     endpoint::DatagramEvent,
+    frame::ApplicationClose,
     ConnectionIdGenerator, Endpoint, RandomConnectionIdGenerator, Transmit, VarInt,
     DEFAULT_SUPPORTED_VERSIONS,
 };
@@ -111,6 +112,15 @@ fn lifecycle() {
         VarInt(42),
         REASON.into(),
     );
+    // note, 主动更新状态
     pair.drive();
-    todo!()
+    assert_matches!(pair.server_conn_mut(server_ch).poll(),
+    Some(Event::ConnectionLost { reason: ConnectionError::ApplicationClosed(
+        ApplicationClose { error_code: VarInt(42), ref reason }
+    )}) if reason == REASON);
+    assert_matches!(pair.client_conn_mut(client_ch).poll(), None);
+    assert_eq!(pair.client.known_connections(), 0);
+    assert_eq!(pair.client.known_cids(), 0);
+    assert_eq!(pair.server.known_connections(), 0);
+    assert_eq!(pair.server.known_cids(), 0);
 }
