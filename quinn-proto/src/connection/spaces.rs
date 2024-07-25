@@ -725,6 +725,10 @@ impl PendingAcks {
             }
         }
     }
+    /// 12.
+    pub(super) fn on_max_ack_delay_timeout(&mut self) {
+        self.immediate_ack_required = self.ack_eliciting_since_last_ack_sent > 0;
+    }
 }
 
 /// A variant of `Retransmits` which only allocates storage when required

@@ -1237,6 +1237,16 @@ impl Connection {
                     self.state = State::Drained;
                     self.endpoint_events.push_back(EndpointEventInner::Drained);
                 }
+                Timer::MaxAckDelay => {
+                    trace!("max ack delay reached");
+                    // This timer is only armed in the Data space
+                    self.spaces[SpaceId::Data]
+                        .pending_acks
+                        .on_max_ack_delay_timeout()
+                }
+                Timer::LossDetection => {
+                    self.on_loss_detection_timeout(now);
+                }
                 _ => {
                     unreachable!(" handle_timeout {:?}", timer)
                 }
@@ -2703,6 +2713,10 @@ impl Connection {
                 reset_token,
             ));
         self.peer_params.stateless_reset_token = Some(reset_token);
+    }
+    /// 55.
+    fn on_loss_detection_timeout(&mut self, now: Instant) {
+        todo!()
     }
 }
 
