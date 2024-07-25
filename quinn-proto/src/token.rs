@@ -1,7 +1,7 @@
 use std::{
     io,
     net::{IpAddr, SocketAddr},
-    time::{SystemTime, UNIX_EPOCH},
+    time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
 use bytes::{Buf, BufMut};
@@ -101,7 +101,18 @@ impl RetryToken {
         }
         let orig_dst_cid =
             ConnectionId::decode_long(&mut reader).ok_or(TokenDecodeError::UnknownToken)?;
-        todo!()
+        let issued = UNIX_EPOCH
+            + Duration::new(
+                reader
+                    .get::<u64>()
+                    .map_err(|_| TokenDecodeError::UnknownToken)?,
+                0,
+            );
+
+        Ok(Self {
+            orig_dst_cid,
+            issued,
+        })
     }
 }
 
