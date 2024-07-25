@@ -169,6 +169,12 @@ impl ClientConfig {
             version: 1,
         }
     }
+
+    /// Set the QUIC version to use
+    pub fn version(&mut self, version: u32) -> &mut Self {
+        self.version = version;
+        self
+    }
 }
 
 /// Parameters governing MTU discovery.
