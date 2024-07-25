@@ -240,7 +240,30 @@ impl crypto::Session for TlsSession {
     }
 
     fn is_valid_retry(&self, orig_dst_cid: &ConnectionId, header: &[u8], payload: &[u8]) -> bool {
-        todo!()
+        let tag_start = match payload.len().checked_sub(16) {
+            Some(x) => x,
+            None => return false,
+        };
+
+        let mut pseudo_packet =
+            Vec::with_capacity(header.len() + payload.len() + orig_dst_cid.len() + 1);
+        pseudo_packet.push(orig_dst_cid.len() as u8);
+        pseudo_packet.extend_from_slice(orig_dst_cid);
+        pseudo_packet.extend_from_slice(header);
+        let tag_start = tag_start + pseudo_packet.len();
+        pseudo_packet.extend_from_slice(payload);
+
+        let (nonce, key) = match self.version {
+            Version::V1 => (RETRY_INTEGRITY_NONCE_V1, RETRY_INTEGRITY_KEY_V1),
+            Version::V1Draft => (RETRY_INTEGRITY_NONCE_DRAFT, RETRY_INTEGRITY_KEY_DRAFT),
+            _ => unreachable!(),
+        };
+
+        let nonce = aead::Nonce::assume_unique_for_key(nonce);
+        let key = aead::LessSafeKey::new(aead::UnboundKey::new(&aead::AES_128_GCM, &key).unwrap());
+
+        let (aad, tag) = pseudo_packet.split_at_mut(tag_start);
+        key.open_in_place(nonce, aead::Aad::from(aad), tag).is_ok()
     }
 }
 
