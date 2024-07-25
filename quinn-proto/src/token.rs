@@ -80,6 +80,15 @@ impl RetryToken {
 
         buf
     }
+
+    pub(crate) fn from_bytes(
+        key: &dyn HandshakeTokenKey,
+        address: &SocketAddr,
+        retry_src_cid: &ConnectionId,
+        raw_token_bytes: &[u8],
+    ) -> Result<Self, TokenDecodeError> {
+        todo!()
+    }
 }
 
 fn encode_addr(buf: &mut Vec<u8>, address: &SocketAddr) {
@@ -94,4 +103,11 @@ fn encode_addr(buf: &mut Vec<u8>, address: &SocketAddr) {
         }
     }
     buf.put_u16(address.port());
+}
+
+/// Reasons why a retry token might fail to validate a client's address
+#[derive(Debug, Copy, Clone)]
+pub(crate) enum TokenDecodeError {
+    /// 1. Token was not recognized. It should be silently ignored.
+    UnknownToken,
 }

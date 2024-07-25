@@ -94,6 +94,8 @@ pub struct ServerConfig {
     pub(crate) preferred_address_v6: Option<SocketAddrV6>,
     /// 9. Used to generate one-time AEAD keys to protect handshake tokens
     pub(crate) token_key: Arc<dyn HandshakeTokenKey>,
+    /// 10. Microseconds after a stateless retry token was issued for which it's considered valid.
+    pub(crate) retry_token_lifetime: Duration,
 }
 
 #[cfg(feature = "ring")]
@@ -127,7 +129,9 @@ impl ServerConfig {
 
             preferred_address_v4: None,
             preferred_address_v6: None,
+
             token_key,
+            retry_token_lifetime: Duration::from_secs(15),
         }
     }
 }
