@@ -147,6 +147,11 @@ pub trait ServerConfig: Send + Sync {
         version: u32,
         params: &TransportParameters,
     ) -> Box<dyn Session>;
+
+    /// 3. Generate the integrity tag for a retry packet
+    ///
+    /// Never called if `initial_keys` rejected `version`.
+    fn retry_tag(&self, version: u32, orig_dst_cid: &ConnectionId, packet: &[u8]) -> [u8; 16];
 }
 
 /// 7. A pseudo random key for HKDF

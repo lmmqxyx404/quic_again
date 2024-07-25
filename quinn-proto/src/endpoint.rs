@@ -8,7 +8,7 @@ use std::{
     time::{Duration, Instant, SystemTime},
 };
 
-use bytes::{Bytes, BytesMut};
+use bytes::{BufMut, Bytes, BytesMut};
 use hex_literal::hex;
 use rand::{rngs::StdRng, Rng, RngCore, SeedableRng};
 use rustc_hash::FxHashMap;
@@ -789,7 +789,29 @@ impl Endpoint {
             &incoming.addresses.remote,
             &loc_cid,
         );
-        todo!()
+
+        let header = Header::Retry {
+            src_cid: loc_cid,
+            dst_cid: incoming.packet.header.src_cid,
+            version: incoming.packet.header.version,
+        };
+
+        let encode = header.encode(buf);
+        buf.put_slice(&token);
+        buf.extend_from_slice(&server_config.crypto.retry_tag(
+            incoming.packet.header.version,
+            &incoming.packet.header.dst_cid,
+            buf,
+        ));
+        encode.finish(buf, &*incoming.crypto.header.local, None);
+
+        Ok(Transmit {
+            destination: incoming.addresses.remote,
+            ecn: None,
+            size: buf.len(),
+            segment_size: None,
+            src_ip: incoming.addresses.local_ip,
+        })
     }
     /// 18. Clean up endpoint data structures associated with an `Incoming`.
     fn clean_up_incoming(&mut self, incoming: &Incoming) {
