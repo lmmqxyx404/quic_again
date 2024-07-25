@@ -195,6 +195,10 @@ impl Iter {
             Type::RETIRE_CONNECTION_ID => Frame::RetireConnectionId {
                 sequence: self.bytes.get_var()?,
             },
+            Type::APPLICATION_CLOSE => Frame::Close(Close::Application(ApplicationClose {
+                error_code: self.bytes.get()?,
+                reason: self.take_len()?,
+            })),
             _ => {
                 #[cfg(test)]
                 {
