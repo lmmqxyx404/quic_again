@@ -156,3 +156,11 @@ fn draft_version_compat() {
     assert_eq!(pair.server.known_connections(), 0);
     assert_eq!(pair.server.known_cids(), 0);
 }
+
+#[test]
+fn stateless_retry() {
+    let _guard = subscribe();
+    let mut pair = Pair::default();
+    pair.server.incoming_connection_behavior = IncomingConnectionBehavior::Validate;
+    pair.connect();
+}

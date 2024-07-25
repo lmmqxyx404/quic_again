@@ -1,3 +1,4 @@
+use core::fmt;
 use std::{
     collections::{hash_map, HashMap},
     mem,
@@ -758,6 +759,12 @@ impl Endpoint {
     pub(crate) fn known_cids(&self) -> usize {
         self.index.connection_ids.len()
     }
+    /// 17. Respond with a retry packet, requiring the client to retry with address validation
+    ///
+    /// Errors if `incoming.remote_address_validated()` is true.
+    pub fn retry(&mut self, incoming: Incoming, buf: &mut Vec<u8>) -> Result<Transmit, RetryError> {
+        todo!()
+    }
 }
 
 /// 2. Internal identifier for a `Connection` currently associated with an endpoint
@@ -1030,6 +1037,22 @@ impl Incoming {
         self.retry_src_cid.is_some()
     }
 }
+
+impl fmt::Debug for Incoming {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("Incoming")
+            .field("addresses", &self.addresses)
+            .field("ecn", &self.ecn)
+            // packet doesn't implement debug
+            // rest is too big and not meaningful enough
+            .field("retry_src_cid", &self.retry_src_cid)
+            .field("orig_dst_cid", &self.orig_dst_cid)
+            .field("incoming_idx", &self.incoming_idx)
+            // improper drop warner contains no information
+            .finish_non_exhaustive()
+    }
+}
+
 /// Error type for attempting to accept an [`Incoming`]
 #[derive(Debug)]
 pub struct AcceptError {
@@ -1046,3 +1069,9 @@ impl IncomingImproperDropWarner {
         mem::forget(self);
     }
 }
+
+/// Error for attempting to retry an [`Incoming`] which already bears an address
+/// validation token from a previous retry
+#[derive(Debug, Error)]
+#[error("retry() with validated Incoming")]
+pub struct RetryError(Incoming);

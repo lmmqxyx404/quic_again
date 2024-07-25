@@ -348,7 +348,10 @@ pub(super) struct TestEndpoint {
 
 #[derive(Debug, Copy, Clone)]
 pub(super) enum IncomingConnectionBehavior {
+    /// 1
     AcceptAll,
+    /// 2.
+    Validate,
 }
 
 impl TestEndpoint {
@@ -417,6 +420,13 @@ impl TestEndpoint {
                         match self.incoming_connection_behavior {
                             IncomingConnectionBehavior::AcceptAll => {
                                 let _ = self.try_accept(incoming, now);
+                            }
+                            IncomingConnectionBehavior::Validate => {
+                                if incoming.remote_address_validated() {
+                                    let _ = self.try_accept(incoming, now);
+                                } else {
+                                    self.retry(incoming);
+                                }
                             }
                             _ => {
                                 todo!()
@@ -509,6 +519,13 @@ impl TestEndpoint {
     pub(super) fn next_wakeup(&self) -> Option<Instant> {
         let next_inbound = self.inbound.front().map(|x| x.0);
         min_opt(self.timeout, next_inbound)
+    }
+    /// 9
+    pub(super) fn retry(&mut self, incoming: Incoming) {
+        let mut buf = Vec::new();
+        let transmit = self.endpoint.retry(incoming, &mut buf).unwrap();
+        let size = transmit.size;
+        self.outbound.extend(split_transmit(transmit, &buf[..size]));
     }
 }
 
