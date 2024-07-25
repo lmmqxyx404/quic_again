@@ -1,6 +1,12 @@
-use std::{net::SocketAddr, time::SystemTime};
+use std::{
+    net::{IpAddr, SocketAddr},
+    time::{SystemTime, UNIX_EPOCH},
+};
+
+use bytes::BufMut;
 
 use crate::{
+    coding::BufMutExt,
     crypto::{HandshakeTokenKey, HmacKey},
     shared::ConnectionId,
     RESET_TOKEN_SIZE,
@@ -59,6 +65,33 @@ impl RetryToken {
         address: &SocketAddr,
         retry_src_cid: &ConnectionId,
     ) -> Vec<u8> {
-        todo!()
+        let aead_key = key.aead_from_hkdf(retry_src_cid);
+
+        let mut buf = Vec::new();
+        encode_addr(&mut buf, address);
+        self.orig_dst_cid.encode_long(&mut buf);
+        buf.write::<u64>(
+            self.issued
+                .duration_since(UNIX_EPOCH)
+                .map(|x| x.as_secs())
+                .unwrap_or(0),
+        );
+        aead_key.seal(&mut buf, &[]).unwrap();
+
+        buf
     }
+}
+
+fn encode_addr(buf: &mut Vec<u8>, address: &SocketAddr) {
+    match address.ip() {
+        IpAddr::V4(x) => {
+            buf.put_u8(0);
+            buf.put_slice(&x.octets());
+        }
+        IpAddr::V6(x) => {
+            buf.put_u8(1);
+            buf.put_slice(&x.octets());
+        }
+    }
+    buf.put_u16(address.port());
 }

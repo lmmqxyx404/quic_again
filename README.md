@@ -111,6 +111,10 @@ The above is related with `Connection::handle_peer_params`
 ## 5. about `std::ops::Not` trait
 impl the trait so that to support bool operation
 
+## 6.pub trait AeadKey
+这个 `trait` 用来加密和解密数据
+`seal` `open`
+
 # quic connection details
 无状态连接，与有状态连接
 ## first packet

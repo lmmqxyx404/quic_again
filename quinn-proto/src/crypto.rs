@@ -156,4 +156,7 @@ pub trait HandshakeTokenKey: Send + Sync {
 }
 
 /// 8. A key for sealing data with AEAD-based algorithms
-pub trait AeadKey {}
+pub trait AeadKey {
+    /// 1. Method for sealing message `data`
+    fn seal(&self, data: &mut Vec<u8>, additional_data: &[u8]) -> Result<(), CryptoError>;
+}
