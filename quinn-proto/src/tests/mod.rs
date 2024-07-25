@@ -4,13 +4,14 @@ use crate::{
     config::EndpointConfig,
     connection::{ConnectionError, Event},
     endpoint::DatagramEvent,
-    ConnectionIdGenerator, Endpoint, RandomConnectionIdGenerator, Transmit,
+    ConnectionIdGenerator, Endpoint, RandomConnectionIdGenerator, Transmit, VarInt,
     DEFAULT_SUPPORTED_VERSIONS,
 };
 
 mod util;
 use assert_matches::assert_matches;
 use hex_literal::hex;
+use tracing::info;
 use util::*;
 
 #[test]
@@ -103,5 +104,13 @@ fn lifecycle() {
     assert!(pair.client_conn_mut(client_ch).using_ecn());
     assert!(pair.server_conn_mut(server_ch).using_ecn());
 
+    const REASON: &[u8] = b"whee";
+    info!("closing");
+    pair.client.connections.get_mut(&client_ch).unwrap().close(
+        pair.time,
+        VarInt(42),
+        REASON.into(),
+    );
+    pair.drive();
     todo!()
 }

@@ -1854,9 +1854,15 @@ impl Connection {
     fn update_keys(&mut self, end_packet: Option<(u64, Instant)>, remote: bool) {
         todo!()
     }
-    /// 33
+    /// 33 first executed by [`Self::close`]
     fn close_inner(&mut self, now: Instant, reason: Close) {
-        todo!()
+        let was_closed = self.state.is_closed();
+        if !was_closed {
+            self.close_common();
+            self.set_close_timer(now);
+            self.close = true;
+            self.state = State::Closed(state::Closed { reason });
+        }
     }
     /// 34 Write pending ACKs into a buffer
     ///
@@ -2755,6 +2761,23 @@ impl Connection {
     #[cfg(test)]
     pub(crate) fn using_ecn(&self) -> bool {
         self.path.sending_ecn
+    }
+    /// 58. Close a connection immediately
+    ///
+    /// This does not ensure delivery of outstanding data. It is the application's responsibility to
+    /// call this only when all important communications have been completed, e.g. by calling
+    /// [`SendStream::finish`] on outstanding streams and waiting for the corresponding
+    /// [`StreamEvent::Finished`] event.
+    ///
+    /// If [`Streams::send_streams`] returns 0, all outstanding stream data has been
+    /// delivered. There may still be data from the peer that has not been received.
+    ///
+    /// [`StreamEvent::Finished`]: crate::StreamEvent::Finished
+    pub fn close(&mut self, now: Instant, error_code: VarInt, reason: Bytes) {
+        self.close_inner(
+            now,
+            Close::Application(frame::ApplicationClose { error_code, reason }),
+        )
     }
 }
 
