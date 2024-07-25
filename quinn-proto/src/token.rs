@@ -1,11 +1,13 @@
 use std::{
-    io, net::{IpAddr, SocketAddr}, time::{SystemTime, UNIX_EPOCH}
+    io,
+    net::{IpAddr, SocketAddr},
+    time::{SystemTime, UNIX_EPOCH},
 };
 
-use bytes::BufMut;
+use bytes::{Buf, BufMut};
 
 use crate::{
-    coding::BufMutExt,
+    coding::{BufExt, BufMutExt},
     crypto::{CryptoError, HandshakeTokenKey, HmacKey},
     shared::ConnectionId,
     RESET_TOKEN_SIZE,
@@ -64,6 +66,7 @@ impl RetryToken {
         address: &SocketAddr,
         retry_src_cid: &ConnectionId,
     ) -> Vec<u8> {
+        tracing::debug!("RetryToken encode");
         let aead_key = key.aead_from_hkdf(retry_src_cid);
 
         let mut buf = Vec::new();
@@ -86,11 +89,18 @@ impl RetryToken {
         retry_src_cid: &ConnectionId,
         raw_token_bytes: &[u8],
     ) -> Result<Self, TokenDecodeError> {
+        tracing::debug!("RetryToken from_bytes");
         let aead_key = key.aead_from_hkdf(retry_src_cid);
         let mut sealed_token = raw_token_bytes.to_vec();
 
         let data = aead_key.open(&mut sealed_token, &[])?;
         let mut reader = io::Cursor::new(data);
+        let token_addr = decode_addr(&mut reader).ok_or(TokenDecodeError::UnknownToken)?;
+        if token_addr != *address {
+            return Err(TokenDecodeError::WrongAddress);
+        }
+        let orig_dst_cid =
+            ConnectionId::decode_long(&mut reader).ok_or(TokenDecodeError::UnknownToken)?;
         todo!()
     }
 }
@@ -109,11 +119,24 @@ fn encode_addr(buf: &mut Vec<u8>, address: &SocketAddr) {
     buf.put_u16(address.port());
 }
 
+fn decode_addr<B: Buf>(buf: &mut B) -> Option<SocketAddr> {
+    let ip = match buf.get_u8() {
+        0 => IpAddr::V4(buf.get().ok()?),
+        1 => IpAddr::V6(buf.get().ok()?),
+        _ => return None,
+    };
+    let port = buf.get_u16();
+    Some(SocketAddr::new(ip, port))
+}
+
 /// Reasons why a retry token might fail to validate a client's address
 #[derive(Debug, Copy, Clone)]
 pub(crate) enum TokenDecodeError {
     /// 1. Token was not recognized. It should be silently ignored.
     UnknownToken,
+    /// 2. Token was well-formed but associated with an incorrect address. The connection cannot be
+    /// established.
+    WrongAddress,
 }
 
 impl From<CryptoError> for TokenDecodeError {
