@@ -5,7 +5,7 @@ use tracing::trace;
 use crate::packet::SpaceId;
 use crate::range_set::ArrayRangeSet;
 use crate::{crypto::Keys, shared::IssuedCid};
-use crate::{frame, StreamId, TransportError, VarInt};
+use crate::{frame, Dir, StreamId, TransportError, VarInt};
 use std::collections::{BTreeMap, VecDeque};
 use std::ops::{Bound, Index, IndexMut};
 use std::time::{Duration, Instant};
@@ -137,7 +137,20 @@ impl PacketSpace {
             // There's real data to send here, no need to make something up
             return;
         }
-        todo!()
+
+        for packet in self.sent_packets.values_mut() {
+            if !packet.retransmits.is_empty(streams) {
+                // Remove retransmitted data from the old packet so we don't end up retransmitting
+                // it *again* even if the copy we're sending now gets acknowledged.
+                self.pending |= mem::take(&mut packet.retransmits);
+                return;
+            }
+        }
+
+        // Nothing new to send and nothing to retransmit, so fall back on a ping. This should only
+        // happen in rare cases during the handshake when the server becomes blocked by
+        // anti-amplification.
+        self.ping_pending = true;
     }
     /// 3
     pub(super) fn can_send(&self, streams: &StreamsState) -> SendableFrames {
@@ -284,6 +297,35 @@ pub struct Retransmits {
     pub(super) max_stream_data: FxHashSet<StreamId>,
     /// 10.
     pub(super) max_stream_id: [bool; 2],
+}
+
+impl ::std::ops::BitOrAssign for Retransmits {
+    fn bitor_assign(&mut self, rhs: Self) {
+        // We reduce in-stream head-of-line blocking by queueing retransmits before other data for
+        // STREAM and CRYPTO frames.
+        self.max_data |= rhs.max_data;
+        for dir in Dir::iter() {
+            self.max_stream_id[dir as usize] |= rhs.max_stream_id[dir as usize];
+        }
+        self.reset_stream.extend_from_slice(&rhs.reset_stream);
+        self.stop_sending.extend_from_slice(&rhs.stop_sending);
+        self.max_stream_data.extend(&rhs.max_stream_data);
+        for crypto in rhs.crypto.into_iter().rev() {
+            self.crypto.push_front(crypto);
+        }
+        self.new_cids.extend(&rhs.new_cids);
+        self.retire_cids.extend(rhs.retire_cids);
+        self.ack_frequency |= rhs.ack_frequency;
+        self.handshake_done |= rhs.handshake_done;
+    }
+}
+
+impl ::std::ops::BitOrAssign<ThinRetransmits> for Retransmits {
+    fn bitor_assign(&mut self, rhs: ThinRetransmits) {
+        if let Some(retransmits) = rhs.retransmits {
+            self.bitor_assign(*retransmits)
+        }
+    }
 }
 
 impl Retransmits {
