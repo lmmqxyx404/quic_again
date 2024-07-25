@@ -48,6 +48,8 @@ pub trait Session: Send + Sync + 'static {
     fn is_handshaking(&self) -> bool;
     /// 7.Compute keys for the next key update
     fn next_1rtt_keys(&mut self) -> Option<KeyPair<Box<dyn PacketKey>>>;
+    /// 8. Verify the integrity of a retry packet
+    fn is_valid_retry(&self, orig_dst_cid: &ConnectionId, header: &[u8], payload: &[u8]) -> bool;
 }
 
 /// 1. A key for signing with HMAC-based algorithms

@@ -238,6 +238,10 @@ impl crypto::Session for TlsSession {
             remote: Box::new(keys.remote),
         })
     }
+
+    fn is_valid_retry(&self, orig_dst_cid: &ConnectionId, header: &[u8], payload: &[u8]) -> bool {
+        todo!()
+    }
 }
 
 fn to_vec(params: &TransportParameters) -> Vec<u8> {

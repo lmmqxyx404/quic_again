@@ -723,6 +723,29 @@ impl Connection {
             Header::Retry {
                 src_cid: rem_cid, ..
             } => {
+                if self.side.is_server() {
+                    return Err(TransportError::PROTOCOL_VIOLATION("client sent Retry").into());
+                }
+
+                if self.total_authed_packets > 1
+                            || packet.payload.len() <= 16 // token + 16 byte tag
+                            || !self.crypto.is_valid_retry(
+                                &self.rem_cids.active(),
+                                &packet.header_data,
+                                &packet.payload,
+                            )
+                {
+                    trace!("discarding invalid Retry");
+                    // - After the client has received and processed an Initial or Retry
+                    //   packet from the server, it MUST discard any subsequent Retry
+                    //   packets that it receives.
+                    // - A client MUST discard a Retry packet with a zero-length Retry Token
+                    //   field.
+                    // - Clients MUST discard Retry packets that have a Retry Integrity Tag
+                    //   that cannot be validated
+                    return Ok(());
+                }
+
                 todo!()
             }
             Header::Long {
