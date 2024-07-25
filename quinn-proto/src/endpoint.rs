@@ -763,7 +763,30 @@ impl Endpoint {
     ///
     /// Errors if `incoming.remote_address_validated()` is true.
     pub fn retry(&mut self, incoming: Incoming, buf: &mut Vec<u8>) -> Result<Transmit, RetryError> {
+        if incoming.remote_address_validated() {
+            return Err(RetryError(incoming));
+        }
+
+        self.clean_up_incoming(&incoming);
+        incoming.improper_drop_warner.dismiss();
+
+        let server_config = self.server_config.as_ref().unwrap();
+
+        // First Initial
+        // The peer will use this as the DCID of its following Initials. Initial DCIDs are
+        // looked up separately from Handshake/Data DCIDs, so there is no risk of collision
+        // with established connections. In the unlikely event that a collision occurs
+        // between two connections in the initial phase, both will fail fast and may be
+        // retried by the application layer.
+        let loc_cid = self.local_cid_generator.generate_cid();
+
         todo!()
+    }
+    /// 18. Clean up endpoint data structures associated with an `Incoming`.
+    fn clean_up_incoming(&mut self, incoming: &Incoming) {
+        self.index.remove_initial(incoming.orig_dst_cid);
+        let incoming_buffer = self.incoming_buffers.remove(incoming.incoming_idx);
+        self.all_incoming_buffers_total_bytes -= incoming_buffer.total_bytes;
     }
 }
 
