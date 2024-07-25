@@ -89,7 +89,7 @@ impl StreamsState {
             max_remote: [max_remote_bi.into(), max_remote_uni.into()],
             side,
             pending: PendingStreamsQueue::new(),
-            
+
             sent_max_remote: [max_remote_bi.into(), max_remote_uni.into()],
             // allocated_remote_count: [max_remote_bi.into(), max_remote_uni.into()],
             max_concurrent_remote_count: [max_remote_bi.into(), max_remote_uni.into()],
@@ -303,5 +303,9 @@ impl StreamsState {
             }
         }
         queued
+    }
+    /// 14.
+    pub(crate) fn retransmit_all_for_0rtt(&mut self) {
+        todo!()
     }
 }

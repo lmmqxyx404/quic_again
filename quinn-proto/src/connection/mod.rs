@@ -746,7 +746,48 @@ impl Connection {
                     return Ok(());
                 }
 
-                todo!()
+                trace!("retrying with CID {}", rem_cid);
+                let client_hello = state.client_hello.take().unwrap();
+                self.retry_src_cid = Some(rem_cid);
+                self.rem_cids.update_initial_cid(rem_cid);
+                self.rem_handshake_cid = rem_cid;
+
+                let space = &mut self.spaces[SpaceId::Initial];
+                if let Some(info) = space.take(0) {
+                    self.on_packet_acked(now, 0, info);
+                };
+
+                self.discard_space(now, SpaceId::Initial); // Make sure we clean up after any retransmitted Initials
+                self.spaces[SpaceId::Initial] = PacketSpace {
+                    crypto: Some(self.crypto.initial_keys(&rem_cid, self.side)),
+                    next_packet_number: self.spaces[SpaceId::Initial].next_packet_number,
+                    crypto_offset: client_hello.len() as u64,
+                    ..PacketSpace::new(now)
+                };
+                self.spaces[SpaceId::Initial]
+                    .pending
+                    .crypto
+                    .push_back(frame::Crypto {
+                        offset: 0,
+                        data: client_hello,
+                    });
+
+                // Retransmit all 0-RTT data
+                let zero_rtt = mem::take(&mut self.spaces[SpaceId::Data].sent_packets);
+                for (pn, info) in zero_rtt {
+                    self.remove_in_flight(pn, &info);
+                    self.spaces[SpaceId::Data].pending |= info.retransmits;
+                }
+                self.streams.retransmit_all_for_0rtt();
+
+                let token_len = packet.payload.len() - 16;
+                self.retry_token = packet.payload.freeze().split_to(token_len);
+                self.state = State::Handshake(state::Handshake {
+                    expected_token: Bytes::new(),
+                    rem_cid_set: false,
+                    client_hello: None,
+                });
+                Ok(())
             }
             Header::Long {
                 ty: LongType::Handshake,
