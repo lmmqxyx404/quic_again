@@ -88,9 +88,12 @@ pub struct ServerConfig {
     pub(crate) max_incoming: usize,
     /// 6. Transport configuration to use for incoming connections
     pub transport: Arc<TransportConfig>,
-
+    /// 7
     pub(crate) preferred_address_v4: Option<SocketAddrV4>,
+    /// 8
     pub(crate) preferred_address_v6: Option<SocketAddrV6>,
+    /// 9. Used to generate one-time AEAD keys to protect handshake tokens
+    pub(crate) token_key: Arc<dyn HandshakeTokenKey>,
 }
 
 #[cfg(feature = "ring")]
@@ -124,6 +127,7 @@ impl ServerConfig {
 
             preferred_address_v4: None,
             preferred_address_v6: None,
+            token_key,
         }
     }
 }

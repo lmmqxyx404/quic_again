@@ -1,4 +1,10 @@
-use crate::{crypto::HmacKey, shared::ConnectionId, RESET_TOKEN_SIZE};
+use std::{net::SocketAddr, time::SystemTime};
+
+use crate::{
+    crypto::{HandshakeTokenKey, HmacKey},
+    shared::ConnectionId,
+    RESET_TOKEN_SIZE,
+};
 
 /// Stateless reset token
 ///
@@ -36,5 +42,23 @@ impl std::ops::Deref for ResetToken {
     type Target = [u8];
     fn deref(&self) -> &[u8] {
         &self.0
+    }
+}
+
+pub(crate) struct RetryToken {
+    /// The destination connection ID set in the very first packet from the client
+    pub(crate) orig_dst_cid: ConnectionId,
+    /// The time at which this token was issued
+    pub(crate) issued: SystemTime,
+}
+
+impl RetryToken {
+    pub(crate) fn encode(
+        &self,
+        key: &dyn HandshakeTokenKey,
+        address: &SocketAddr,
+        retry_src_cid: &ConnectionId,
+    ) -> Vec<u8> {
+        todo!()
     }
 }

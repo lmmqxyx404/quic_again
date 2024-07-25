@@ -5,7 +5,7 @@ use std::{
     net::{IpAddr, SocketAddr},
     ops::{Index, IndexMut},
     sync::Arc,
-    time::{Duration, Instant},
+    time::{Duration, Instant, SystemTime},
 };
 
 use bytes::{Bytes, BytesMut};
@@ -30,7 +30,7 @@ use crate::{
         ConnectionEvent, ConnectionEventInner, ConnectionId, DatagramConnectionEvent, EcnCodepoint,
         EndpointEvent, EndpointEventInner, IssuedCid,
     },
-    token::ResetToken,
+    token::{ResetToken, RetryToken},
     transport_parameters::{PreferredAddress, TransportParameters},
     ConnectionIdGenerator, Side, Transmit, TransportError, INITIAL_MTU, MIN_INITIAL_SIZE,
     RESET_TOKEN_SIZE,
@@ -780,6 +780,15 @@ impl Endpoint {
         // retried by the application layer.
         let loc_cid = self.local_cid_generator.generate_cid();
 
+        let token = RetryToken {
+            orig_dst_cid: incoming.packet.header.dst_cid,
+            issued: SystemTime::now(),
+        }
+        .encode(
+            &*server_config.token_key,
+            &incoming.addresses.remote,
+            &loc_cid,
+        );
         todo!()
     }
     /// 18. Clean up endpoint data structures associated with an `Incoming`.
