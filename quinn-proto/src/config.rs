@@ -65,6 +65,21 @@ impl EndpointConfig {
     pub fn get_max_udp_payload_size(&self) -> u64 {
         self.max_udp_payload_size.into()
     }
+    /// Supply a custom connection ID generator factory
+    ///
+    /// Called once by each `Endpoint` constructed from this configuration to obtain the CID
+    /// generator which will be used to generate the CIDs used for incoming packets on all
+    /// connections involving that  `Endpoint`. A custom CID generator allows applications to embed
+    /// information in local connection IDs, e.g. to support stateless packet-level load balancers.
+    ///
+    /// Defaults to [`HashedConnectionIdGenerator`].
+    pub fn cid_generator<F: Fn() -> Box<dyn ConnectionIdGenerator> + Send + Sync + 'static>(
+        &mut self,
+        factory: F,
+    ) -> &mut Self {
+        self.connection_id_generator_factory = Arc::new(factory);
+        self
+    }
 }
 /// Parameters governing incoming connections
 ///

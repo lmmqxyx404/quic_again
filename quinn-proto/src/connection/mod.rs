@@ -1197,10 +1197,10 @@ impl Connection {
 
             self.spaces[space].crypto_offset += outgoing.len() as u64;
             trace!(
-                "wrote {} {:?} CRYPTO bytes {:?}",
+                "wrote {} {:?} CRYPTO bytes ",
                 outgoing.len(),
                 space,
-                outgoing.clone().bytes()
+                // outgoing.clone().bytes()
             );
 
             self.spaces[space].pending.crypto.push_back(frame::Crypto {
@@ -1418,7 +1418,7 @@ impl Connection {
 
             // Is there data or a close message to send in this space?
             // #[cfg(test)]
-            // trace!("call self.space_can_send");
+            debug!("poll_transmit call self.space_can_send");
             let can_send = self.space_can_send(space_id, frame_space_1rtt);
             if can_send.is_empty() && (!close || self.spaces[space_id].crypto.is_none()) {
                 space_idx += 1;
@@ -1855,6 +1855,7 @@ impl Connection {
 
     /// 28. Indicate what types of frames are ready to send for the given space
     fn space_can_send(&self, space_id: SpaceId, frame_space_1rtt: usize) -> SendableFrames {
+        tracing::debug!("Connection space_can_send");
         if self.spaces[space_id].crypto.is_none()
             && (space_id != SpaceId::Data
                 || self.zero_rtt_crypto.is_none()
@@ -2841,6 +2842,13 @@ impl Connection {
             now,
             Close::Application(frame::ApplicationClose { error_code, reason }),
         )
+    }
+
+    /// Ping the remote endpoint
+    ///
+    /// Causes an ACK-eliciting packet to be transmitted.
+    pub fn ping(&mut self) {
+        self.spaces[self.highest_space].ping_pending = true;
     }
 }
 

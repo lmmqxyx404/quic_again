@@ -96,9 +96,9 @@ impl Iter {
     pub(crate) fn new(payload: Bytes) -> Result<Self, TransportError> {
         #[cfg(test)]
         tracing::trace!(
-            "Iter::new called by process_early_payload started deep, {:?} {:?}",
+            "Iter::new called by process_early_payload started deep, {:?} ",
             payload.len(),
-            payload.bytes()
+            // payload.bytes()
         );
 
         if payload.is_empty() {

@@ -1,6 +1,7 @@
 use std::{sync::Arc, time::Instant};
 
 use crate::{
+    cid_generator::HashedConnectionIdGenerator,
     config::EndpointConfig,
     connection::{ConnectionError, Event},
     endpoint::DatagramEvent,
@@ -12,6 +13,8 @@ use crate::{
 mod util;
 use assert_matches::assert_matches;
 use hex_literal::hex;
+use rand::RngCore;
+use ring::hmac;
 use tracing::info;
 use util::*;
 
@@ -163,4 +166,35 @@ fn stateless_retry() {
     let mut pair = Pair::default();
     pair.server.incoming_connection_behavior = IncomingConnectionBehavior::Validate;
     pair.connect();
+}
+
+#[test]
+fn server_stateless_reset() {
+    let _guard = subscribe();
+    let mut key_material = vec![0; 64];
+    let mut rng = rand::thread_rng();
+    rng.fill_bytes(&mut key_material);
+    let reset_key = hmac::Key::new(hmac::HMAC_SHA256, &key_material);
+    rng.fill_bytes(&mut key_material);
+
+    let mut endpoint_config = EndpointConfig::new(Arc::new(reset_key));
+    endpoint_config.cid_generator(move || Box::new(HashedConnectionIdGenerator::from_key(0)));
+    let endpoint_config = Arc::new(endpoint_config);
+
+    let mut pair = Pair::new(endpoint_config.clone(), server_config());
+    let (client_ch, _) = pair.connect();
+    pair.drive(); // Flush any post-handshake frames
+    pair.server.endpoint =
+        Endpoint::new(endpoint_config, Some(Arc::new(server_config())), true, None);
+
+    // Force the server to generate the smallest possible stateless reset
+    pair.client.connections.get_mut(&client_ch).unwrap().ping();
+    info!("resetting");
+    pair.drive();
+    assert_matches!(
+        pair.client_conn_mut(client_ch).poll(),
+        Some(Event::ConnectionLost {
+            reason: ConnectionError::Reset
+        })
+    );
 }
