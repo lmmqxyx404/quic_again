@@ -12,6 +12,7 @@ use crate::{
 };
 
 use super::{
+    recv::Recv,
     send::{Send, SendState},
     PendingStreamsQueue, ShouldTransmit, StreamEvent, StreamHalf,
 };
@@ -63,6 +64,7 @@ pub struct StreamsState {
     max_concurrent_remote_count: [u64; 2],
 
     pub(super) next: [u64; 2],
+    pub(super) recv: FxHashMap<StreamId, Option<Box<Recv>>>,
 }
 
 impl StreamsState {
@@ -96,8 +98,15 @@ impl StreamsState {
             // allocated_remote_count: [max_remote_bi.into(), max_remote_uni.into()],
             max_concurrent_remote_count: [max_remote_bi.into(), max_remote_uni.into()],
             next: [0, 0],
+
+            recv: FxHashMap::default(),
         };
 
+        for dir in Dir::iter() {
+            for i in 0..this.max_remote[dir as usize] {
+                this.insert(true, StreamId::new(!side, dir, i));
+            }
+        }
         this
     }
 
@@ -326,6 +335,18 @@ impl StreamsState {
                 }
                 stream.pending.retransmit_all_for_0rtt();
             }
+        }
+    }
+    /// 15
+    pub(super) fn insert(&mut self, remote: bool, id: StreamId) {
+        let bi = id.dir() == Dir::Bi;
+        // bidirectional OR (unidirectional AND NOT remote)
+        if bi || !remote {
+            assert!(self.send.insert(id, None).is_none());
+        }
+        // bidirectional OR (unidirectional AND remote)
+        if bi || remote {
+            assert!(self.recv.insert(id, None).is_none());
         }
     }
 }
