@@ -363,6 +363,10 @@ impl Header {
             }
         )
     }
+    /// 9
+    pub(crate) fn is_1rtt(&self) -> bool {
+        self.is_short()
+    }
 }
 
 /// Decodes a QUIC packet's invariant header
@@ -889,7 +893,6 @@ pub(crate) const SPIN_BIT: u8 = 0x20;
 const KEY_PHASE_BIT: u8 = 0x04;
 const SHORT_RESERVED_BITS: u8 = 0x18;
 const LONG_RESERVED_BITS: u8 = 0x0c;
-
 
 #[cfg(test)]
 mod tests {

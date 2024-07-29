@@ -580,6 +580,22 @@ impl Connection {
                             }
                         }
                     }
+
+                    if !self.state.is_closed() {
+                        let spin = match packet.header {
+                            Header::Short { spin, .. } => spin,
+                            _ => false,
+                        };
+                        self.on_packet_authenticated(
+                            now,
+                            packet.header.space(),
+                            ecn,
+                            number,
+                            spin,
+                            packet.header.is_1rtt(),
+                        );
+                    }
+
                     self.process_decrypted_packet(now, remote, number, packet)
                 }
             }
