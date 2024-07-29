@@ -199,6 +199,7 @@ impl Iter {
                 error_code: self.bytes.get()?,
                 reason: self.take_len()?,
             })),
+            Type::PING => Frame::Ping,
             _ => {
                 #[cfg(test)]
                 {
@@ -670,7 +671,7 @@ impl fmt::Debug for Ack {
             .field("delay", &self.delay)
             .field("ecn", &self.ecn)
             .field("ranges", &ranges)
-            .finish()   
+            .finish()
     }
 }
 

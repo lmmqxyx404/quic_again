@@ -417,3 +417,22 @@ stack backtrace:
              at /rustc/129f3b9964af4d4a709d1383930ade12dfe7c081/library/core/src/ops/function.rs:250:5
 note: Some details are omitted, run with `RUST_BACKTRACE=full` for a verbose backtrace.
 ```
+#
+```
+thread 'tests::server_stateless_reset' panicked at quinn-proto/src/tests/mod.rs:194:5:
+assertion failed: `Some(ConnectionLost { reason: ConnectionClosed(ConnectionClose { reason: b"invalid frame ID", error_code: FRAME_ENCODING_ERROR, frame_type: Some(PING) }) })` does not match `Some(Event::ConnectionLost { reason: ConnectionError::Reset })`
+stack backtrace:
+   0: rust_begin_unwind
+             at /rustc/129f3b9964af4d4a709d1383930ade12dfe7c081/library/std/src/panicking.rs:652:5
+   1: core::panicking::panic_fmt
+             at /rustc/129f3b9964af4d4a709d1383930ade12dfe7c081/library/core/src/panicking.rs:72:14
+   2: scratch_quinn_proto::tests::server_stateless_reset
+             at ./src/tests/mod.rs:194:5
+   3: scratch_quinn_proto::tests::server_stateless_reset::{{closure}}
+             at ./src/tests/mod.rs:172:28
+   4: core::ops::function::FnOnce::call_once
+             at /rustc/129f3b9964af4d4a709d1383930ade12dfe7c081/library/core/src/ops/function.rs:250:5
+   5: core::ops::function::FnOnce::call_once
+             at /rustc/129f3b9964af4d4a709d1383930ade12dfe7c081/library/core/src/ops/function.rs:250:5
+note: Some details are omitted, run with `RUST_BACKTRACE=full` for a verbose backtrace.
+```
