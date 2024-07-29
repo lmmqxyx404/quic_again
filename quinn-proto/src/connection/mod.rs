@@ -2635,7 +2635,9 @@ impl Connection {
                 // Notify MTU discovery that a packet was acked, because it might be an MTU probe
                 let mtu_updated = self.path.mtud.on_acked(space, packet, info.size);
                 if mtu_updated {
-                    todo!()
+                    self.path
+                        .congestion
+                        .on_mtu_update(self.path.mtud.current_mtu());
                 }
                 // Notify ack frequency that a packet was acked, because it might contain an ACK_FREQUENCY frame
                 self.ack_frequency.on_acked(packet);

@@ -53,6 +53,8 @@ pub trait Controller: Send + Sync {
         is_persistent_congestion: bool,
         lost_bytes: u64,
     );
+    /// 7. The known MTU for the current network path has been updated
+    fn on_mtu_update(&mut self, new_mtu: u16);
 }
 
 /// Constructs controllers on demand
