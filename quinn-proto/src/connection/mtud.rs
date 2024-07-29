@@ -1,5 +1,7 @@
 use std::time::Instant;
 
+use tracing::trace;
+
 use crate::{config::MtuDiscoveryConfig, packet::SpaceId, MAX_UDP_PAYLOAD};
 
 /// Implements Datagram Packetization Layer Path Maximum Transmission Unit Discovery
@@ -11,6 +13,8 @@ pub(crate) struct MtuDiscovery {
     current_mtu: u16,
     /// 2. The state of the MTU discovery, if enabled
     state: Option<EnabledMtuDiscovery>,
+    // 3. The state of the black hole detector
+    // black_hole_detector: BlackHoleDetector,
 }
 
 impl MtuDiscovery {
@@ -77,8 +81,22 @@ impl MtuDiscovery {
         if space != SpaceId::Data {
             return false;
         }
-
-        todo!()
+        // Update the state of the MTU search
+        if let Some(new_mtu) = self
+            .state
+            .as_mut()
+            .and_then(|state| state.on_probe_acked(pn))
+        {
+            self.current_mtu = new_mtu;
+            trace!(current_mtu = self.current_mtu, "new MTU detected");
+            todo!();
+            //            self.black_hole_detector.on_probe_acked(pn, len);
+            true
+        } else {
+            todo!();
+            //      self.black_hole_detector.on_non_probe_acked(pn, len);
+            false
+        }
     }
 
     /// 8. Returns the packet number of the in-flight MTU probe, if any
@@ -234,8 +252,44 @@ impl EnabledMtuDiscovery {
         }
         None
     }
+
+    /// 3. Called when a packet is acknowledged in [`SpaceId::Data`]
+    ///
+    /// Returns the new `current_mtu` if the packet number corresponds to the in-flight MTU probe
+    fn on_probe_acked(&mut self, pn: u64) -> Option<u16> {
+        match &mut self.phase {
+            Phase::Searching(state) if state.in_flight_probe == Some(pn) => {
+                /*  tracing::debug!(
+                    "pn is {} state.in_flight_probe is {:?}",
+                    pn,
+                    state.in_flight_probe
+                ); */
+                state.in_flight_probe = None;
+                state.lost_probe_count = 0;
+                Some(state.last_probed_mtu)
+            }
+            _ => None,
+        }
+    }
 }
 
 // Corresponds to the RFC's `MAX_PROBES` constant (see
 // https://www.rfc-editor.org/rfc/rfc8899#section-5.1.2)
 const MAX_PROBE_RETRANSMITS: usize = 3;
+
+/// Judges whether packet loss might indicate a drop in MTU
+///
+/// Our MTU black hole detection scheme is a heuristic based on the order in which packets were sent
+/// (the packet number order), their sizes, and which are deemed lost.
+///
+/// First, contiguous groups of lost packets ("loss bursts") are aggregated, because a group of
+/// packets all lost together were probably lost for the same reason.
+///
+/// A loss burst is deemed "suspicious" if it contains no packets that are (a) smaller than the
+/// minimum MTU or (b) smaller than a more recent acknowledged packet, because such a burst could be
+/// fully explained by a reduction in MTU.
+///
+/// When the number of suspicious loss bursts exceeds [`BLACK_HOLE_THRESHOLD`], we judge the
+/// evidence for an MTU black hole to be sufficient.
+#[derive(Clone)]
+struct BlackHoleDetector {}
