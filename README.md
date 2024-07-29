@@ -120,3 +120,28 @@ impl the trait so that to support bool operation
 ## first packet
 注意第一个包的发送与接收
 ## 2. stateless connection
+
+# debug history
+## `if let Header::Initial(InitialHeader { ref token, .. }) = packet.header`
+缺少了一段代码逻辑
+
+## `pub(super) fn is_empty(&self, streams: &StreamsState) -> bool {`
+完善逻辑
+
+## `_span: span,`
+需要补充逻辑
+
+## The following is the right impl
+```
+impl Default for MtuDiscoveryConfig {
+    fn default() -> Self {
+        Self {
+            upper_bound: 1452,
+            interval: Duration::from_secs(600),
+            minimum_change: 20,
+            black_hole_cooldown: Duration::from_secs(60),
+
+        }
+    }
+}
+```
