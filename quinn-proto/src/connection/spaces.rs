@@ -329,14 +329,20 @@ impl ::std::ops::BitOrAssign<ThinRetransmits> for Retransmits {
 }
 
 impl Retransmits {
-    /// todo: change the fn
     pub(super) fn is_empty(&self, streams: &StreamsState) -> bool {
-        // tracing::error!("to delete is_empty");
-        self.crypto.is_empty()
+        !self.max_data
+            && !self.max_stream_id.into_iter().any(|x| x)
+            && self.reset_stream.is_empty()
+            && self.stop_sending.is_empty()
+            && self
+                .max_stream_data
+                .iter()
+                .all(|&id| !streams.can_send_flow_control(id))
+            && self.crypto.is_empty()
             && self.new_cids.is_empty()
+            && self.retire_cids.is_empty()
             && !self.ack_frequency
             && !self.handshake_done
-            && self.retire_cids.is_empty()
     }
 }
 

@@ -349,4 +349,12 @@ impl StreamsState {
             assert!(self.recv.insert(id, None).is_none());
         }
     }
+
+    /// 16. Whether MAX_STREAM_DATA frames could be sent for stream `id`
+    pub(crate) fn can_send_flow_control(&self, id: StreamId) -> bool {
+        self.recv
+            .get(&id)
+            .and_then(|s| s.as_ref())
+            .map_or(false, |s| s.can_send_flow_control())
+    }
 }
