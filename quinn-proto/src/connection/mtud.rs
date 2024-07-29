@@ -93,8 +93,7 @@ impl MtuDiscovery {
         {
             self.current_mtu = new_mtu;
             trace!(current_mtu = self.current_mtu, "new MTU detected");
-            todo!();
-            //            self.black_hole_detector.on_probe_acked(pn, len);
+            self.black_hole_detector.on_probe_acked(pn, len);
             true
         } else {
             self.black_hole_detector.on_non_probe_acked(pn, len);
@@ -332,6 +331,18 @@ impl BlackHoleDetector {
         // Loss bursts packets smaller than this are retroactively deemed non-suspicious.
         self.suspicious_loss_bursts
             .retain(|burst| burst.smallest_packet_size > len);
+    }
+
+    fn on_probe_acked(&mut self, pn: u64, len: u16) {
+        // MTU probes are always larger than the previous MTU, so no previous loss bursts are
+        // suspicious. At most one MTU probe is in flight at a time, so we don't need to worry about
+        // reordering between them.
+        self.suspicious_loss_bursts.clear();
+        self.acked_mtu = len;
+        // This might go backwards, but that's okay: a successful ACK means we haven't yet judged a
+        // more recently sent packet lost, and we just want to track the largest packet that's been
+        // successfully delivered more recently than a loss.
+        self.largest_post_loss_packet = pn;
     }
 }
 
