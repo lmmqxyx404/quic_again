@@ -116,4 +116,6 @@ pub struct PathStats {
     pub sent_packets: u64,
     /// 2. Congestion events on the connection
     pub congestion_events: u64,
+    /// 3. The amount of PLPMTUD probe packets sent on this path (also counted by `sent_packets`)
+    pub sent_plpmtud_probes: u64,
 }

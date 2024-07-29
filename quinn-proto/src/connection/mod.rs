@@ -1805,7 +1805,42 @@ impl Connection {
                 Some(next_probe_size) => next_probe_size,
                 None => return None,
             };
-            todo!()
+
+            let buf_capacity = probe_size as usize;
+            buf.reserve(buf_capacity);
+
+            let mut builder = PacketBuilder::new(
+                now,
+                space_id,
+                self.rem_cids.active(),
+                buf,
+                buf_capacity,
+                0,
+                true,
+                self,
+            )?;
+
+            // We implement MTU probes as ping packets padded up to the probe size
+            buf.write(frame::Type::PING);
+            self.stats.frame_tx.ping += 1;
+
+            // If supported by the peer, we want no delays to the probe's ACK
+            if self.peer_supports_ack_frequency() {
+                buf.write(frame::Type::IMMEDIATE_ACK);
+                self.stats.frame_tx.immediate_ack += 1;
+            }
+
+            builder.pad_to(probe_size);
+            let sent_frames = SentFrames {
+                non_retransmits: true,
+                ..Default::default()
+            };
+            builder.finish_and_track(now, self, Some(sent_frames), buf);
+
+            self.stats.path.sent_plpmtud_probes += 1;
+            num_datagrams = 1;
+
+            trace!(?probe_size, "writing MTUD probe");
         }
 
         if buf.is_empty() {

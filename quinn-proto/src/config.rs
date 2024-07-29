@@ -269,7 +269,7 @@ pub struct MtuDiscoveryConfig {
 impl Default for MtuDiscoveryConfig {
     fn default() -> Self {
         Self {
-            upper_bound: 145,
+            upper_bound: 1452,
             interval: Duration::from_secs(600),
             minimum_change: 20,
         }
