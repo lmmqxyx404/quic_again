@@ -59,6 +59,8 @@ pub struct Endpoint {
     incoming_buffers: Slab<IncomingBuffer>,
     /// 9
     all_incoming_buffers_total_bytes: u64,
+    /// 10. Time at which a stateless reset was most recently sent
+    last_stateless_reset: Option<Instant>,
 }
 
 impl Endpoint {
@@ -89,6 +91,7 @@ impl Endpoint {
             server_config,
             incoming_buffers: Slab::new(),
             all_incoming_buffers_total_bytes: 0,
+            last_stateless_reset: None,
         }
     }
 
@@ -475,6 +478,13 @@ impl Endpoint {
         dst_cid: &ConnectionId,
         buf: &mut Vec<u8>,
     ) -> Option<Transmit> {
+        if self
+            .last_stateless_reset
+            .map_or(false, |last| last + self.config.min_reset_interval > now)
+        {
+            debug!("ignoring unexpected packet within minimum stateless reset interval");
+            return None;
+        }
         todo!()
     }
     /// 9. Check if we should refuse a connection attempt regardless of the packet's contents

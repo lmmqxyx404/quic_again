@@ -25,7 +25,6 @@ pub struct EndpointConfig {
     /// Create a cid generator for local cid in Endpoint struct
     pub(crate) connection_id_generator_factory:
         Arc<dyn Fn() -> Box<dyn ConnectionIdGenerator> + Send + Sync>,
-
     /// 2. Optional seed to be used internally for random number generation
     pub(crate) rng_seed: Option<[u8; 32]>,
     /// 3.
@@ -36,6 +35,8 @@ pub struct EndpointConfig {
     pub(crate) grease_quic_bit: bool,
     /// 6.
     pub(crate) reset_key: Arc<dyn HmacKey>,
+    /// 7. Minimum interval between outgoing stateless reset packets
+    pub(crate) min_reset_interval: Duration,
 }
 
 impl EndpointConfig {
@@ -50,6 +51,7 @@ impl EndpointConfig {
             supported_versions: DEFAULT_SUPPORTED_VERSIONS.to_vec(),
             grease_quic_bit: true,
             reset_key,
+            min_reset_interval: Duration::from_millis(20),
         }
     }
 
