@@ -4,7 +4,11 @@ use bytes::{Buf, BufMut};
 use thiserror::Error;
 
 use crate::{
-    coding::{BufExt, BufMutExt, UnexpectedEnd}, config::{EndpointConfig, ServerConfig, TransportConfig}, shared::ConnectionId, ConnectionIdGenerator, ResetToken, Side, TransportError, VarInt, LOC_CID_COUNT, MAX_CID_SIZE, MAX_STREAM_COUNT, RESET_TOKEN_SIZE
+    coding::{BufExt, BufMutExt, UnexpectedEnd},
+    config::{EndpointConfig, ServerConfig, TransportConfig},
+    shared::ConnectionId,
+    ConnectionIdGenerator, ResetToken, Side, TransportError, VarInt, LOC_CID_COUNT, MAX_CID_SIZE,
+    MAX_STREAM_COUNT, RESET_TOKEN_SIZE,
 };
 // Apply a given macro to a list of all the transport parameters having integer types, along with
 // their codes and default values. Using this helps us avoid error-prone duplication of the
@@ -153,6 +157,9 @@ impl TransportParameters {
     ) -> Self {
         Self {
             initial_src_cid: Some(initial_src_cid),
+            initial_max_streams_uni: config.max_concurrent_uni_streams,
+            initial_max_data: config.receive_window,
+            initial_max_stream_data_uni: config.stream_receive_window,
             ..Self::default()
         }
     }
