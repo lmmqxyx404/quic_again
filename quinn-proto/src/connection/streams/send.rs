@@ -1,3 +1,5 @@
+use thiserror::Error;
+
 use crate::connection::send_buffer::SendBuffer;
 
 #[derive(Debug)]
@@ -42,3 +44,11 @@ pub(super) enum SendState {
     /// Sent RESET
     ResetSent,
 }
+
+/// Errors triggered while writing to a send stream
+#[derive(Debug, Error, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+pub enum WriteError {}
+
+/// Reasons why attempting to finish a stream might fail
+#[derive(Debug, Error, Clone, PartialEq, Eq)]
+pub enum FinishError {}

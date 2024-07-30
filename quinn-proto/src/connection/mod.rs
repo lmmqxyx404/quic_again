@@ -26,8 +26,8 @@ use crate::{
     },
     token::ResetToken,
     transport_parameters::TransportParameters,
-    ConnectionIdGenerator, Side, Transmit, TransportError, TransportErrorCode, VarInt,
-    MIN_INITIAL_SIZE, TIMER_GRANULARITY,
+    ConnectionIdGenerator, Dir, Side, StreamId, Transmit, TransportError, TransportErrorCode,
+    VarInt, MIN_INITIAL_SIZE, TIMER_GRANULARITY,
 };
 use bytes::{Bytes, BytesMut};
 
@@ -63,7 +63,7 @@ mod streams;
 pub use streams::StreamsState;
 #[cfg(not(fuzzing))]
 use streams::StreamsState;
-pub use streams::{StreamEvent, Streams};
+pub use streams::{SendStream, StreamEvent, Streams};
 /// 9
 mod mtud;
 
@@ -2919,6 +2919,17 @@ impl Connection {
         Streams {
             state: &mut self.streams,
             conn_state: &self.state,
+        }
+    }
+    /// Provide control over streams
+    #[must_use]
+    pub fn send_stream(&mut self, id: StreamId) -> SendStream<'_> {
+        assert!(id.dir() == Dir::Bi || id.initiator() == self.side);
+        SendStream {
+            // id,
+            state: &mut self.streams,
+            /* pending: &mut self.spaces[SpaceId::Data].pending,
+            conn_state: &self.state, */
         }
     }
 }

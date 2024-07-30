@@ -22,7 +22,7 @@ use tracing::{info, info_span, trace};
 
 use crate::{
     config::{ClientConfig, EndpointConfig, ServerConfig},
-    connection::{Connection, ConnectionError, Event, Streams},
+    connection::{Connection, ConnectionError, Event, SendStream, Streams},
     crypto::rustls::{QuicClientConfig, QuicServerConfig},
     endpoint::{ConnectionHandle, DatagramEvent, Incoming},
     packet,
@@ -315,10 +315,10 @@ impl Pair {
     pub(super) fn client_streams(&mut self, ch: ConnectionHandle) -> Streams<'_> {
         self.client_conn_mut(ch).streams()
     }
-
-    /* pub(super) fn client_send(&mut self, ch: ConnectionHandle, s: StreamId) -> SendStream<'_> {
+    /// 14
+    pub(super) fn client_send(&mut self, ch: ConnectionHandle, s: StreamId) -> SendStream<'_> {
         self.client_conn_mut(ch).send_stream(s)
-    } */
+    }
 }
 
 impl Default for Pair {

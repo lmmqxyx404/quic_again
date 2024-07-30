@@ -1,6 +1,7 @@
 mod state;
 use std::collections::BinaryHeap;
 
+use send::{FinishError, WriteError};
 #[allow(unreachable_pub)] // fuzzing only
 pub use state::StreamsState;
 
@@ -11,6 +12,8 @@ mod send;
 /// 3
 mod recv;
 use recv::Recv;
+
+use super::spaces::Retransmits;
 /// Application events about streams
 #[derive(Debug, PartialEq, Eq)]
 pub enum StreamEvent {
@@ -114,5 +117,34 @@ impl<'a> Streams<'a> {
         self.state.insert(false, id);
         self.state.send_streams += 1;
         Some(id)
+    }
+    /// 2. The number of streams that may have unacknowledged data.
+    pub fn send_streams(&self) -> usize {
+        self.state.send_streams
+    }
+}
+
+/// Access to streams
+pub struct SendStream<'a> {
+    // pub(super) id: StreamId,
+    pub(super) state: &'a mut StreamsState,
+    // pub(super) pending: &'a mut Retransmits,
+    // pub(super) conn_state: &'a super::State,
+}
+
+impl<'a> SendStream<'a> {
+    /// 1. Send data on the given stream
+    ///
+    /// Returns the number of bytes successfully written.
+    pub fn write(&mut self, data: &[u8]) -> Result<usize, WriteError> {
+        todo!()
+    }
+    /// 2. Finish a send stream, signalling that no more data will be sent.
+    ///
+    /// If this fails, no [`StreamEvent::Finished`] will be generated.
+    ///
+    /// [`StreamEvent::Finished`]: crate::StreamEvent::Finished
+    pub fn finish(&mut self) -> Result<(), FinishError> {
+        todo!()
     }
 }

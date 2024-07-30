@@ -310,10 +310,10 @@ fn finish_stream_simple() {
 
     let s = pair.client_streams(client_ch).open(Dir::Uni).unwrap();
 
-    /* const MSG: &[u8] = b"hello";
+    const MSG: &[u8] = b"hello";
     pair.client_send(client_ch, s).write(MSG).unwrap();
     assert_eq!(pair.client_streams(client_ch).send_streams(), 1);
     pair.client_send(client_ch, s).finish().unwrap();
-    pair.drive(); */
+    pair.drive();
     todo!()
 }
