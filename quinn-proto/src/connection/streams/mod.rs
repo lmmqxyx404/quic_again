@@ -101,6 +101,18 @@ impl<'a> Streams<'a> {
     ///
     /// Returns `None` if the streams in the given direction are currently exhausted.
     pub fn open(&mut self, dir: Dir) -> Option<StreamId> {
-        todo!()
+        if self.conn_state.is_closed() {
+            return None;
+        }
+        // TODO: Queue STREAM_ID_BLOCKED if this fails
+        if self.state.next[dir as usize] >= self.state.max[dir as usize] {
+            return None;
+        }
+
+        self.state.next[dir as usize] += 1;
+        let id = StreamId::new(self.state.side, dir, self.state.next[dir as usize] - 1);
+        self.state.insert(false, id);
+        self.state.send_streams += 1;
+        Some(id)
     }
 }

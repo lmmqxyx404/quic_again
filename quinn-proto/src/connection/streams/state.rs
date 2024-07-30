@@ -65,6 +65,11 @@ pub struct StreamsState {
 
     pub(super) next: [u64; 2],
     pub(super) recv: FxHashMap<StreamId, Option<Box<Recv>>>,
+    /// Number of outbound streams
+    ///
+    /// This differs from `self.send.len()` in that it does not include streams that the peer is
+    /// permitted to open but which have not yet been opened.
+    pub(super) send_streams: usize,
 }
 
 impl StreamsState {
@@ -100,6 +105,7 @@ impl StreamsState {
             next: [0, 0],
 
             recv: FxHashMap::default(),
+            send_streams: 0,
         };
 
         for dir in Dir::iter() {
