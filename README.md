@@ -145,3 +145,14 @@ impl Default for MtuDiscoveryConfig {
     }
 }
 ```
+
+## donot omit the following logic
+```
+// PING
+        if mem::replace(&mut space.ping_pending, false) {
+            trace!("PING");
+            buf.write(frame::Type::PING);
+            sent.non_retransmits = true;
+            self.stats.frame_tx.ping += 1;
+        }
+```
