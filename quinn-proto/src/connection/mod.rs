@@ -2049,6 +2049,14 @@ impl Connection {
                 self.stats.frame_tx.handshake_done.saturating_add(1);
         }
 
+        // PING
+        if mem::replace(&mut space.ping_pending, false) {
+            trace!("PING");
+            buf.write(frame::Type::PING);
+            sent.non_retransmits = true;
+            self.stats.frame_tx.ping += 1;
+        }
+
         // IMMEDIATE_ACK
         if mem::replace(&mut space.immediate_ack_pending, false) {
             trace!("IMMEDIATE_ACK");
