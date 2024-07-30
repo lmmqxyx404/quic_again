@@ -442,7 +442,9 @@ impl TestEndpoint {
                         self.conn_events.entry(ch).or_default().push_back(event);
                     }
                     DatagramEvent::Response(transmit) => {
-                        todo!()
+                        let size = transmit.size;
+                        self.outbound.extend(split_transmit(transmit, &buf[..size]));
+                        buf.clear();
                     }
                 }
             }

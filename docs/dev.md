@@ -436,3 +436,34 @@ stack backtrace:
              at /rustc/129f3b9964af4d4a709d1383930ade12dfe7c081/library/core/src/ops/function.rs:250:5
 note: Some details are omitted, run with `RUST_BACKTRACE=full` for a verbose backtrace.
 ```
+
+#
+```
+not yet implemented
+stack backtrace:
+   0: rust_begin_unwind
+             at /rustc/129f3b9964af4d4a709d1383930ade12dfe7c081/library/std/src/panicking.rs:652:5
+   1: core::panicking::panic_fmt
+             at /rustc/129f3b9964af4d4a709d1383930ade12dfe7c081/library/core/src/panicking.rs:72:14
+   2: core::panicking::panic
+             at /rustc/129f3b9964af4d4a709d1383930ade12dfe7c081/library/core/src/panicking.rs:146:5
+   3: scratch_quinn_proto::tests::util::TestEndpoint::drive_incoming
+             at ./src/tests/util.rs:445:25
+   4: scratch_quinn_proto::tests::util::TestEndpoint::drive
+             at ./src/tests/util.rs:397:9
+   5: scratch_quinn_proto::tests::util::Pair::drive_server
+             at ./src/tests/util.rs:286:9
+   6: scratch_quinn_proto::tests::util::Pair::step
+             at ./src/tests/util.rs:206:9
+   7: scratch_quinn_proto::tests::util::Pair::drive
+             at ./src/tests/util.rs:201:15
+   8: scratch_quinn_proto::tests::server_stateless_reset
+             at ./src/tests/mod.rs:193:5
+   9: scratch_quinn_proto::tests::server_stateless_reset::{{closure}}
+             at ./src/tests/mod.rs:172:28
+  10: core::ops::function::FnOnce::call_once
+             at /rustc/129f3b9964af4d4a709d1383930ade12dfe7c081/library/core/src/ops/function.rs:250:5
+  11: core::ops::function::FnOnce::call_once
+             at /rustc/129f3b9964af4d4a709d1383930ade12dfe7c081/library/core/src/ops/function.rs:250:5
+note: Some details are omitted, run with `RUST_BACKTRACE=full` for a verbose backtrace.
+```
