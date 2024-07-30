@@ -409,7 +409,14 @@ impl Endpoint {
             return None;
         }
 
-        todo!()
+        if !dst_cid.is_empty() {
+            return self
+                .stateless_reset(now, datagram_len, addresses, dst_cid, buf)
+                .map(DatagramEvent::Response);
+        }
+
+        trace!("dropping unrecognized short packet without ID");
+        None
     }
 
     /// 7. Process `EndpointEvent`s emitted from related `Connection`s
