@@ -292,5 +292,12 @@ fn export_keying_material() {
         .export_keying_material(&mut client_buf, LABEL, CONTEXT)
         .unwrap();
 
-    todo!()
+    // server keying material
+    let mut server_buf = [0u8; 64];
+    pair.server_conn_mut(server_ch)
+        .crypto_session()
+        .export_keying_material(&mut server_buf, LABEL, CONTEXT)
+        .unwrap();
+
+    assert_eq!(&client_buf[..], &server_buf[..]);
 }
