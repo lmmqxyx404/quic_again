@@ -89,3 +89,18 @@ impl ShouldTransmit {
         self.0
     }
 }
+
+/// Access to streams
+pub struct Streams<'a> {
+    pub(super) state: &'a mut StreamsState,
+    pub(super) conn_state: &'a super::State,
+}
+
+impl<'a> Streams<'a> {
+    /// 1. Open a single stream if possible
+    ///
+    /// Returns `None` if the streams in the given direction are currently exhausted.
+    pub fn open(&mut self, dir: Dir) -> Option<StreamId> {
+        todo!()
+    }
+}

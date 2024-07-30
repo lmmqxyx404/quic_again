@@ -22,12 +22,12 @@ use tracing::{info, info_span, trace};
 
 use crate::{
     config::{ClientConfig, EndpointConfig, ServerConfig},
-    connection::{Connection, ConnectionError, Event},
+    connection::{Connection, ConnectionError, Event, Streams},
     crypto::rustls::{QuicClientConfig, QuicServerConfig},
     endpoint::{ConnectionHandle, DatagramEvent, Incoming},
     packet,
     shared::{ConnectionEvent, EcnCodepoint, EndpointEvent},
-    Endpoint, Transmit,
+    Endpoint, StreamId, Transmit,
 };
 
 pub(super) fn client_config() -> ClientConfig {
@@ -303,14 +303,22 @@ impl Pair {
             }
         }
     }
-
+    /// 11
     pub(super) fn client_conn_mut(&mut self, ch: ConnectionHandle) -> &mut Connection {
         self.client.connections.get_mut(&ch).unwrap()
     }
-
+    /// 12
     pub(super) fn server_conn_mut(&mut self, ch: ConnectionHandle) -> &mut Connection {
         self.server.connections.get_mut(&ch).unwrap()
     }
+    /// 13
+    pub(super) fn client_streams(&mut self, ch: ConnectionHandle) -> Streams<'_> {
+        self.client_conn_mut(ch).streams()
+    }
+
+    /* pub(super) fn client_send(&mut self, ch: ConnectionHandle, s: StreamId) -> SendStream<'_> {
+        self.client_conn_mut(ch).send_stream(s)
+    } */
 }
 
 impl Default for Pair {

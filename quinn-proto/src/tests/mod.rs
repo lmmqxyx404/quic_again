@@ -10,7 +10,7 @@ use crate::{
     connection::{ConnectionError, Event},
     endpoint::DatagramEvent,
     frame::ApplicationClose,
-    ConnectionIdGenerator, Endpoint, RandomConnectionIdGenerator, Transmit, VarInt,
+    ConnectionIdGenerator, Dir, Endpoint, RandomConnectionIdGenerator, Transmit, VarInt,
     DEFAULT_SUPPORTED_VERSIONS,
 };
 
@@ -300,4 +300,20 @@ fn export_keying_material() {
         .unwrap();
 
     assert_eq!(&client_buf[..], &server_buf[..]);
+}
+
+#[test]
+fn finish_stream_simple() {
+    let _guard = subscribe();
+    let mut pair = Pair::default();
+    let (client_ch, server_ch) = pair.connect();
+
+    let s = pair.client_streams(client_ch).open(Dir::Uni).unwrap();
+
+    /* const MSG: &[u8] = b"hello";
+    pair.client_send(client_ch, s).write(MSG).unwrap();
+    assert_eq!(pair.client_streams(client_ch).send_streams(), 1);
+    pair.client_send(client_ch, s).finish().unwrap();
+    pair.drive(); */
+    todo!()
 }

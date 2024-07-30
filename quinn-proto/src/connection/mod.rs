@@ -59,12 +59,11 @@ mod packet_crypto;
 use ack_frequency::AckFrequencyState;
 /// 8.
 mod streams;
-use streams::StreamEvent;
 #[cfg(fuzzing)]
 pub use streams::StreamsState;
 #[cfg(not(fuzzing))]
 use streams::StreamsState;
-
+pub use streams::{StreamEvent, Streams};
 /// 9
 mod mtud;
 
@@ -2913,6 +2912,14 @@ impl Connection {
     /// 60. Get a session reference
     pub fn crypto_session(&self) -> &dyn crypto::Session {
         &*self.crypto
+    }
+    /// 61. Provide control over streams
+    #[must_use]
+    pub fn streams(&mut self) -> Streams<'_> {
+        Streams {
+            state: &mut self.streams,
+            conn_state: &self.state,
+        }
     }
 }
 
