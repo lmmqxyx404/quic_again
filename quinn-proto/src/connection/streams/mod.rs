@@ -1,7 +1,7 @@
 mod state;
 use std::collections::BinaryHeap;
 
-use send::{FinishError, WriteError};
+use send::{ByteSlice, BytesSource, FinishError, WriteError, Written};
 #[allow(unreachable_pub)] // fuzzing only
 pub use state::StreamsState;
 
@@ -137,7 +137,7 @@ impl<'a> SendStream<'a> {
     ///
     /// Returns the number of bytes successfully written.
     pub fn write(&mut self, data: &[u8]) -> Result<usize, WriteError> {
-        todo!()
+        Ok(self.write_source(&mut ByteSlice::from_slice(data))?.bytes)
     }
     /// 2. Finish a send stream, signalling that no more data will be sent.
     ///
@@ -145,6 +145,10 @@ impl<'a> SendStream<'a> {
     ///
     /// [`StreamEvent::Finished`]: crate::StreamEvent::Finished
     pub fn finish(&mut self) -> Result<(), FinishError> {
+        todo!()
+    }
+    /// 3.
+    fn write_source<B: BytesSource>(&mut self, source: &mut B) -> Result<Written, WriteError> {
         todo!()
     }
 }

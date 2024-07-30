@@ -1,3 +1,4 @@
+use bytes::Bytes;
 use thiserror::Error;
 
 use crate::connection::send_buffer::SendBuffer;
@@ -52,3 +53,52 @@ pub enum WriteError {}
 /// Reasons why attempting to finish a stream might fail
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
 pub enum FinishError {}
+
+/// A source of one or more buffers which can be converted into `Bytes` buffers on demand
+///
+/// The purpose of this data type is to defer conversion as long as possible,
+/// so that no heap allocation is required in case no data is writable.
+pub trait BytesSource {
+    /// Returns the next chunk from the source of owned chunks.
+    ///
+    /// This method will consume parts of the source.
+    /// Calling it will yield `Bytes` elements up to the configured `limit`.
+    ///
+    /// The method returns a tuple:
+    /// - The first item is the yielded `Bytes` element. The element will be
+    ///   empty if the limit is zero or no more data is available.
+    /// - The second item returns how many complete chunks inside the source had
+    ///   had been consumed. This can be less than 1, if a chunk inside the
+    ///   source had been truncated in order to adhere to the limit. It can also
+    ///   be more than 1, if zero-length chunks had been skipped.
+    fn pop_chunk(&mut self, limit: usize) -> (Bytes, usize);
+}
+
+/// A [`BytesSource`] implementation for `&[u8]`
+///
+/// The type allows to dequeue a single [`Bytes`] chunk, which will be lazily
+/// created from a reference. This allows to defer the allocation until it is
+/// known how much data needs to be copied.
+pub(crate) struct ByteSlice<'a> {
+    /// The wrapped byte slice
+    data: &'a [u8],
+}
+
+impl<'a> ByteSlice<'a> {
+    pub(crate) fn from_slice(data: &'a [u8]) -> Self {
+        Self { data }
+    }
+}
+
+impl<'a> BytesSource for ByteSlice<'a> {
+    fn pop_chunk(&mut self, limit: usize) -> (Bytes, usize) {
+        todo!()
+    }
+}
+
+/// Indicates how many bytes and chunks had been transferred in a write operation
+#[derive(Debug, Default, PartialEq, Eq, Clone, Copy)]
+pub struct Written {
+    /// 1. The amount of bytes which had been written
+    pub bytes: usize,
+}
