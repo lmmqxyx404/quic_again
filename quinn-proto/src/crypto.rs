@@ -50,6 +50,18 @@ pub trait Session: Send + Sync + 'static {
     fn next_1rtt_keys(&mut self) -> Option<KeyPair<Box<dyn PacketKey>>>;
     /// 8. Verify the integrity of a retry packet
     fn is_valid_retry(&self, orig_dst_cid: &ConnectionId, header: &[u8], payload: &[u8]) -> bool;
+    /// 9. Fill `output` with `output.len()` bytes of keying material derived
+    /// from the [Session]'s secrets, using `label` and `context` for domain
+    /// separation.
+    ///
+    /// This function will fail, returning [ExportKeyingMaterialError],
+    /// if the requested output length is too large.
+    fn export_keying_material(
+        &self,
+        output: &mut [u8],
+        label: &[u8],
+        context: &[u8],
+    ) -> Result<(), ExportKeyingMaterialError>;
 }
 
 /// 1. A key for signing with HMAC-based algorithms
@@ -173,3 +185,9 @@ pub trait AeadKey {
         additional_data: &[u8],
     ) -> Result<&'a mut [u8], CryptoError>;
 }
+
+/// Error returned by [Session::export_keying_material].
+///
+/// This error occurs if the requested output length is too large.
+#[derive(Debug, PartialEq, Eq)]
+pub struct ExportKeyingMaterialError;

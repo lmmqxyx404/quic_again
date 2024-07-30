@@ -14,7 +14,7 @@ use crate::{
     transport_parameters::TransportParameters, Side, TransportError, TransportErrorCode,
 };
 
-use super::{CryptoError, HeaderKey, KeyPair, Keys, UnsupportedVersion};
+use super::{CryptoError, ExportKeyingMaterialError, HeaderKey, KeyPair, Keys, UnsupportedVersion};
 
 impl From<Side> for rustls::Side {
     fn from(s: Side) -> Self {
@@ -264,6 +264,18 @@ impl crypto::Session for TlsSession {
 
         let (aad, tag) = pseudo_packet.split_at_mut(tag_start);
         key.open_in_place(nonce, aead::Aad::from(aad), tag).is_ok()
+    }
+
+    fn export_keying_material(
+        &self,
+        output: &mut [u8],
+        label: &[u8],
+        context: &[u8],
+    ) -> Result<(), ExportKeyingMaterialError> {
+        self.inner
+            .export_keying_material(output, label, Some(context))
+            .map_err(|_| ExportKeyingMaterialError)?;
+        Ok(())
     }
 }
 

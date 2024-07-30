@@ -275,3 +275,22 @@ fn stateless_reset_limit() {
     );
     assert!(matches!(event, Some(DatagramEvent::Response(_))));
 }
+
+#[test]
+fn export_keying_material() {
+    let _guard = subscribe();
+    let mut pair = Pair::default();
+    let (client_ch, server_ch) = pair.connect();
+
+    const LABEL: &[u8] = b"test_label";
+    const CONTEXT: &[u8] = b"test_context";
+
+    // client keying material
+    let mut client_buf = [0u8; 64];
+    pair.client_conn_mut(client_ch)
+        .crypto_session()
+        .export_keying_material(&mut client_buf, LABEL, CONTEXT)
+        .unwrap();
+
+    todo!()
+}

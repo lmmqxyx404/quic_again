@@ -2904,12 +2904,15 @@ impl Connection {
             Close::Application(frame::ApplicationClose { error_code, reason }),
         )
     }
-
-    /// Ping the remote endpoint
+    /// 59. Ping the remote endpoint
     ///
     /// Causes an ACK-eliciting packet to be transmitted.
     pub fn ping(&mut self) {
         self.spaces[self.highest_space].ping_pending = true;
+    }
+    /// 60. Get a session reference
+    pub fn crypto_session(&self) -> &dyn crypto::Session {
+        &*self.crypto
     }
 }
 
