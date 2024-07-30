@@ -393,6 +393,22 @@ impl Endpoint {
             );
             return None;
         }
+
+        //
+        // If we got this far, we're a server receiving a seemingly valid packet for an unknown
+        // connection. Send a stateless reset if possible.
+        //
+
+        if !first_decode.is_initial()
+            && self
+                .local_cid_generator
+                .validate(first_decode.dst_cid())
+                .is_err()
+        {
+            debug!("dropping packet with invalid CID");
+            return None;
+        }
+
         todo!()
     }
 
