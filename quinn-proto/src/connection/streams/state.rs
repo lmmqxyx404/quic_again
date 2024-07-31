@@ -71,6 +71,8 @@ pub struct StreamsState {
     /// This differs from `self.send.len()` in that it does not include streams that the peer is
     /// permitted to open but which have not yet been opened.
     pub(super) send_streams: usize,
+    /// Configured upper bound for how much unacked data the peer can send us per stream
+    pub(super) stream_receive_window: u64,
 }
 
 impl StreamsState {
@@ -107,6 +109,7 @@ impl StreamsState {
 
             recv: FxHashMap::default(),
             send_streams: 0,
+            stream_receive_window: stream_receive_window.into(),
         };
 
         for dir in Dir::iter() {
@@ -356,6 +359,17 @@ impl StreamsState {
             e
         })?;
 
+        let rs = match self
+            .recv
+            .get_mut(&id)
+            .map(get_or_insert_recv(self.stream_receive_window))
+        {
+            Some(rs) => rs,
+            None => {
+                trace!("dropping frame for closed stream");
+                return Ok(ShouldTransmit(false));
+            }
+        };
         todo!()
     }
     /// 13. Queues MAX_STREAM_ID frames in `pending` if needed
@@ -456,4 +470,11 @@ pub(super) fn get_or_insert_send(
     max_data: VarInt,
 ) -> impl Fn(&mut Option<Box<Send>>) -> &mut Box<Send> {
     move |opt| opt.get_or_insert_with(|| Send::new(max_data))
+}
+
+#[inline]
+pub(super) fn get_or_insert_recv(
+    initial_max_data: u64,
+) -> impl Fn(&mut Option<Box<Recv>>) -> &mut Box<Recv> {
+    move |opt| opt.get_or_insert_with(|| Recv::new(initial_max_data))
 }

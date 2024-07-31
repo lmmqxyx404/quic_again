@@ -24,6 +24,16 @@ impl Recv {
     pub(super) fn final_offset_unknown(&self) -> bool {
         matches!(self.state, RecvState::Recv { size: None })
     }
+    /// 3 
+    pub(super) fn new(initial_max_data: u64) -> Box<Self> {
+        Box::new(Self {
+            state: RecvState::default(),
+            /* assembler: Assembler::new(),
+            sent_max_stream_data: initial_max_data,
+            end: 0, */
+            stopped: false,
+        })
+    }
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
