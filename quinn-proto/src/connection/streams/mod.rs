@@ -31,9 +31,14 @@ pub enum StreamEvent {
         /// Which stream is now writable
         id: StreamId,
     },
-    /// A currently open stream likely has data or errors waiting to be read
+    /// 3. A currently open stream likely has data or errors waiting to be read
     Readable {
         /// Which stream is now readable
+        id: StreamId,
+    },
+    /// 4. A finished stream has been fully acknowledged or stopped
+    Finished {
+        /// Which stream has been finished
         id: StreamId,
     },
 }

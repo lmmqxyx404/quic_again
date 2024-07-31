@@ -381,7 +381,9 @@ impl StreamsState {
             return;
         }
 
-        todo!()
+        entry.remove_entry();
+        self.stream_freed(id, StreamHalf::Send);
+        self.events.push_back(StreamEvent::Finished { id });
     }
     /// 12. Process incoming stream frame
     ///
