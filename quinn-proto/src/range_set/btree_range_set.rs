@@ -69,4 +69,8 @@ impl RangeSet {
             .next()
             .map(|(&x, &y)| (x, y))
     }
+    /// 8
+    pub fn new() -> Self {
+        Default::default()
+    }
 }

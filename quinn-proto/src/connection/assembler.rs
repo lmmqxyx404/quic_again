@@ -132,8 +132,24 @@ impl Assembler {
             });
         }
     }
+    /// 6.
     pub(super) fn ensure_ordering(&mut self, ordered: bool) -> Result<(), IllegalOrderedRead> {
-        todo!()
+        if ordered && !self.state.is_ordered() {
+            return Err(IllegalOrderedRead);
+        } else if !ordered && self.state.is_ordered() {
+            // Enter unordered mode
+            if !self.data.is_empty() {
+                // Get rid of possible duplicates
+                self.defragment();
+            }
+            let mut recvd = RangeSet::new();
+            recvd.insert(0..self.bytes_read);
+            for chunk in &self.data {
+                recvd.insert(chunk.offset..chunk.offset + chunk.bytes.len() as u64);
+            }
+            self.state = State::Unordered { recvd };
+        }
+        Ok(())
     }
 }
 
@@ -145,6 +161,12 @@ enum State {
         /// read by the application.
         recvd: RangeSet,
     },
+}
+
+impl State {
+    fn is_ordered(&self) -> bool {
+        matches!(self, Self::Ordered)
+    }
 }
 
 impl Default for State {
