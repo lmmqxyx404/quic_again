@@ -1,7 +1,7 @@
 use bytes::Bytes;
 use thiserror::Error;
 
-use crate::{connection::send_buffer::SendBuffer, VarInt};
+use crate::{connection::send_buffer::SendBuffer, frame, VarInt};
 
 #[derive(Debug)]
 pub(super) struct Send {
@@ -97,6 +97,19 @@ impl Send {
             Ok(())
         } else {
             Err(FinishError::ClosedStream)
+        }
+    }
+    /// 8.Returns whether the stream has been finished and all data has been acknowledged by the peer
+    pub(super) fn ack(&mut self, frame: frame::StreamMeta) -> bool {
+        self.pending.ack(frame.offsets);
+        match self.state {
+            SendState::DataSent {
+                ref mut finish_acked,
+            } => {
+                *finish_acked |= frame.fin;
+                *finish_acked && self.pending.is_fully_acked()
+            }
+            _ => false,
         }
     }
 }

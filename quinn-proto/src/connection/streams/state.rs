@@ -121,7 +121,6 @@ impl StreamsState {
             data_recvd: 0,
 
             next_remote: [0, 0],
-
         };
 
         for dir in Dir::iter() {
@@ -355,6 +354,33 @@ impl StreamsState {
     }
     /// 11.
     pub(crate) fn received_ack_of(&mut self, frame: frame::StreamMeta) {
+        let mut entry = match self.send.entry(frame.id) {
+            hash_map::Entry::Vacant(_) => return,
+            hash_map::Entry::Occupied(e) => e,
+        };
+
+        let stream = match entry.get_mut().as_mut() {
+            Some(s) => s,
+            None => {
+                // Because we only call this after sending data on this stream,
+                // this closure should be unreachable. If we did somehow screw that up,
+                // then we might hit an underflow below with unpredictable effects down
+                // the line. Best to short-circuit.
+                return;
+            }
+        };
+
+        if stream.is_reset() {
+            // We account for outstanding data on reset streams at time of reset
+            return;
+        }
+        let id = frame.id;
+        self.unacked_data -= frame.offsets.end - frame.offsets.start;
+        if !stream.ack(frame) {
+            // The stream is unfinished or may still need retransmits
+            return;
+        }
+
         todo!()
     }
     /// 12. Process incoming stream frame

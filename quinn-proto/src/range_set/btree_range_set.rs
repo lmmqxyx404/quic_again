@@ -21,4 +21,12 @@ impl RangeSet {
         let (&start, &end) = self.0.iter().next()?;
         Some(start..end)
     }
+    /// 4
+    pub fn insert(&mut self, mut x: Range<u64>) -> bool {
+        todo!()
+    }
+    /// 5
+    pub fn min(&self) -> Option<u64> {
+        self.0.first_key_value().map(|(&start, _)| start)
+    }
 }

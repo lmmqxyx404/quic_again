@@ -1,6 +1,6 @@
 use std::{collections::VecDeque, ops::Range};
 
-use bytes::Bytes;
+use bytes::{Buf, Bytes};
 
 use crate::{range_set::RangeSet, VarInt};
 
@@ -19,6 +19,10 @@ pub(super) struct SendBuffer {
     retransmits: RangeSet,
     /// 5. Data queued by the application but not yet acknowledged. May or may not have been sent.
     unacked_segments: VecDeque<Bytes>,
+    /// 6.Acknowledged ranges which couldn't be discarded yet as they don't include the earliest
+    /// offset in `unacked`
+    /// TODO: Recover storage from these by compacting (#700)
+    acks: RangeSet,
 }
 
 impl SendBuffer {
@@ -92,7 +96,7 @@ impl SendBuffer {
         (result, encode_length)
     }
 
-    /// Returns data which is associated with a range
+    /// 8. Returns data which is associated with a range
     ///
     /// This function can return a subset of the range, if the data is stored
     /// in noncontiguous fashion in the send buffer. In this case callers
@@ -115,5 +119,39 @@ impl SendBuffer {
         }
 
         &[]
+    }
+    /// 9. Discard a range of acknowledged stream data
+    pub(super) fn ack(&mut self, mut range: Range<u64>) {
+        // Clamp the range to data which is still tracked
+        let base_offset = self.offset - self.unacked_len as u64;
+        range.start = base_offset.max(range.start);
+        range.end = base_offset.max(range.end);
+
+        self.acks.insert(range);
+
+        while self.acks.min() == Some(self.offset - self.unacked_len as u64) {
+            let prefix = self.acks.pop_min().unwrap();
+            let mut to_advance = (prefix.end - prefix.start) as usize;
+
+            self.unacked_len -= to_advance;
+            while to_advance > 0 {
+                let front = self
+                    .unacked_segments
+                    .front_mut()
+                    .expect("Expected buffered data");
+
+                if front.len() <= to_advance {
+                    to_advance -= front.len();
+                    self.unacked_segments.pop_front();
+
+                    if self.unacked_segments.len() * 4 < self.unacked_segments.capacity() {
+                        self.unacked_segments.shrink_to_fit();
+                    }
+                } else {
+                    front.advance(to_advance);
+                    to_advance = 0;
+                }
+            }
+        }
     }
 }
