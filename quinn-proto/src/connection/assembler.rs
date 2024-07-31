@@ -109,7 +109,28 @@ impl Assembler {
         self.allocated = self.buffered;
         let mut buffer = BytesMut::with_capacity(fragmented_buffered);
         let mut offset = 0;
-        todo!()
+        for chunk in buffers.into_iter().rev() {
+            if chunk.defragmented {
+                // bytes might be empty after try_mark_defragment
+                if !chunk.bytes.is_empty() {
+                    self.data.push(chunk);
+                }
+                continue;
+            }
+            // Overlap is resolved by try_mark_defragment
+            if chunk.offset != offset + (buffer.len() as u64) {
+                if !buffer.is_empty() {
+                    self.data
+                        .push(Buffer::new_defragmented(offset, buffer.split().freeze()));
+                }
+                offset = chunk.offset;
+            }
+            buffer.extend_from_slice(&chunk.bytes);
+        }
+        if !buffer.is_empty() {
+            self.data
+                .push(Buffer::new_defragmented(offset, buffer.split().freeze()));
+        }
     }
     /// 5. Get the the next chunk
     pub(super) fn read(&mut self, max_length: usize, ordered: bool) -> Option<Chunk> {
@@ -234,6 +255,16 @@ impl Buffer {
         if self.defragmented {
             // Make sure that defragmented buffers do not contribute to over-allocation
             self.allocation_size = self.bytes.len();
+        }
+    }
+    /// 3.Constructs a new defragmented Buffer
+    fn new_defragmented(offset: u64, bytes: Bytes) -> Self {
+        let allocation_size = bytes.len();
+        Self {
+            offset,
+            bytes,
+            allocation_size,
+            defragmented: true,
         }
     }
 }
