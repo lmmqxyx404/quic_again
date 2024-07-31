@@ -1,5 +1,5 @@
 use std::cmp;
-use std::collections::BTreeMap;
+use std::collections::{btree_map, BTreeMap};
 use std::ops::{
     Bound::{Excluded, Included},
     Range,
@@ -72,5 +72,18 @@ impl RangeSet {
     /// 8
     pub fn new() -> Self {
         Default::default()
+    }
+    pub fn iter(&self) -> Iter<'_> {
+        Iter(self.0.iter())
+    }
+}
+
+pub struct Iter<'a>(btree_map::Iter<'a, u64, u64>);
+
+impl<'a> Iterator for Iter<'a> {
+    type Item = Range<u64>;
+    fn next(&mut self) -> Option<Range<u64>> {
+        let (&start, &end) = self.0.next()?;
+        Some(start..end)
     }
 }

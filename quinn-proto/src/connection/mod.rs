@@ -63,7 +63,7 @@ mod streams;
 pub use streams::StreamsState;
 #[cfg(not(fuzzing))]
 use streams::StreamsState;
-pub use streams::{RecvStream, SendStream, StreamEvent, Streams};
+pub use streams::{ReadError, RecvStream, SendStream, StreamEvent, Streams};
 /// 9
 mod mtud;
 

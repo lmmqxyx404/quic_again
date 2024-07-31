@@ -154,4 +154,8 @@ impl SendBuffer {
             }
         }
     }
+    /// 10. Compute the amount of data that hasn't been acknowledged
+    pub(super) fn unacked(&self) -> u64 {
+        self.unacked_len as u64 - self.acks.iter().map(|x| x.end - x.start).sum::<u64>()
+    }
 }

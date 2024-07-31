@@ -28,8 +28,7 @@ impl Send {
     }
     /// 2.
     pub(super) fn offset(&self) -> u64 {
-        todo!()
-        //   self.pending.offset()
+        self.pending.offset()
     }
     /// 3. Whether the stream has been reset
     pub(super) fn is_reset(&self) -> bool {
@@ -110,6 +109,13 @@ impl Send {
                 *finish_acked && self.pending.is_fully_acked()
             }
             _ => false,
+        }
+    }
+    /// 9. Update stream state due to a reset sent by the local application
+    pub(super) fn reset(&mut self) {
+        use SendState::*;
+        if let DataSent { .. } | Ready = self.state {
+            self.state = ResetSent;
         }
     }
 }

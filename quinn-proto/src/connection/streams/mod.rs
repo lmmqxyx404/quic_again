@@ -1,19 +1,21 @@
 mod state;
 use std::collections::BinaryHeap;
 
-use send::{ByteSlice, BytesSource, FinishError, WriteError, Written};
+use send::{ByteSlice, BytesSource, FinishError, SendState, WriteError, Written};
 use state::get_or_insert_send;
 #[allow(unreachable_pub)] // fuzzing only
 pub use state::StreamsState;
+use thiserror::Error;
 use tracing::trace;
 
-use crate::{Dir, StreamId};
+use crate::{Dir, StreamId, VarInt};
 
 mod send;
 
 /// 3
 mod recv;
-use recv::{Chunks, ReadableError, Recv};
+use recv::Recv;
+pub use recv::{Chunks, ReadError, ReadableError};
 
 use super::spaces::Retransmits;
 /// Application events about streams
@@ -232,6 +234,34 @@ impl<'a> SendStream<'a> {
         }
         Ok(written)
     }
+    /// 4. Abandon transmitting data on a stream
+    ///
+    /// # Panics
+    /// - when applied to a receive stream
+    pub fn reset(&mut self, error_code: VarInt) -> Result<(), ClosedStream> {
+        let max_send_data = self.state.max_send_data(self.id);
+        let stream = self
+            .state
+            .send
+            .get_mut(&self.id)
+            .map(get_or_insert_send(max_send_data))
+            .ok_or(ClosedStream { _private: () })?;
+
+        if matches!(stream.state, SendState::ResetSent) {
+            // Redundant reset call
+            return Err(ClosedStream { _private: () });
+        }
+
+        // Restore the portion of the send window consumed by the data that we aren't about to
+        // send. We leave flow control alone because the peer's responsible for issuing additional
+        // credit based on the final offset communicated in the RESET_STREAM frame we send.
+        self.state.unacked_data -= stream.pending.unacked();
+        stream.reset();
+        self.pending.reset_stream.push((self.id, error_code));
+
+        // Don't reopen an already-closed stream we haven't forgotten yet
+        Ok(())
+    }
 }
 
 /// Access to streams
@@ -261,4 +291,11 @@ impl<'a> RecvStream<'a> {
     pub fn read(&mut self, ordered: bool) -> Result<Chunks, ReadableError> {
         Chunks::new(self.id, ordered, self.state, self.pending)
     }
+}
+
+/// Error indicating that a stream has not been opened or has already been finished or reset
+#[derive(Debug, Error, Clone, PartialEq, Eq)]
+#[error("closed stream")]
+pub struct ClosedStream {
+    _private: (),
 }
