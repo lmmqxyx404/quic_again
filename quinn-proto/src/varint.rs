@@ -66,6 +66,12 @@ impl fmt::Debug for VarInt {
     }
 }
 
+impl fmt::Display for VarInt {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
 impl std::convert::TryFrom<usize> for VarInt {
     type Error = VarIntBoundsExceeded;
     /// Succeeds iff `x` < 2^62

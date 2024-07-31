@@ -1,3 +1,7 @@
+use std::collections::VecDeque;
+
+use bytes::Bytes;
+
 use crate::range_set::RangeSet;
 
 /// Buffer of outgoing retransmittable stream data
@@ -13,6 +17,8 @@ pub(super) struct SendBuffer {
     unsent: u64,
     /// 4. Previously transmitted ranges deemed lost
     retransmits: RangeSet,
+    /// 5. Data queued by the application but not yet acknowledged. May or may not have been sent.
+    unacked_segments: VecDeque<Bytes>,
 }
 
 impl SendBuffer {
@@ -34,5 +40,16 @@ impl SendBuffer {
     /// 4. Construct an empty buffer at the initial offset
     pub(super) fn new() -> Self {
         Self::default()
+    }
+    /// 5. First stream offset unwritten by the application, i.e. the offset that the next write will
+    /// begin at
+    pub(super) fn offset(&self) -> u64 {
+        self.offset
+    }
+    /// Append application data to the end of the stream
+    pub(super) fn write(&mut self, data: Bytes) {
+        self.unacked_len += data.len();
+        self.offset += data.len() as u64;
+        self.unacked_segments.push_back(data);
     }
 }

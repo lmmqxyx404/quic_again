@@ -17,13 +17,14 @@ pub(super) struct Send {
     pub(super) priority: i32,
     /// 6.
     pub(super) fin_pending: bool,
+    /// 7. The reason the peer wants us to stop, if `STOP_SENDING` was received
+    pub(super) stop_reason: Option<VarInt>,
 }
 
 impl Send {
     /// 1.
     pub(super) fn is_writable(&self) -> bool {
-        todo!()
-        // matches!(self.state, SendState::Ready)
+        matches!(self.state, SendState::Ready)
     }
     /// 2.
     pub(super) fn offset(&self) -> u64 {
@@ -47,7 +48,7 @@ impl Send {
             priority: 0,
             fin_pending: false,
             connection_blocked: false,
-            // stop_reason: None,
+            stop_reason: None,
         })
     }
     /// 6.
@@ -56,7 +57,33 @@ impl Send {
         source: &mut S,
         limit: u64,
     ) -> Result<Written, WriteError> {
-        todo!()
+        if !self.is_writable() {
+            return Err(WriteError::ClosedStream);
+        }
+        if let Some(error_code) = self.stop_reason {
+            return Err(WriteError::Stopped(error_code));
+        }
+        let budget = self.max_data - self.pending.offset();
+        if budget == 0 {
+            return Err(WriteError::Blocked);
+        }
+        let mut limit = limit.min(budget) as usize;
+
+        let mut result = Written::default();
+        loop {
+            let (chunk, chunks_consumed) = source.pop_chunk(limit);
+            result.chunks += chunks_consumed;
+            result.bytes += chunk.len();
+
+            if chunk.is_empty() {
+                break;
+            }
+
+            limit -= chunk.len();
+            self.pending.write(chunk);
+        }
+
+        Ok(result)
     }
 }
 
@@ -82,6 +109,14 @@ pub enum WriteError {
     /// 2. The stream has not been opened or has already been finished or reset
     #[error("closed stream")]
     ClosedStream,
+    /// 3. The peer is no longer accepting data on this stream, and it has been implicitly reset. The
+    /// stream cannot be finished or further written to.
+    ///
+    /// Carries an application-defined error code.
+    ///
+    /// [`StreamEvent::Finished`]: crate::StreamEvent::Finished
+    #[error("stopped by peer: code {0}")]
+    Stopped(VarInt),
 }
 
 /// Reasons why attempting to finish a stream might fail
@@ -135,4 +170,8 @@ impl<'a> BytesSource for ByteSlice<'a> {
 pub struct Written {
     /// 1. The amount of bytes which had been written
     pub bytes: usize,
+    /// 2. The amount of full chunks which had been written
+    ///
+    /// If a chunk was only partially written, it will not be counted by this field.
+    pub chunks: usize,
 }
