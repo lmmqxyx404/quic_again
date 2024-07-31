@@ -48,7 +48,16 @@ pub(super) enum SendState {
 
 /// Errors triggered while writing to a send stream
 #[derive(Debug, Error, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
-pub enum WriteError {}
+pub enum WriteError {
+    /// 1. The peer is not able to accept additional data, or the connection is congested.
+    ///
+    /// If the peer issues additional flow control credit, a [`StreamEvent::Writable`] event will
+    /// be generated, indicating that retrying the write might succeed.
+    ///
+    /// [`StreamEvent::Writable`]: crate::StreamEvent::Writable
+    #[error("unable to accept further writes")]
+    Blocked,
+}
 
 /// Reasons why attempting to finish a stream might fail
 #[derive(Debug, Error, Clone, PartialEq, Eq)]

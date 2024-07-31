@@ -4,6 +4,7 @@ use std::collections::BinaryHeap;
 use send::{ByteSlice, BytesSource, FinishError, WriteError, Written};
 #[allow(unreachable_pub)] // fuzzing only
 pub use state::StreamsState;
+use tracing::trace;
 
 use crate::{Dir, StreamId};
 
@@ -126,10 +127,14 @@ impl<'a> Streams<'a> {
 
 /// Access to streams
 pub struct SendStream<'a> {
-    // pub(super) id: StreamId,
+    /// 3
+    pub(super) id: StreamId,
+    /// 1
     pub(super) state: &'a mut StreamsState,
-    // pub(super) pending: &'a mut Retransmits,
-    // pub(super) conn_state: &'a super::State,
+    /// 4
+    pub(super) pending: &'a mut Retransmits,
+    /// 2
+    pub(super) conn_state: &'a super::State,
 }
 
 impl<'a> SendStream<'a> {
@@ -149,6 +154,14 @@ impl<'a> SendStream<'a> {
     }
     /// 3.
     fn write_source<B: BytesSource>(&mut self, source: &mut B) -> Result<Written, WriteError> {
+        if self.conn_state.is_closed() {
+            trace!(%self.id, "write blocked; connection draining");
+            return Err(WriteError::Blocked);
+        }
+
+        let limit = self.state.write_limit();
+
+        // let max_send_data = self.state.max_send_data(self.id);
         todo!()
     }
 }

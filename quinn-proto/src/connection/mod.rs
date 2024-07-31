@@ -2926,10 +2926,10 @@ impl Connection {
     pub fn send_stream(&mut self, id: StreamId) -> SendStream<'_> {
         assert!(id.dir() == Dir::Bi || id.initiator() == self.side);
         SendStream {
-            // id,
+            id,
             state: &mut self.streams,
-            /* pending: &mut self.spaces[SpaceId::Data].pending,
-            conn_state: &self.state, */
+            pending: &mut self.spaces[SpaceId::Data].pending,
+            conn_state: &self.state,
         }
     }
 }
