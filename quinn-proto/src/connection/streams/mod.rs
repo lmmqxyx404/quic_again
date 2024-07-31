@@ -1,16 +1,17 @@
 mod state;
-use std::collections::BinaryHeap;
+use std::collections::{hash_map, BinaryHeap};
 
-use send::{ByteSlice, BytesSource, FinishError, SendState, WriteError, Written};
-use state::get_or_insert_send;
+use send::{ByteSlice, SendState};
 #[allow(unreachable_pub)] // fuzzing only
 pub use state::StreamsState;
+use state::{get_or_insert_recv, get_or_insert_send};
 use thiserror::Error;
 use tracing::trace;
 
-use crate::{Dir, StreamId, VarInt};
-
+use crate::{frame, Dir, StreamId, VarInt};
+/// 2
 mod send;
+pub use send::{BytesSource, FinishError, WriteError, Written};
 
 /// 3
 mod recv;
@@ -290,6 +291,39 @@ impl<'a> RecvStream<'a> {
     /// `ReadError::IllegalOrderedRead`.
     pub fn read(&mut self, ordered: bool) -> Result<Chunks, ReadableError> {
         Chunks::new(self.id, ordered, self.state, self.pending)
+    }
+    /// Stop accepting data on the given receive stream
+    ///
+    /// Discards unread data and notifies the peer to stop transmitting. Once stopped, further
+    /// attempts to operate on a stream will yield `ClosedStream` errors.
+    pub fn stop(&mut self, error_code: VarInt) -> Result<(), ClosedStream> {
+        let mut entry = match self.state.recv.entry(self.id) {
+            hash_map::Entry::Occupied(s) => s,
+            hash_map::Entry::Vacant(_) => return Err(ClosedStream { _private: () }),
+        };
+        let stream = get_or_insert_recv(self.state.stream_receive_window)(entry.get_mut());
+
+        let (read_credits, stop_sending) = stream.stop()?;
+        if stop_sending.should_transmit() {
+            self.pending.stop_sending.push(frame::StopSending {
+                id: self.id,
+                error_code,
+            });
+        }
+
+        // We need to keep stopped streams around until they're finished or reset so we can update
+        // connection-level flow control to account for discarded data. Otherwise, we can discard
+        // state immediately.
+        if !stream.final_offset_unknown() {
+            entry.remove();
+            self.state.stream_freed(self.id, StreamHalf::Recv);
+        }
+
+        if self.state.add_read_credits(read_credits).should_transmit() {
+            self.pending.max_data = true;
+        }
+
+        Ok(())
     }
 }
 

@@ -15,7 +15,7 @@ use crate::{
     frame, StreamId, TransportError, VarInt,
 };
 
-use super::{ShouldTransmit, StreamsState};
+use super::{ClosedStream, ShouldTransmit, StreamsState};
 
 #[derive(Debug, Default)]
 pub(super) struct Recv {
@@ -192,6 +192,21 @@ impl Recv {
         // reset streams.
         self.assembler.clear();
         Ok(true)
+    }
+    pub(super) fn stop(&mut self) -> Result<(u64, ShouldTransmit), ClosedStream> {
+        if self.stopped {
+            return Err(ClosedStream { _private: () });
+        }
+
+        self.stopped = true;
+        self.assembler.clear();
+        // Issue flow control credit for unread data
+        let read_credits = self.end - self.assembler.bytes_read();
+        // This may send a spurious STOP_SENDING if we've already received all data, but it's a bit
+        // fiddly to distinguish that from the case where we've received a FIN but are missing some
+        // data that the peer might still be trying to retransmit, in which case a STOP_SENDING is
+        // still useful.
+        Ok((read_credits, ShouldTransmit(self.is_receiving())))
     }
 }
 
