@@ -427,7 +427,27 @@ impl StreamsState {
     }
     /// 18. Check for errors entailed by the peer's use of `id` as a send stream
     fn validate_receive_id(&mut self, id: StreamId) -> Result<(), TransportError> {
-        todo!()
+        if self.side == id.initiator() {
+            match id.dir() {
+                Dir::Uni => {
+                    return Err(TransportError::STREAM_STATE_ERROR(
+                        "illegal operation on send-only stream",
+                    ));
+                }
+                Dir::Bi if id.index() >= self.next[Dir::Bi as usize] => {
+                    return Err(TransportError::STREAM_STATE_ERROR(
+                        "operation on unopened stream",
+                    ));
+                }
+                Dir::Bi => {}
+            };
+        } else {
+            let limit = self.max_remote[id.dir() as usize];
+            if id.index() >= limit {
+                return Err(TransportError::STREAM_LIMIT_ERROR(""));
+            }
+        }
+        Ok(())
     }
 }
 

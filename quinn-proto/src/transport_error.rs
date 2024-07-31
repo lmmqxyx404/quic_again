@@ -106,4 +106,6 @@ errors! {
     CRYPTO_BUFFER_EXCEEDED(0xD) "received more data in CRYPTO frames than can be buffered";
     NO_ERROR(0x0) "the connection is being closed abruptly in the absence of any error";
     INVALID_TOKEN(0xB) "received an invalid Retry Token in a client Initial";
+    STREAM_LIMIT_ERROR(0x4) "received a frame for a stream identifier that exceeded advertised the stream limit for the corresponding stream type";
+    STREAM_STATE_ERROR(0x5) "received a frame for a stream that was not in a state that permitted that frame";
 }
