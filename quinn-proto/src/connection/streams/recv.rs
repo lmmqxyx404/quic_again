@@ -8,7 +8,7 @@ use crate::{
     connection::{
         assembler::{Assembler, IllegalOrderedRead},
         spaces::Retransmits,
-        streams::state::get_or_insert_recv,
+        streams::{state::get_or_insert_recv, StreamHalf},
         Chunk,
     },
     frame, StreamId, TransportError, VarInt,
@@ -159,6 +159,14 @@ pub struct Chunks<'a> {
     pending: &'a mut Retransmits,
     /// 2
     state: ChunksState,
+    /// 3
+    ordered: bool,
+    /// 4
+    read: u64,
+    /// 5.
+    streams: &'a mut StreamsState,
+    /// 6.
+    id: StreamId,
 }
 
 impl<'a> Chunks<'a> {
@@ -181,12 +189,12 @@ impl<'a> Chunks<'a> {
 
         recv.assembler.ensure_ordering(ordered)?;
         Ok(Self {
-            /* id,
+            id,
             ordered,
-            streams, */
+            streams,
             pending,
             state: ChunksState::Readable(recv),
-            /* read: 0, */
+            read: 0,
         })
     }
     /// Next
@@ -203,7 +211,32 @@ impl<'a> Chunks<'a> {
             }
             ChunksState::Finalized => panic!("must not call next() after finalize()"),
         };
-        todo!()
+        if let Some(chunk) = rs.assembler.read(max_length, self.ordered) {
+            self.read += chunk.bytes.len() as u64;
+            return Ok(Some(chunk));
+        }
+
+        match rs.state {
+            RecvState::ResetRecvd { error_code, .. } => {
+                debug_assert_eq!(self.read, 0, "reset streams have empty buffers");
+                self.streams.stream_freed(self.id, StreamHalf::Recv);
+                self.state = ChunksState::Reset(error_code);
+                Err(ReadError::Reset(error_code))
+            }
+            RecvState::Recv { size } => {
+                if size == Some(rs.end) && rs.assembler.bytes_read() == rs.end {
+                    self.streams.stream_freed(self.id, StreamHalf::Recv);
+                    self.state = ChunksState::Finished;
+                    Ok(None)
+                } else {
+                    // We don't need a distinct `ChunksState` variant for a blocked stream because
+                    // retrying a read harmlessly re-traces our steps back to returning
+                    // `Err(Blocked)` again. The buffers can't refill and the stream's own state
+                    // can't change so long as this `Chunks` exists.
+                    Err(ReadError::Blocked)
+                }
+            }
+        }
     }
 }
 
@@ -235,6 +268,12 @@ pub enum ReadError {
     /// Carries an application-defined error code.
     #[error("reset by peer: code {0}")]
     Reset(VarInt),
+    /// 2. No more data is currently available on this stream.
+    ///
+    /// If more data on this stream is received from the peer, an `Event::StreamReadable` will be
+    /// generated for this stream, indicating that retrying the read might succeed.
+    #[error("blocked")]
+    Blocked,
 }
 
 enum ChunksState {
