@@ -108,4 +108,6 @@ errors! {
     INVALID_TOKEN(0xB) "received an invalid Retry Token in a client Initial";
     STREAM_LIMIT_ERROR(0x4) "received a frame for a stream identifier that exceeded advertised the stream limit for the corresponding stream type";
     STREAM_STATE_ERROR(0x5) "received a frame for a stream that was not in a state that permitted that frame";
+    FLOW_CONTROL_ERROR(0x3) "received more data than permitted in advertised data limits";
+    FINAL_SIZE_ERROR(0x6) "received a STREAM frame or a RESET_STREAM frame containing a different final size to the one already established";
 }

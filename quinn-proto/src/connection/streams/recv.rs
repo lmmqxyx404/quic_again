@@ -1,4 +1,6 @@
-use crate::{frame, TransportError};
+use tracing::debug;
+
+use crate::{frame, TransportError, VarInt};
 
 #[derive(Debug, Default)]
 pub(super) struct Recv {
@@ -50,13 +52,36 @@ impl Recv {
         received: u64,
         max_data: u64,
     ) -> Result<(u64, bool), TransportError> {
+        let end = frame.offset + frame.data.len() as u64;
+        if end >= 2u64.pow(62) {
+            return Err(TransportError::FLOW_CONTROL_ERROR(
+                "maximum stream offset too large",
+            ));
+        }
+
+        if let Some(final_offset) = self.final_offset() {
+            if end > final_offset || (frame.fin && end != final_offset) {
+                debug!(end, final_offset, "final size error");
+                return Err(TransportError::FINAL_SIZE_ERROR(""));
+            }
+        }
         todo!()
+    }
+
+    fn final_offset(&self) -> Option<u64> {
+        match self.state {
+            RecvState::Recv { size } => size,
+            RecvState::ResetRecvd { size, .. } => Some(size),
+        }
     }
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 enum RecvState {
+    /// 1
     Recv { size: Option<u64> },
+    /// 2
+    ResetRecvd { size: u64, error_code: VarInt },
 }
 
 impl Default for RecvState {
