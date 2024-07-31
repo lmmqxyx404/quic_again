@@ -79,6 +79,8 @@ pub struct StreamsState {
     data_recvd: u64,
     /// Lowest remotely-initiated stream index that haven't actually been opened by the peer
     pub(super) next_remote: [u64; 2],
+    /// Number of streams that we've given the peer permission to open and which aren't fully closed
+    pub(super) allocated_remote_count: [u64; 2],
 }
 
 impl StreamsState {
@@ -121,6 +123,7 @@ impl StreamsState {
             data_recvd: 0,
 
             next_remote: [0, 0],
+            allocated_remote_count: [max_remote_bi.into(), max_remote_uni.into()],
         };
 
         for dir in Dir::iter() {
@@ -350,7 +353,20 @@ impl StreamsState {
     }
     /// 10. Update counters for removal of a stream
     pub(super) fn stream_freed(&mut self, id: StreamId, half: StreamHalf) {
-        todo!()
+        if id.initiator() != self.side {
+            let fully_free = id.dir() == Dir::Uni
+                || match half {
+                    StreamHalf::Send => !self.recv.contains_key(&id),
+                    StreamHalf::Recv => !self.send.contains_key(&id),
+                };
+            if fully_free {
+                self.allocated_remote_count[id.dir() as usize] -= 1;
+                self.ensure_remote_streams(id.dir());
+            }
+        }
+        if half == StreamHalf::Send {
+            self.send_streams -= 1;
+        }
     }
     /// 11.
     pub(crate) fn received_ack_of(&mut self, frame: frame::StreamMeta) {
@@ -541,6 +557,18 @@ impl StreamsState {
         } else if notify_readable {
             self.events.push_back(StreamEvent::Readable { id: stream });
         }
+    }
+    /// 20. Ensure we have space for at least a full flow control window of remotely-initiated streams
+    /// to be open, and notify the peer if the window has moved
+    fn ensure_remote_streams(&mut self, dir: Dir) {
+        let new_count = self.max_concurrent_remote_count[dir as usize]
+            .saturating_sub(self.allocated_remote_count[dir as usize]);
+        for i in 0..new_count {
+            let id = StreamId::new(!self.side, dir, self.max_remote[dir as usize] + i);
+            self.insert(true, id);
+        }
+        self.allocated_remote_count[dir as usize] += new_count;
+        self.max_remote[dir as usize] += new_count;
     }
 }
 
