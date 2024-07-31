@@ -31,6 +31,11 @@ pub enum StreamEvent {
         /// Which stream is now writable
         id: StreamId,
     },
+    /// A currently open stream likely has data or errors waiting to be read
+    Readable {
+        /// Which stream is now readable
+        id: StreamId,
+    },
 }
 
 /// A queue of streams with pending outgoing data, sorted by priority

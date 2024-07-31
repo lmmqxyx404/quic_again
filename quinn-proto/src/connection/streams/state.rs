@@ -77,6 +77,8 @@ pub struct StreamsState {
     local_max_data: u64,
     /// Sum of end offsets of all receive streams. Includes gaps, so it's an upper bound.
     data_recvd: u64,
+    /// Lowest remotely-initiated stream index that haven't actually been opened by the peer
+    pub(super) next_remote: [u64; 2],
 }
 
 impl StreamsState {
@@ -117,6 +119,9 @@ impl StreamsState {
 
             local_max_data: receive_window.into(),
             data_recvd: 0,
+
+            next_remote: [0, 0],
+
         };
 
         for dir in Dir::iter() {
@@ -387,6 +392,17 @@ impl StreamsState {
             rs.ingest(frame, payload_len, self.data_recvd, self.local_max_data)?;
         self.data_recvd = self.data_recvd.saturating_add(new_bytes);
 
+        if !rs.stopped {
+            self.on_stream_frame(true, id);
+            return Ok(ShouldTransmit(false));
+        }
+
+        // Stopped streams become closed instantly on FIN, so check whether we need to clean up
+        if closed {
+            self.recv.remove(&id);
+            self.stream_freed(id, StreamHalf::Recv);
+        }
+
         todo!()
     }
     /// 13. Queues MAX_STREAM_ID frames in `pending` if needed
@@ -479,6 +495,24 @@ impl StreamsState {
             }
         }
         Ok(())
+    }
+
+    /// 19. Notify the application that new streams were opened or a stream became readable.
+    fn on_stream_frame(&mut self, notify_readable: bool, stream: StreamId) {
+        if stream.initiator() == self.side {
+            // Notifying about the opening of locally-initiated streams would be redundant.
+            if notify_readable {
+                self.events.push_back(StreamEvent::Readable { id: stream });
+            }
+            return;
+        }
+        let next = &mut self.next_remote[stream.dir() as usize];
+        if stream.index() >= *next {
+            *next = stream.index() + 1;
+            self.opened[stream.dir() as usize] = true;
+        } else if notify_readable {
+            self.events.push_back(StreamEvent::Readable { id: stream });
+        }
     }
 }
 
