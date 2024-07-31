@@ -1,6 +1,6 @@
 use bytes::BufMut;
 use rustc_hash::FxHashMap;
-use tracing::trace;
+use tracing::{debug, trace};
 
 use crate::{
     connection::{
@@ -350,6 +350,12 @@ impl StreamsState {
         frame: frame::Stream,
         payload_len: usize,
     ) -> Result<ShouldTransmit, TransportError> {
+        let id = frame.id;
+        self.validate_receive_id(id).map_err(|e| {
+            debug!("received illegal STREAM frame");
+            e
+        })?;
+
         todo!()
     }
     /// 13. Queues MAX_STREAM_ID frames in `pending` if needed
@@ -418,6 +424,10 @@ impl StreamsState {
             Dir::Bi if remote => self.initial_max_stream_data_bidi_local,
             Dir::Bi => self.initial_max_stream_data_bidi_remote,
         }
+    }
+    /// 18. Check for errors entailed by the peer's use of `id` as a send stream
+    fn validate_receive_id(&mut self, id: StreamId) -> Result<(), TransportError> {
+        todo!()
     }
 }
 
