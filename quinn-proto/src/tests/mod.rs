@@ -17,10 +17,16 @@ use crate::{
 mod util;
 use super::*;
 use assert_matches::assert_matches;
+use config::ServerConfig;
+use crypto::rustls::QuicServerConfig;
 use hex_literal::hex;
 use rand::RngCore;
 use ring::hmac;
-use rustls::AlertDescription;
+use rustls::{
+    pki_types::{PrivateKeyDer, PrivatePkcs8KeyDer},
+    server::WebPkiClientVerifier,
+    AlertDescription, RootCertStore,
+};
 use tracing::info;
 use util::*;
 
@@ -434,4 +440,62 @@ fn reject_self_signed_server_cert() {
     assert_matches!(pair.client_conn_mut(client_ch).poll(),
                     Some(Event::ConnectionLost { reason: ConnectionError::TransportError(ref error)})
                     if error.code == TransportErrorCode::crypto(AlertDescription::UnknownCA.into()));
+}
+
+#[test]
+fn reject_missing_client_cert() {
+    let _guard = subscribe();
+
+    let mut store = RootCertStore::empty();
+    // `WebPkiClientVerifier` requires a non-empty store, so we stick our own certificate into it
+    // because it's convenient.
+    store.add(CERTIFIED_KEY.cert.der().clone()).unwrap();
+
+    let key = PrivatePkcs8KeyDer::from(CERTIFIED_KEY.key_pair.serialize_der());
+    let cert = CERTIFIED_KEY.cert.der().clone();
+
+    let provider = Arc::new(rustls::crypto::ring::default_provider());
+    let config = rustls::ServerConfig::builder_with_provider(provider.clone())
+        .with_protocol_versions(&[&rustls::version::TLS13])
+        .unwrap()
+        .with_client_cert_verifier(
+            WebPkiClientVerifier::builder_with_provider(Arc::new(store), provider)
+                .build()
+                .unwrap(),
+        )
+        .with_single_cert(vec![cert], PrivateKeyDer::from(key))
+        .unwrap();
+    let config = QuicServerConfig::try_from(config).unwrap();
+
+    let mut pair = Pair::new(
+        Default::default(),
+        ServerConfig::with_crypto(Arc::new(config)),
+    );
+
+    info!("connecting");
+    let client_ch = pair.begin_connect(client_config());
+    pair.drive();
+
+    // The client completes the connection, but finds it immediately closed
+    assert_matches!(
+        pair.client_conn_mut(client_ch).poll(),
+        Some(Event::HandshakeDataReady)
+    );
+    assert_matches!(
+        pair.client_conn_mut(client_ch).poll(),
+        Some(Event::Connected)
+    );
+    assert_matches!(pair.client_conn_mut(client_ch).poll(),
+                    Some(Event::ConnectionLost { reason: ConnectionError::ConnectionClosed(ref close)})
+                    if close.error_code == TransportErrorCode::crypto(AlertDescription::CertificateRequired.into()));
+
+    // The server never completes the connection
+    let server_ch = pair.server.assert_accept();
+    assert_matches!(
+        pair.server_conn_mut(server_ch).poll(),
+        Some(Event::HandshakeDataReady)
+    );
+    assert_matches!(pair.server_conn_mut(server_ch).poll(),
+                    Some(Event::ConnectionLost { reason: ConnectionError::TransportError(ref error)})
+                    if error.code == TransportErrorCode::crypto(AlertDescription::CertificateRequired.into()));
 }
