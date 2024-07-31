@@ -15,10 +15,12 @@ use crate::{
 };
 
 mod util;
+use super::*;
 use assert_matches::assert_matches;
 use hex_literal::hex;
 use rand::RngCore;
 use ring::hmac;
+use rustls::AlertDescription;
 use tracing::info;
 use util::*;
 
@@ -404,4 +406,32 @@ fn stop_stream() {
         pair.client_send(client_ch, s).finish(),
         Err(FinishError::Stopped(ERROR))
     );
+}
+
+#[test]
+fn reject_self_signed_server_cert() {
+    let _guard = subscribe();
+    let mut pair = Pair::default();
+    info!("connecting");
+
+    // Create a self-signed certificate with a different distinguished name than the default one,
+    // such that path building cannot confuse the default root the server is using and the one
+    // the client is trusting (in which case we'd get a different error).
+    let mut cert = rcgen::CertificateParams::new(["localhost".into()]).unwrap();
+    let mut issuer = rcgen::DistinguishedName::new();
+    issuer.push(
+        rcgen::DnType::OrganizationName,
+        "Crazy Quinn's House of Certificates",
+    );
+    cert.distinguished_name = issuer;
+    let cert = cert
+        .self_signed(&rcgen::KeyPair::generate().unwrap())
+        .unwrap();
+    let client_ch = pair.begin_connect(client_config_with_certs(vec![cert.into()]));
+
+    pair.drive();
+
+    assert_matches!(pair.client_conn_mut(client_ch).poll(),
+                    Some(Event::ConnectionLost { reason: ConnectionError::TransportError(ref error)})
+                    if error.code == TransportErrorCode::crypto(AlertDescription::UnknownCA.into()));
 }

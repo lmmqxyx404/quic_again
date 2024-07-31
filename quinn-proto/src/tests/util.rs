@@ -30,6 +30,8 @@ use crate::{
     Endpoint, StreamId, Transmit,
 };
 
+use super::*;
+
 pub(super) fn client_config() -> ClientConfig {
     ClientConfig::new(Arc::new(client_crypto()))
 }
@@ -617,4 +619,8 @@ pub(super) fn min_opt<T: Ord>(x: Option<T>, y: Option<T>) -> Option<T> {
         (_, Some(y)) => Some(y),
         _ => None,
     }
+}
+
+pub(super) fn client_config_with_certs(certs: Vec<CertificateDer<'static>>) -> ClientConfig {
+    ClientConfig::new(Arc::new(client_crypto_inner(Some(certs), None)))
 }
