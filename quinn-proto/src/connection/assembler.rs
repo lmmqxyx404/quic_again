@@ -192,6 +192,12 @@ impl Assembler {
         }
         Ok(())
     }
+    /// Discard all buffered data
+    pub(super) fn clear(&mut self) {
+        self.data.clear();
+        self.buffered = 0;
+        self.allocated = 0;
+    }
 }
 
 #[derive(Debug)]

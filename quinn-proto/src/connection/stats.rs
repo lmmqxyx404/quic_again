@@ -93,6 +93,7 @@ impl FrameStats {
             Frame::NewConnectionId(_) => self.new_connection_id += 1,
             Frame::HandshakeDone => self.handshake_done = self.handshake_done.saturating_add(1),
             Frame::RetireConnectionId { .. } => self.retire_connection_id += 1,
+            Frame::ResetStream(_) => self.reset_stream += 1,
         }
     }
 }

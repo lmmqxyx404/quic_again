@@ -369,6 +369,6 @@ fn reset_stream() {
     let mut recv = pair.server_recv(server_ch, s);
     let mut chunks = recv.read(false).unwrap();
     assert_matches!(chunks.next(usize::MAX), Err(ReadError::Reset(ERROR)));
-    /*let _ = chunks.finalize();
-    assert_matches!(pair.client_conn_mut(client_ch).poll(), None); */
+    let _ = chunks.finalize();
+    assert_matches!(pair.client_conn_mut(client_ch).poll(), None);
 }

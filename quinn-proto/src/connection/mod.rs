@@ -1063,6 +1063,11 @@ impl Connection {
                             allow_more_cids,
                         ));
                 }
+                Frame::ResetStream(frame) => {
+                    if self.streams.received_reset(frame)?.should_transmit() {
+                        self.spaces[SpaceId::Data].pending.max_data = true;
+                    }
+                }
             }
         }
 

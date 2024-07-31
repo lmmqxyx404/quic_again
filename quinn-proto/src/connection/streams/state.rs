@@ -612,6 +612,67 @@ impl StreamsState {
         let diff = self.local_max_data - self.sent_max_data.into_inner();
         ShouldTransmit(diff >= (self.receive_window / 8))
     }
+    /// Process incoming RESET_STREAM frame
+    ///
+    /// If successful, returns whether a `MAX_DATA` frame needs to be transmitted
+    #[allow(unreachable_pub)] // fuzzing only
+    pub fn received_reset(
+        &mut self,
+        frame: frame::ResetStream,
+    ) -> Result<ShouldTransmit, TransportError> {
+        let frame::ResetStream {
+            id,
+            error_code,
+            final_offset,
+        } = frame;
+        self.validate_receive_id(id).map_err(|e| {
+            debug!("received illegal RESET_STREAM frame");
+            e
+        })?;
+
+        let rs = match self
+            .recv
+            .get_mut(&id)
+            .map(get_or_insert_recv(self.stream_receive_window))
+        {
+            Some(stream) => stream,
+            None => {
+                trace!("received RESET_STREAM on closed stream");
+                return Ok(ShouldTransmit(false));
+            }
+        };
+
+        // State transition
+        if !rs.reset(
+            error_code,
+            final_offset,
+            self.data_recvd,
+            self.local_max_data,
+        )? {
+            // Redundant reset
+            return Ok(ShouldTransmit(false));
+        }
+        let bytes_read = rs.assembler.bytes_read();
+        let stopped = rs.stopped;
+        let end = rs.end;
+        if stopped {
+            // Stopped streams should be disposed immediately on reset
+            self.recv.remove(&id);
+            self.stream_freed(id, StreamHalf::Recv);
+        }
+        self.on_stream_frame(!stopped, id);
+
+        // Update connection-level flow control
+        Ok(if bytes_read != final_offset.into_inner() {
+            // bytes_read is always <= end, so this won't underflow.
+            self.data_recvd = self
+                .data_recvd
+                .saturating_add(u64::from(final_offset) - end);
+            self.add_read_credits(u64::from(final_offset) - bytes_read)
+        } else {
+            ShouldTransmit(false)
+        })
+    }
 }
 
 #[inline]

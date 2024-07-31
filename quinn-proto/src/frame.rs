@@ -200,6 +200,11 @@ impl Iter {
                 reason: self.take_len()?,
             })),
             Type::PING => Frame::Ping,
+            Type::RESET_STREAM => Frame::ResetStream(ResetStream {
+                id: self.bytes.get()?,
+                error_code: self.bytes.get()?,
+                final_offset: self.bytes.get()?,
+            }),
             _ => {
                 #[cfg(test)]
                 {
@@ -289,6 +294,7 @@ pub(crate) enum Frame {
     NewConnectionId(NewConnectionId),
     HandshakeDone,
     RetireConnectionId { sequence: u64 },
+    ResetStream(ResetStream),
 }
 
 impl Frame {
@@ -318,6 +324,7 @@ impl Frame {
             HandshakeDone => Type::HANDSHAKE_DONE,
 
             RetireConnectionId { .. } => Type::RETIRE_CONNECTION_ID,
+            ResetStream(_) => Type::RESET_STREAM,
         }
     }
     /// 2.

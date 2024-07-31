@@ -125,3 +125,24 @@ stack backtrace:
              at /rustc/129f3b9964af4d4a709d1383930ade12dfe7c081/library/core/src/ops/function.rs:250:5
 note: Some details are omitted, run with `RUST_BACKTRACE=full` for a verbose backtrace.
 ```
+
+# about `reset_stream`
+add the `ResetStream` support
+```
+thread 'tests::reset_stream' panicked at quinn-proto/src/tests/mod.rs:371:5:
+assertion failed: `Ok(Some(Chunk { offset: 0, bytes: b"hello" }))` does not match `Err(ReadError::Reset(ERROR))`
+stack backtrace:
+   0: rust_begin_unwind
+             at /rustc/129f3b9964af4d4a709d1383930ade12dfe7c081/library/std/src/panicking.rs:652:5
+   1: core::panicking::panic_fmt
+             at /rustc/129f3b9964af4d4a709d1383930ade12dfe7c081/library/core/src/panicking.rs:72:14
+   2: scratch_quinn_proto::tests::reset_stream
+             at ./src/tests/mod.rs:371:5
+   3: scratch_quinn_proto::tests::reset_stream::{{closure}}
+             at ./src/tests/mod.rs:347:18
+   4: core::ops::function::FnOnce::call_once
+             at /rustc/129f3b9964af4d4a709d1383930ade12dfe7c081/library/core/src/ops/function.rs:250:5
+   5: core::ops::function::FnOnce::call_once
+             at /rustc/129f3b9964af4d4a709d1383930ade12dfe7c081/library/core/src/ops/function.rs:250:5
+note: Some details are omitted, run with `RUST_BACKTRACE=full` for a verbose backtrace.
+```

@@ -159,6 +159,40 @@ impl Recv {
         let transmit = self.can_send_flow_control() && diff >= (stream_receive_window / 8);
         (max_stream_data, ShouldTransmit(transmit))
     }
+    /// Returns `false` iff the reset was redundant
+    pub(super) fn reset(
+        &mut self,
+        error_code: VarInt,
+        final_offset: VarInt,
+        received: u64,
+        max_data: u64,
+    ) -> Result<bool, TransportError> {
+        // Validate final_offset
+        if let Some(offset) = self.final_offset() {
+            if offset != final_offset.into_inner() {
+                return Err(TransportError::FINAL_SIZE_ERROR("inconsistent value"));
+            }
+        } else if self.end > final_offset.into() {
+            return Err(TransportError::FINAL_SIZE_ERROR(
+                "lower than high water mark",
+            ));
+        }
+        self.credit_consumed_by(final_offset.into(), received, max_data)?;
+
+        if matches!(self.state, RecvState::ResetRecvd { .. }) {
+            return Ok(false);
+        }
+        self.state = RecvState::ResetRecvd {
+            size: final_offset.into(),
+            error_code,
+        };
+        // Nuke buffers so that future reads fail immediately, which ensures future reads don't
+        // issue flow control credit redundant to that already issued. We could instead special-case
+        // reset streams during read, but it's unclear if there's any benefit to retaining data for
+        // reset streams.
+        self.assembler.clear();
+        Ok(true)
+    }
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
