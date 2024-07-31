@@ -259,7 +259,6 @@ impl<'a> RecvStream<'a> {
     /// reads, but ordered reads on streams that have seen previous unordered reads will return
     /// `ReadError::IllegalOrderedRead`.
     pub fn read(&mut self, ordered: bool) -> Result<Chunks, ReadableError> {
-        todo!()
-        // Chunks::new(self.id, ordered, self.state, self.pending)
+        Chunks::new(self.id, ordered, self.state, self.pending)
     }
 }

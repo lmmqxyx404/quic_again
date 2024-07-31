@@ -132,6 +132,9 @@ impl Assembler {
             });
         }
     }
+    pub(super) fn ensure_ordering(&mut self, ordered: bool) -> Result<(), IllegalOrderedRead> {
+        todo!()
+    }
 }
 
 #[derive(Debug)]
@@ -207,3 +210,7 @@ impl Chunk {
         Self { offset, bytes }
     }
 }
+
+/// Error indicating that an ordered read was performed on a stream after an unordered read
+#[derive(Debug)]
+pub struct IllegalOrderedRead;

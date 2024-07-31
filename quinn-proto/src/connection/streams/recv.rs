@@ -1,7 +1,14 @@
+use std::collections::hash_map::Entry;
+
 use thiserror::Error;
 use tracing::debug;
 
-use crate::{connection::{assembler::Assembler, spaces::Retransmits}, frame, TransportError, VarInt};
+use crate::{
+    connection::{assembler::{Assembler, IllegalOrderedRead}, spaces::Retransmits, streams::state::get_or_insert_recv},
+    frame, StreamId, TransportError, VarInt,
+};
+
+use super::StreamsState;
 
 #[derive(Debug, Default)]
 pub(super) struct Recv {
@@ -145,6 +152,45 @@ pub struct Chunks<'a> {
     pending: &'a mut Retransmits,
 }
 
+impl<'a> Chunks<'a> {
+    pub(super) fn new(
+        id: StreamId,
+        ordered: bool,
+        streams: &'a mut StreamsState,
+        pending: &'a mut Retransmits,
+    ) -> Result<Self, ReadableError> {
+        let mut entry = match streams.recv.entry(id) {
+            Entry::Occupied(entry) => entry,
+            Entry::Vacant(_) => return Err(ReadableError::ClosedStream),
+        };
+
+        let mut recv =
+            match get_or_insert_recv(streams.stream_receive_window)(entry.get_mut()).stopped {
+                true => return Err(ReadableError::ClosedStream),
+                false => entry.remove().unwrap(), // this can't fail due to the previous get_or_insert_with
+            };
+
+        recv.assembler.ensure_ordering(ordered)?;
+        todo!()
+    }
+}
+
 /// Errors triggered when opening a recv stream for reading
 #[derive(Debug, Error, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
-pub enum ReadableError {}
+pub enum ReadableError {
+    /// 1.The stream has not been opened or was already stopped, finished, or reset
+    #[error("closed stream")]
+    ClosedStream,
+    /// 2.Attempted an ordered read following an unordered read
+    ///
+    /// Performing an unordered read allows discontinuities to arise in the receive buffer of a
+    /// stream which cannot be recovered, making further ordered reads impossible.
+    #[error("ordered read after unordered read")]
+    IllegalOrderedRead,
+}
+
+impl From<IllegalOrderedRead> for ReadableError {
+    fn from(_: IllegalOrderedRead) -> Self {
+        Self::IllegalOrderedRead
+    }
+}
