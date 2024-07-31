@@ -1,6 +1,7 @@
+use thiserror::Error;
 use tracing::debug;
 
-use crate::{connection::assembler::Assembler, frame, TransportError, VarInt};
+use crate::{connection::{assembler::Assembler, spaces::Retransmits}, frame, TransportError, VarInt};
 
 #[derive(Debug, Default)]
 pub(super) struct Recv {
@@ -138,3 +139,12 @@ impl Default for RecvState {
         Self::Recv { size: None }
     }
 }
+
+/// Chunks
+pub struct Chunks<'a> {
+    pending: &'a mut Retransmits,
+}
+
+/// Errors triggered when opening a recv stream for reading
+#[derive(Debug, Error, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+pub enum ReadableError {}

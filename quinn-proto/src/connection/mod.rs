@@ -63,7 +63,7 @@ mod streams;
 pub use streams::StreamsState;
 #[cfg(not(fuzzing))]
 use streams::StreamsState;
-pub use streams::{SendStream, StreamEvent, Streams};
+pub use streams::{RecvStream, SendStream, StreamEvent, Streams};
 /// 9
 mod mtud;
 
@@ -2921,7 +2921,7 @@ impl Connection {
             conn_state: &self.state,
         }
     }
-    /// Provide control over streams
+    /// 62. Provide control over streams
     #[must_use]
     pub fn send_stream(&mut self, id: StreamId) -> SendStream<'_> {
         assert!(id.dir() == Dir::Bi || id.initiator() == self.side);
@@ -2930,6 +2930,16 @@ impl Connection {
             state: &mut self.streams,
             pending: &mut self.spaces[SpaceId::Data].pending,
             conn_state: &self.state,
+        }
+    }
+    /// 63.Provide control over streams
+    #[must_use]
+    pub fn recv_stream(&mut self, id: StreamId) -> RecvStream<'_> {
+        assert!(id.dir() == Dir::Bi || id.initiator() != self.side);
+        RecvStream {
+            id,
+            state: &mut self.streams,
+            pending: &mut self.spaces[SpaceId::Data].pending,
         }
     }
 }

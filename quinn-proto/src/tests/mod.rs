@@ -331,5 +331,13 @@ fn finish_stream_simple() {
     assert_matches!(pair.server_streams(server_ch).accept(Dir::Uni), Some(stream) if stream == s);
     assert_matches!(pair.server_conn_mut(server_ch).poll(), None);
 
+    let mut recv = pair.server_recv(server_ch, s);
+    let mut chunks = recv.read(false).unwrap();
     todo!()
+    /* assert_matches!(
+        chunks.next(usize::MAX),
+        Ok(Some(chunk)) if chunk.offset == 0 && chunk.bytes == MSG
+    );
+    assert_matches!(chunks.next(usize::MAX), Ok(None));
+    let _ = chunks.finalize(); */
 }
