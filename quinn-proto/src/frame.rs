@@ -205,6 +205,10 @@ impl Iter {
                 error_code: self.bytes.get()?,
                 final_offset: self.bytes.get()?,
             }),
+            Type::STOP_SENDING => Frame::StopSending(StopSending {
+                id: self.bytes.get()?,
+                error_code: self.bytes.get()?,
+            }),
             _ => {
                 #[cfg(test)]
                 {
@@ -295,6 +299,7 @@ pub(crate) enum Frame {
     HandshakeDone,
     RetireConnectionId { sequence: u64 },
     ResetStream(ResetStream),
+    StopSending(StopSending),
 }
 
 impl Frame {
@@ -325,6 +330,7 @@ impl Frame {
 
             RetireConnectionId { .. } => Type::RETIRE_CONNECTION_ID,
             ResetStream(_) => Type::RESET_STREAM,
+            StopSending { .. } => Type::STOP_SENDING,
         }
     }
     /// 2.

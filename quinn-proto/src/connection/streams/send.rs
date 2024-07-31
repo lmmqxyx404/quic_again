@@ -118,6 +118,18 @@ impl Send {
             self.state = ResetSent;
         }
     }
+    /// 10. Handle STOP_SENDING
+    ///
+    /// Returns true if the stream was stopped due to this frame, and false
+    /// if it had been stopped before
+    pub(super) fn try_stop(&mut self, error_code: VarInt) -> bool {
+        if self.stop_reason.is_none() {
+            self.stop_reason = Some(error_code);
+            true
+        } else {
+            false
+        }
+    }
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]

@@ -612,7 +612,7 @@ impl StreamsState {
         let diff = self.local_max_data - self.sent_max_data.into_inner();
         ShouldTransmit(diff >= (self.receive_window / 8))
     }
-    /// Process incoming RESET_STREAM frame
+    /// 22. Process incoming RESET_STREAM frame
     ///
     /// If successful, returns whether a `MAX_DATA` frame needs to be transmitted
     #[allow(unreachable_pub)] // fuzzing only
@@ -672,6 +672,29 @@ impl StreamsState {
         } else {
             ShouldTransmit(false)
         })
+    }
+    /// 23. Whether a locally initiated stream has never been open
+    pub(crate) fn is_local_unopened(&self, id: StreamId) -> bool {
+        id.index() >= self.next[id.dir() as usize]
+    }
+    /// 24. Process incoming `STOP_SENDING` frame
+    #[allow(unreachable_pub)] // fuzzing only
+    pub fn received_stop_sending(&mut self, id: StreamId, error_code: VarInt) {
+        let max_send_data = self.max_send_data(id);
+        let stream = match self
+            .send
+            .get_mut(&id)
+            .map(get_or_insert_send(max_send_data))
+        {
+            Some(ss) => ss,
+            None => return,
+        };
+
+        if stream.try_stop(error_code) {
+            self.events
+                .push_back(StreamEvent::Stopped { id, error_code });
+            self.on_stream_frame(false, id);
+        }
     }
 }
 

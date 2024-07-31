@@ -94,6 +94,7 @@ impl FrameStats {
             Frame::HandshakeDone => self.handshake_done = self.handshake_done.saturating_add(1),
             Frame::RetireConnectionId { .. } => self.retire_connection_id += 1,
             Frame::ResetStream(_) => self.reset_stream += 1,
+            Frame::StopSending(_) => self.stop_sending += 1,
         }
     }
 }

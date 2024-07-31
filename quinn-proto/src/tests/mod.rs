@@ -399,9 +399,9 @@ fn stop_stream() {
         pair.client_send(client_ch, s).write(b"foo"),
         Err(WriteError::Stopped(ERROR))
     );
-    todo!()
-    /* assert_matches!(
+
+    assert_matches!(
         pair.client_send(client_ch, s).finish(),
         Err(FinishError::Stopped(ERROR))
-    ); */
+    );
 }

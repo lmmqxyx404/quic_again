@@ -44,6 +44,13 @@ pub enum StreamEvent {
         /// Which stream has been finished
         id: StreamId,
     },
+    /// 5.The peer asked us to stop sending on an outgoing stream
+    Stopped {
+        /// Which stream has been stopped
+        id: StreamId,
+        /// Error code supplied by the peer
+        error_code: VarInt,
+    },
 }
 
 /// A queue of streams with pending outgoing data, sorted by priority
