@@ -1,6 +1,6 @@
 use tracing::debug;
 
-use crate::{frame, TransportError, VarInt};
+use crate::{connection::assembler::Assembler, frame, TransportError, VarInt};
 
 #[derive(Debug, Default)]
 pub(super) struct Recv {
@@ -8,6 +8,12 @@ pub(super) struct Recv {
     state: RecvState,
     /// 2
     pub(super) stopped: bool,
+    /// 3.
+    pub(super) end: u64,
+    /// 4.
+    pub(super) assembler: Assembler,
+    /// 5.
+    sent_max_stream_data: u64,
 }
 
 impl Recv {
@@ -32,9 +38,9 @@ impl Recv {
     pub(super) fn new(initial_max_data: u64) -> Box<Self> {
         Box::new(Self {
             state: RecvState::default(),
-            /* assembler: Assembler::new(),
+            assembler: Assembler::new(),
             sent_max_stream_data: initial_max_data,
-            end: 0, */
+            end: 0,
             stopped: false,
         })
     }
@@ -65,7 +71,25 @@ impl Recv {
                 return Err(TransportError::FINAL_SIZE_ERROR(""));
             }
         }
-        todo!()
+
+        let new_bytes = self.credit_consumed_by(end, received, max_data)?;
+
+        // Stopped streams don't need to wait for the actual data, they just need to know
+        // how much there was.
+        if frame.fin && !self.stopped {
+            if let RecvState::Recv { ref mut size } = self.state {
+                *size = Some(end);
+            }
+        }
+
+        self.end = self.end.max(end);
+        // Don't bother storing data or releasing stream-level flow control credit if the stream's
+        // already stopped
+        if !self.stopped {
+            self.assembler.insert(frame.offset, frame.data, payload_len);
+        }
+
+        Ok((new_bytes, frame.fin && self.stopped))
     }
 
     fn final_offset(&self) -> Option<u64> {
@@ -73,6 +97,31 @@ impl Recv {
             RecvState::Recv { size } => size,
             RecvState::ResetRecvd { size, .. } => Some(size),
         }
+    }
+
+    /// Compute the amount of flow control credit consumed, or return an error if more was consumed
+    /// than issued
+    fn credit_consumed_by(
+        &self,
+        offset: u64,
+        received: u64,
+        max_data: u64,
+    ) -> Result<u64, TransportError> {
+        let prev_end = self.end;
+        let new_bytes = offset.saturating_sub(prev_end);
+        if offset > self.sent_max_stream_data || received + new_bytes > max_data {
+            debug!(
+                received,
+                new_bytes,
+                max_data,
+                offset,
+                stream_max_data = self.sent_max_stream_data,
+                "flow control error"
+            );
+            return Err(TransportError::FLOW_CONTROL_ERROR(""));
+        }
+
+        Ok(new_bytes)
     }
 }
 
