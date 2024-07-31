@@ -85,6 +85,20 @@ impl Send {
 
         Ok(result)
     }
+    /// 7
+    pub(super) fn finish(&mut self) -> Result<(), FinishError> {
+        if let Some(error_code) = self.stop_reason {
+            Err(FinishError::Stopped(error_code))
+        } else if self.state == SendState::Ready {
+            self.state = SendState::DataSent {
+                finish_acked: false,
+            };
+            self.fin_pending = true;
+            Ok(())
+        } else {
+            Err(FinishError::ClosedStream)
+        }
+    }
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -93,6 +107,8 @@ pub(super) enum SendState {
     ResetSent,
     /// 2. Sending new data
     Ready,
+    /// 3. Stream was finished; now sending retransmits only
+    DataSent { finish_acked: bool },
 }
 
 /// Errors triggered while writing to a send stream
@@ -121,7 +137,19 @@ pub enum WriteError {
 
 /// Reasons why attempting to finish a stream might fail
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
-pub enum FinishError {}
+pub enum FinishError {
+    /// 1. The stream has not been opened or was already finished or reset
+    #[error("closed stream")]
+    ClosedStream,
+    /// 2. The peer is no longer accepting data on this stream. No
+    /// [`StreamEvent::Finished`] event will be emitted for this stream.
+    ///
+    /// Carries an application-defined error code.
+    ///
+    /// [`StreamEvent::Finished`]: crate::StreamEvent::Finished
+    #[error("stopped by peer: code {0}")]
+    Stopped(VarInt),
+}
 
 /// A source of one or more buffers which can be converted into `Bytes` buffers on demand
 ///

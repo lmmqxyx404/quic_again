@@ -151,7 +151,21 @@ impl<'a> SendStream<'a> {
     ///
     /// [`StreamEvent::Finished`]: crate::StreamEvent::Finished
     pub fn finish(&mut self) -> Result<(), FinishError> {
-        todo!()
+        let max_send_data = self.state.max_send_data(self.id);
+        let stream = self
+            .state
+            .send
+            .get_mut(&self.id)
+            .map(get_or_insert_send(max_send_data))
+            .ok_or(FinishError::ClosedStream)?;
+
+        let was_pending = stream.is_pending();
+        stream.finish()?;
+        if !was_pending {
+            self.state.pending.push_pending(self.id, stream.priority);
+        }
+
+        Ok(())
     }
     /// 3.
     fn write_source<B: BytesSource>(&mut self, source: &mut B) -> Result<Written, WriteError> {
