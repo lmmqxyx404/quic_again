@@ -4,5 +4,6 @@ clear
 # RUST_BACKTRACE=1 
 # RUSTFLAGS="-Awarnings" 
 # cargo watch -x "test tests::server_stateless_reset"
-RUST_BACKTRACE=1  RUSTFLAGS="-Awarnings" cargo watch -x "test tests::finish_stream_simple"
+# RUST_BACKTRACE=1  RUSTFLAGS="-Awarnings" 
+cargo watch -x "test tests::finish_stream_simple"
 # tests::server_stateless_reset

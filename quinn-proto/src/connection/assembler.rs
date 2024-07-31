@@ -1,9 +1,10 @@
 use std::{
     cmp::Ordering,
     collections::{binary_heap::PeekMut, BinaryHeap},
+    mem,
 };
 
-use bytes::{Buf, Bytes};
+use bytes::{Buf, Bytes, BytesMut};
 
 use crate::range_set::RangeSet;
 
@@ -88,7 +89,26 @@ impl Assembler {
     ///
     /// This makes sure we're not unnecessarily holding on to many larger allocations.
     /// We merge contiguous chunks in the process of doing so.
+    /// first called by [`Assembler::ensure_ordering`]
     fn defragment(&mut self) {
+        let new = BinaryHeap::with_capacity(self.data.len());
+        let old = mem::replace(&mut self.data, new);
+        let mut buffers = old.into_sorted_vec();
+        self.buffered = 0;
+        let mut fragmented_buffered = 0;
+        let mut offset = 0;
+        for chunk in buffers.iter_mut().rev() {
+            chunk.try_mark_defragment(offset);
+            let size = chunk.bytes.len();
+            offset = chunk.offset + size as u64;
+            self.buffered += size;
+            if !chunk.defragmented {
+                fragmented_buffered += size;
+            }
+        }
+        self.allocated = self.buffered;
+        let mut buffer = BytesMut::with_capacity(fragmented_buffered);
+        let mut offset = 0;
         todo!()
     }
     /// 5. Get the the next chunk
@@ -183,14 +203,37 @@ struct Buffer {
     /// Otherwise this will be set to `bytes.len()` by `try_mark_defragment`.
     /// Will never be less than `bytes.len()`.
     allocation_size: usize,
+    defragmented: bool,
 }
 impl Buffer {
-    /// Constructs a new fragmented Buffer
+    /// 1. Constructs a new fragmented Buffer
     fn new(offset: u64, bytes: Bytes, allocation_size: usize) -> Self {
         Self {
             offset,
             bytes,
             allocation_size,
+            defragmented: false,
+        }
+    }
+
+    /// 2. Discards data before `offset` and flags `self` as defragmented if it has good utilization
+    fn try_mark_defragment(&mut self, offset: u64) {
+        let duplicate = offset.saturating_sub(self.offset) as usize;
+        self.offset = self.offset.max(offset);
+        if duplicate >= self.bytes.len() {
+            // All bytes are duplicate
+            self.bytes = Bytes::new();
+            self.defragmented = true;
+            self.allocation_size = 0;
+            return;
+        }
+        self.bytes.advance(duplicate);
+        // Make sure that fragmented buffers with high utilization become defragmented and
+        // defragmented buffers remain defragmented
+        self.defragmented = self.defragmented || self.bytes.len() * 6 / 5 >= self.allocation_size;
+        if self.defragmented {
+            // Make sure that defragmented buffers do not contribute to over-allocation
+            self.allocation_size = self.bytes.len();
         }
     }
 }
