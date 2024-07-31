@@ -20,6 +20,17 @@ RFC 12.1
 ## stream
 有序子节流
 
+### process
+`let mut recv = pair.server_recv(server_ch, s);`
+收到一个 RecvStream
+`let mut chunks = recv.read(false).unwrap();`
+再读取 stream ，得到 Chunks
+Chunks 这个数据结构有`StreamId`，用以区分不同的数据
+`Chonks::new` -> `ensure_ordering`
+`self.defragment();`
+`recvd.insert(0..self.bytes_read);`
+
+
 ## connection
 可以进行迁移
 

@@ -4,7 +4,11 @@ use thiserror::Error;
 use tracing::debug;
 
 use crate::{
-    connection::{assembler::{Assembler, IllegalOrderedRead}, spaces::Retransmits, streams::state::get_or_insert_recv},
+    connection::{
+        assembler::{Assembler, IllegalOrderedRead},
+        spaces::Retransmits,
+        streams::state::get_or_insert_recv,
+    },
     frame, StreamId, TransportError, VarInt,
 };
 
@@ -171,7 +175,14 @@ impl<'a> Chunks<'a> {
             };
 
         recv.assembler.ensure_ordering(ordered)?;
-        todo!()
+        Ok(Self {
+            /* id,
+            ordered,
+            streams, */
+            pending,
+            /* state: ChunksState::Readable(recv),
+            read: 0, */
+        })
     }
 }
 
