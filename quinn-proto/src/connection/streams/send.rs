@@ -50,6 +50,14 @@ impl Send {
             // stop_reason: None,
         })
     }
+    /// 6.
+    pub(super) fn write<S: BytesSource>(
+        &mut self,
+        source: &mut S,
+        limit: u64,
+    ) -> Result<Written, WriteError> {
+        todo!()
+    }
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]

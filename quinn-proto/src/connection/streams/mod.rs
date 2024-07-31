@@ -169,6 +169,26 @@ impl<'a> SendStream<'a> {
             .get_mut(&self.id)
             .map(get_or_insert_send(max_send_data))
             .ok_or(WriteError::ClosedStream)?;
-        todo!()
+
+        if limit == 0 {
+            trace!(
+                stream = %self.id, max_data = self.state.max_data, data_sent = self.state.data_sent,
+                "write blocked by connection-level flow control or send window"
+            );
+            if !stream.connection_blocked {
+                stream.connection_blocked = true;
+                self.state.connection_blocked.push(self.id);
+            }
+            return Err(WriteError::Blocked);
+        }
+        let was_pending = stream.is_pending();
+        let written = stream.write(source, limit)?;
+        self.state.data_sent += written.bytes as u64;
+        self.state.unacked_data += written.bytes as u64;
+        trace!(stream = %self.id, "wrote {} bytes", written.bytes);
+        if !was_pending {
+            self.state.pending.push_pending(self.id, stream.priority);
+        }
+        Ok(written)
     }
 }
