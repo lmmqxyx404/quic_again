@@ -1,4 +1,4 @@
-use std::collections::VecDeque;
+use std::{collections::VecDeque, ops::Range};
 
 use bytes::Bytes;
 
@@ -46,10 +46,26 @@ impl SendBuffer {
     pub(super) fn offset(&self) -> u64 {
         self.offset
     }
-    /// Append application data to the end of the stream
+    /// 6. Append application data to the end of the stream
     pub(super) fn write(&mut self, data: Bytes) {
         self.unacked_len += data.len();
         self.offset += data.len() as u64;
         self.unacked_segments.push_back(data);
+    }
+    /// 7. Compute the next range to transmit on this stream and update state to account for that
+    /// transmission.
+    ///
+    /// `max_len` here includes the space which is available to transmit the
+    /// offset and length of the data to send. The caller has to guarantee that
+    /// there is at least enough space available to write maximum-sized metadata
+    /// (8 byte offset + 8 byte length).
+    ///
+    /// The method returns a tuple:
+    /// - The first return value indicates the range of data to send
+    /// - The second return value indicates whether the length needs to be encoded
+    ///   in the STREAM frames metadata (`true`), or whether it can be omitted
+    ///   since the selected range will fill the whole packet.
+    pub(super) fn poll_transmit(&mut self, mut max_len: usize) -> (Range<u64>, bool) {
+        todo!()
     }
 }

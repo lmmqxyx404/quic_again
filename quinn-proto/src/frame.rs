@@ -1,7 +1,7 @@
 use std::{
     fmt::{self, Write},
     io::{self, Read},
-    ops::RangeInclusive,
+    ops::{Range, RangeInclusive},
 };
 
 use bytes::{Buf, BufMut, Bytes};
@@ -538,12 +538,43 @@ pub(crate) const RETIRE_CONNECTION_ID_SIZE_BOUND: usize = 9;
 
 /// Metadata from a stream frame
 #[derive(Debug, Clone)]
-pub(crate) struct StreamMeta {}
+pub(crate) struct StreamMeta {
+    pub(crate) id: StreamId,
+    pub(crate) offsets: Range<u64>,
+    pub(crate) fin: bool,
+}
 
 // This manual implementation exists because `Default` is not implemented for `StreamId`
 impl Default for StreamMeta {
     fn default() -> Self {
-        Self {}
+        Self {
+            id: StreamId(0),
+            offsets: 0..0,
+            fin: false,
+        }
+    }
+}
+
+impl StreamMeta {
+    pub(crate) fn encode<W: BufMut>(&self, length: bool, out: &mut W) {
+        let mut ty = *STREAM_TYS.start();
+        if self.offsets.start != 0 {
+            ty |= 0x04;
+        }
+        if length {
+            ty |= 0x02;
+        }
+        if self.fin {
+            ty |= 0x01;
+        }
+        out.write_var(ty); // 1 byte
+        out.write(self.id); // <=8 bytes
+        if self.offsets.start != 0 {
+            out.write_var(self.offsets.start); // <=8 bytes
+        }
+        if length {
+            out.write_var(self.offsets.end - self.offsets.start); // <=8 bytes
+        }
     }
 }
 

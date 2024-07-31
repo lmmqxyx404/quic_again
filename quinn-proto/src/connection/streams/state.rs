@@ -242,6 +242,42 @@ impl StreamsState {
             let Some(stream) = self.pending.streams.pop() else {
                 break;
             };
+
+            let id = stream.id;
+
+            let stream = match self.send.get_mut(&id).and_then(|s| s.as_mut()) {
+                Some(s) => s,
+                // Stream was reset with pending data and the reset was acknowledged
+                None => continue,
+            };
+
+            // Reset streams aren't removed from the pending list and still exist while the peer
+            // hasn't acknowledged the reset, but should not generate STREAM frames, so we need to
+            // check for them explicitly.
+            if stream.is_reset() {
+                continue;
+            }
+            // Now that we know the `StreamId`, we can better account for how many bytes
+            // are required to encode it.
+            let max_buf_size = max_buf_size - buf.len() - 1 - VarInt::size(id.into());
+            let (offsets, encode_length) = stream.pending.poll_transmit(max_buf_size);
+            let fin = offsets.end == stream.pending.offset()
+                && matches!(stream.state, SendState::DataSent { .. });
+            if fin {
+                stream.fin_pending = false;
+            }
+
+            if stream.is_pending() {
+                // If the stream still has pending data, reinsert it, possibly with an updated priority value
+                // Fairness with other streams is achieved by implementing round-robin scheduling,
+                // so that the other streams will have a chance to write data before we touch this stream again.
+                self.pending.push_pending(id, stream.priority);
+            }
+
+            let meta = frame::StreamMeta { id, offsets, fin };
+            trace!(id = %meta.id, off = meta.offsets.start, len = meta.offsets.end - meta.offsets.start, fin = meta.fin, "STREAM");
+            meta.encode(encode_length, buf);
+
             todo!()
         }
         stream_frames

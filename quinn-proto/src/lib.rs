@@ -182,6 +182,12 @@ impl StreamId {
     }
 }
 
+impl From<StreamId> for VarInt {
+    fn from(x: StreamId) -> Self {
+        unsafe { Self::from_u64_unchecked(x.0) }
+    }
+}
+
 /// used for `id: self.bytes.get()?,`
 impl coding::Codec for StreamId {
     fn decode<B: bytes::Buf>(buf: &mut B) -> coding::Result<Self> {
