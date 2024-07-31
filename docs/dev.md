@@ -519,3 +519,33 @@ stack backtrace:
              at /rustc/129f3b9964af4d4a709d1383930ade12dfe7c081/library/core/src/ops/function.rs:250:5
 note: Some details are omitted, run with `RUST_BACKTRACE=full` for a verbose backtrace.
 ```
+
+#
+```
+thread 'tests::finish_stream_simple' panicked at quinn-proto/src/connection/streams/send.rs:164:9:
+not yet implemented
+stack backtrace:
+   0: rust_begin_unwind
+             at /rustc/129f3b9964af4d4a709d1383930ade12dfe7c081/library/std/src/panicking.rs:652:5
+   1: core::panicking::panic_fmt
+             at /rustc/129f3b9964af4d4a709d1383930ade12dfe7c081/library/core/src/panicking.rs:72:14
+   2: core::panicking::panic
+             at /rustc/129f3b9964af4d4a709d1383930ade12dfe7c081/library/core/src/panicking.rs:146:5
+   3: <scratch_quinn_proto::connection::streams::send::ByteSlice as scratch_quinn_proto::connection::streams::send::BytesSource>::pop_chunk
+             at ./src/connection/streams/send.rs:164:9
+   4: scratch_quinn_proto::connection::streams::send::Send::write
+             at ./src/connection/streams/send.rs:74:44
+   5: scratch_quinn_proto::connection::streams::SendStream::write_source
+             at ./src/connection/streams/mod.rs:185:23
+   6: scratch_quinn_proto::connection::streams::SendStream::write
+             at ./src/connection/streams/mod.rs:146:12
+   7: scratch_quinn_proto::tests::finish_stream_simple
+             at ./src/tests/mod.rs:314:5
+   8: scratch_quinn_proto::tests::finish_stream_simple::{{closure}}
+             at ./src/tests/mod.rs:306:26
+   9: core::ops::function::FnOnce::call_once
+             at /rustc/129f3b9964af4d4a709d1383930ade12dfe7c081/library/core/src/ops/function.rs:250:5
+  10: core::ops::function::FnOnce::call_once
+             at /rustc/129f3b9964af4d4a709d1383930ade12dfe7c081/library/core/src/ops/function.rs:250:5
+note: Some details are omitted, run with `RUST_BACKTRACE=full` for a verbose backtrace.
+```
