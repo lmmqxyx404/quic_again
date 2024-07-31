@@ -2,7 +2,7 @@ use std::{collections::VecDeque, ops::Range};
 
 use bytes::Bytes;
 
-use crate::range_set::RangeSet;
+use crate::{range_set::RangeSet, VarInt};
 
 /// Buffer of outgoing retransmittable stream data
 #[derive(Default, Debug)]
@@ -72,6 +72,23 @@ impl SendBuffer {
         if let Some(range) = self.retransmits.pop_min() {
             todo!()
         }
-        todo!()
+
+        // Transmit new data
+
+        // When the offset is known, we know how many bytes are required to encode it.
+        // Offset 0 requires no space
+        if self.unsent != 0 {
+            max_len -= VarInt::size(unsafe { VarInt::from_u64_unchecked(self.unsent) });
+        }
+        if self.offset - self.unsent < max_len as u64 {
+            encode_length = true;
+            max_len -= 8;
+        }
+        let end = self
+            .offset
+            .min((max_len as u64).saturating_add(self.unsent));
+        let result = self.unsent..end;
+        self.unsent = end;
+        (result, encode_length)
     }
 }
