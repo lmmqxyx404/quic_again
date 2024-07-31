@@ -1,7 +1,7 @@
 use bytes::Bytes;
 use thiserror::Error;
 
-use crate::connection::send_buffer::SendBuffer;
+use crate::{connection::send_buffer::SendBuffer, VarInt};
 
 #[derive(Debug)]
 pub(super) struct Send {
@@ -38,12 +38,26 @@ impl Send {
     pub(super) fn is_pending(&self) -> bool {
         self.pending.has_unsent_data() || self.fin_pending
     }
+    /// 5.
+    pub(super) fn new(max_data: VarInt) -> Box<Self> {
+        Box::new(Self {
+            max_data: max_data.into(),
+            state: SendState::Ready,
+            pending: SendBuffer::new(),
+            priority: 0,
+            fin_pending: false,
+            connection_blocked: false,
+            // stop_reason: None,
+        })
+    }
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub(super) enum SendState {
-    /// Sent RESET
+    /// 1. Sent RESET
     ResetSent,
+    /// 2. Sending new data
+    Ready,
 }
 
 /// Errors triggered while writing to a send stream
@@ -57,6 +71,9 @@ pub enum WriteError {
     /// [`StreamEvent::Writable`]: crate::StreamEvent::Writable
     #[error("unable to accept further writes")]
     Blocked,
+    /// 2. The stream has not been opened or has already been finished or reset
+    #[error("closed stream")]
+    ClosedStream,
 }
 
 /// Reasons why attempting to finish a stream might fail

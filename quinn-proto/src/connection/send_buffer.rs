@@ -31,4 +31,8 @@ impl SendBuffer {
     pub(super) fn has_unsent_data(&self) -> bool {
         self.unsent != self.offset || !self.retransmits.is_empty()
     }
+    /// 4. Construct an empty buffer at the initial offset
+    pub(super) fn new() -> Self {
+        Self::default()
+    }
 }

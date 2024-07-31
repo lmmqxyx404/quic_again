@@ -2,6 +2,7 @@ mod state;
 use std::collections::BinaryHeap;
 
 use send::{ByteSlice, BytesSource, FinishError, WriteError, Written};
+use state::get_or_insert_send;
 #[allow(unreachable_pub)] // fuzzing only
 pub use state::StreamsState;
 use tracing::trace;
@@ -161,7 +162,13 @@ impl<'a> SendStream<'a> {
 
         let limit = self.state.write_limit();
 
-        // let max_send_data = self.state.max_send_data(self.id);
+        let max_send_data = self.state.max_send_data(self.id);
+        let stream = self
+            .state
+            .send
+            .get_mut(&self.id)
+            .map(get_or_insert_send(max_send_data))
+            .ok_or(WriteError::ClosedStream)?;
         todo!()
     }
 }

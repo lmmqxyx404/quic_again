@@ -355,7 +355,6 @@ impl StreamsState {
             assert!(self.recv.insert(id, None).is_none());
         }
     }
-
     /// 16. Whether MAX_STREAM_DATA frames could be sent for stream `id`
     pub(crate) fn can_send_flow_control(&self, id: StreamId) -> bool {
         self.recv
@@ -363,4 +362,22 @@ impl StreamsState {
             .and_then(|s| s.as_ref())
             .map_or(false, |s| s.can_send_flow_control())
     }
+    /// 17
+    pub(super) fn max_send_data(&self, id: StreamId) -> VarInt {
+        let remote = self.side != id.initiator();
+        match id.dir() {
+            Dir::Uni => self.initial_max_stream_data_uni,
+            // Remote/local appear reversed here because the transport parameters are named from
+            // the perspective of the peer.
+            Dir::Bi if remote => self.initial_max_stream_data_bidi_local,
+            Dir::Bi => self.initial_max_stream_data_bidi_remote,
+        }
+    }
+}
+
+#[inline]
+pub(super) fn get_or_insert_send(
+    max_data: VarInt,
+) -> impl Fn(&mut Option<Box<Send>>) -> &mut Box<Send> {
+    move |opt| opt.get_or_insert_with(|| Send::new(max_data))
 }
