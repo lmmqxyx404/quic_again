@@ -7,7 +7,7 @@ use std::{
 use crate::{
     cid_generator::HashedConnectionIdGenerator,
     config::EndpointConfig,
-    connection::{ConnectionError, Event},
+    connection::{ConnectionError, Event, StreamEvent},
     endpoint::DatagramEvent,
     frame::ApplicationClose,
     ConnectionIdGenerator, Dir, Endpoint, RandomConnectionIdGenerator, Transmit, VarInt,
@@ -315,5 +315,21 @@ fn finish_stream_simple() {
     assert_eq!(pair.client_streams(client_ch).send_streams(), 1);
     pair.client_send(client_ch, s).finish().unwrap();
     pair.drive();
+    assert_matches!(
+        pair.client_conn_mut(client_ch).poll(),
+        Some(Event::Stream(StreamEvent::Finished { id })) if id == s
+    );
+    assert_matches!(pair.client_conn_mut(client_ch).poll(), None);
+    assert_eq!(pair.client_streams(client_ch).send_streams(), 0);
+    assert_eq!(pair.server_conn_mut(client_ch).streams().send_streams(), 0);
+    assert_matches!(
+        pair.server_conn_mut(server_ch).poll(),
+        Some(Event::Stream(StreamEvent::Opened { dir: Dir::Uni }))
+    );
+    // Receive-only streams do not get `StreamFinished` events
+    assert_eq!(pair.server_conn_mut(client_ch).streams().send_streams(), 0);
+    assert_matches!(pair.server_streams(server_ch).accept(Dir::Uni), Some(stream) if stream == s);
+    assert_matches!(pair.server_conn_mut(server_ch).poll(), None);
+
     todo!()
 }

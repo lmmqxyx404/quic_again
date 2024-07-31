@@ -319,6 +319,10 @@ impl Pair {
     pub(super) fn client_send(&mut self, ch: ConnectionHandle, s: StreamId) -> SendStream<'_> {
         self.client_conn_mut(ch).send_stream(s)
     }
+    /// 15.
+    pub(super) fn server_streams(&mut self, ch: ConnectionHandle) -> Streams<'_> {
+        self.server_conn_mut(ch).streams()
+    }
 }
 
 impl Default for Pair {

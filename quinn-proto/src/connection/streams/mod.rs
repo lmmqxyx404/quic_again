@@ -134,6 +134,23 @@ impl<'a> Streams<'a> {
     pub fn send_streams(&self) -> usize {
         self.state.send_streams
     }
+    /// 3. Accept a remotely initiated stream of a certain directionality, if possible
+    ///
+    /// Returns `None` if there are no new incoming streams for this connection.
+    /// Has no impact on the data flow-control or stream concurrency limits.
+    pub fn accept(&mut self, dir: Dir) -> Option<StreamId> {
+        if self.state.next_remote[dir as usize] == self.state.next_reported_remote[dir as usize] {
+            return None;
+        }
+
+        let x = self.state.next_reported_remote[dir as usize];
+        self.state.next_reported_remote[dir as usize] = x + 1;
+        if dir == Dir::Bi {
+            self.state.send_streams += 1;
+        }
+
+        Some(StreamId::new(!self.state.side, dir, x))
+    }
 }
 
 /// Access to streams

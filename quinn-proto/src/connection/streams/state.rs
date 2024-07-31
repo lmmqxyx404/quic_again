@@ -81,6 +81,8 @@ pub struct StreamsState {
     pub(super) next_remote: [u64; 2],
     /// Number of streams that we've given the peer permission to open and which aren't fully closed
     pub(super) allocated_remote_count: [u64; 2],
+    // Next to report to the application, once opened
+    pub(super) next_reported_remote: [u64; 2],
 }
 
 impl StreamsState {
@@ -124,6 +126,7 @@ impl StreamsState {
 
             next_remote: [0, 0],
             allocated_remote_count: [max_remote_bi.into(), max_remote_uni.into()],
+            next_reported_remote: [0, 0],
         };
 
         for dir in Dir::iter() {
