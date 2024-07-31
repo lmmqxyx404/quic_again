@@ -91,4 +91,29 @@ impl SendBuffer {
         self.unsent = end;
         (result, encode_length)
     }
+
+    /// Returns data which is associated with a range
+    ///
+    /// This function can return a subset of the range, if the data is stored
+    /// in noncontiguous fashion in the send buffer. In this case callers
+    /// should call the function again with an incremented start offset to
+    /// retrieve more data.
+    pub(super) fn get(&self, offsets: Range<u64>) -> &[u8] {
+        let base_offset = self.offset - self.unacked_len as u64;
+
+        let mut segment_offset = base_offset;
+        for segment in self.unacked_segments.iter() {
+            if offsets.start >= segment_offset
+                && offsets.start < segment_offset + segment.len() as u64
+            {
+                let start = (offsets.start - segment_offset) as usize;
+                let end = (offsets.end - segment_offset) as usize;
+
+                return &segment[start..end.min(segment.len())];
+            }
+            segment_offset += segment.len() as u64;
+        }
+
+        &[]
+    }
 }
