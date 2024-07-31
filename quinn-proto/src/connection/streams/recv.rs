@@ -1,5 +1,6 @@
 use std::collections::hash_map::Entry;
 
+use bytes::Bytes;
 use thiserror::Error;
 use tracing::debug;
 
@@ -8,6 +9,7 @@ use crate::{
         assembler::{Assembler, IllegalOrderedRead},
         spaces::Retransmits,
         streams::state::get_or_insert_recv,
+        Chunk,
     },
     frame, StreamId, TransportError, VarInt,
 };
@@ -153,7 +155,10 @@ impl Default for RecvState {
 
 /// Chunks
 pub struct Chunks<'a> {
+    /// 1
     pending: &'a mut Retransmits,
+    /// 2
+    state: ChunksState,
 }
 
 impl<'a> Chunks<'a> {
@@ -180,9 +185,25 @@ impl<'a> Chunks<'a> {
             ordered,
             streams, */
             pending,
-            /* state: ChunksState::Readable(recv),
-            read: 0, */
+            state: ChunksState::Readable(recv),
+            /* read: 0, */
         })
+    }
+    /// Next
+    ///
+    /// Should call finalize() when done calling this.
+    pub fn next(&mut self, max_length: usize) -> Result<Option<Chunk>, ReadError> {
+        let rs = match self.state {
+            ChunksState::Readable(ref mut rs) => rs,
+            ChunksState::Reset(error_code) => {
+                return Err(ReadError::Reset(error_code));
+            }
+            ChunksState::Finished => {
+                return Ok(None);
+            }
+            ChunksState::Finalized => panic!("must not call next() after finalize()"),
+        };
+        todo!()
     }
 }
 
@@ -204,4 +225,21 @@ impl From<IllegalOrderedRead> for ReadableError {
     fn from(_: IllegalOrderedRead) -> Self {
         Self::IllegalOrderedRead
     }
+}
+
+/// Errors triggered when reading from a recv stream
+#[derive(Debug, Error, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+pub enum ReadError {
+    /// 1. The peer abandoned transmitting data on this stream.
+    ///
+    /// Carries an application-defined error code.
+    #[error("reset by peer: code {0}")]
+    Reset(VarInt),
+}
+
+enum ChunksState {
+    Readable(Box<Recv>),
+    Reset(VarInt),
+    Finished,
+    Finalized,
 }
