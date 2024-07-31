@@ -338,7 +338,7 @@ fn finish_stream_simple() {
         chunks.next(usize::MAX),
         Ok(Some(chunk)) if chunk.offset == 0 && chunk.bytes == MSG
     );
-    todo!()
-    /*assert_matches!(chunks.next(usize::MAX), Ok(None));
-    let _ = chunks.finalize(); */
+
+    assert_matches!(chunks.next(usize::MAX), Ok(None));
+    let _ = chunks.finalize();
 }

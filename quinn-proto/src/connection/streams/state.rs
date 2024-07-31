@@ -83,6 +83,13 @@ pub struct StreamsState {
     pub(super) allocated_remote_count: [u64; 2],
     // Next to report to the application, once opened
     pub(super) next_reported_remote: [u64; 2],
+    /// The shrink to be applied to local_max_data when receive_window is shrunk
+    receive_window_shrink_debt: u64,
+    /// The last value of `MAX_DATA` which had been queued for transmission in
+    /// an outgoing `MAX_DATA` frame
+    sent_max_data: VarInt,
+    /// The initial receive window
+    receive_window: u64,
 }
 
 impl StreamsState {
@@ -127,6 +134,9 @@ impl StreamsState {
             next_remote: [0, 0],
             allocated_remote_count: [max_remote_bi.into(), max_remote_uni.into()],
             next_reported_remote: [0, 0],
+            receive_window: receive_window.into(),
+            sent_max_data: receive_window,
+            receive_window_shrink_debt: 0,
         };
 
         for dir in Dir::iter() {
@@ -572,6 +582,35 @@ impl StreamsState {
         }
         self.allocated_remote_count[dir as usize] += new_count;
         self.max_remote[dir as usize] += new_count;
+    }
+    /// 21. Adds credits to the connection flow control window
+    ///
+    /// Returns whether a `MAX_DATA` frame should be enqueued as soon as possible.
+    /// This will only be the case if the window update would is significant
+    /// enough. As soon as a window update with a `MAX_DATA` frame has been
+    /// queued, the [`Recv::record_sent_max_stream_data`] function should be called to
+    /// suppress sending further updates until the window increases significantly
+    /// again.
+    pub(super) fn add_read_credits(&mut self, credits: u64) -> ShouldTransmit {
+        if credits > self.receive_window_shrink_debt {
+            let net_credits = credits - self.receive_window_shrink_debt;
+            self.local_max_data = self.local_max_data.saturating_add(net_credits);
+            self.receive_window_shrink_debt = 0;
+        } else {
+            self.receive_window_shrink_debt -= credits;
+        }
+
+        if self.local_max_data > VarInt::MAX.into_inner() {
+            return ShouldTransmit(false);
+        }
+
+        // Only announce a window update if it's significant enough
+        // to make it worthwhile sending a MAX_DATA frame.
+        // We use a fraction of the configured connection receive window to make
+        // the decision, to accommodate for connection using bigger windows requiring
+        // less updates.
+        let diff = self.local_max_data - self.sent_max_data.into_inner();
+        ShouldTransmit(diff >= (self.receive_window / 8))
     }
 }
 

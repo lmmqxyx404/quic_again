@@ -1,4 +1,5 @@
 use std::collections::hash_map::Entry;
+use std::mem;
 
 use bytes::Bytes;
 use thiserror::Error;
@@ -14,7 +15,7 @@ use crate::{
     frame, StreamId, TransportError, VarInt,
 };
 
-use super::StreamsState;
+use super::{ShouldTransmit, StreamsState};
 
 #[derive(Debug, Default)]
 pub(super) struct Recv {
@@ -137,6 +138,27 @@ impl Recv {
 
         Ok(new_bytes)
     }
+    /// Returns the window that should be advertised in a `MAX_STREAM_DATA` frame
+    ///
+    /// The method returns a tuple which consists of the window that should be
+    /// announced, as well as a boolean parameter which indicates if a new
+    /// transmission of the value is recommended. If the boolean value is
+    /// `false` the new window should only be transmitted if a previous transmission
+    /// had failed.
+    pub(super) fn max_stream_data(&mut self, stream_receive_window: u64) -> (u64, ShouldTransmit) {
+        let max_stream_data = self.assembler.bytes_read() + stream_receive_window;
+
+        // Only announce a window update if it's significant enough
+        // to make it worthwhile sending a MAX_STREAM_DATA frame.
+        // We use here a fraction of the configured stream receive window to make
+        // the decision, and accommodate for streams using bigger windows requiring
+        // less updates. A fixed size would also work - but it would need to be
+        // smaller than `stream_receive_window` in order to make sure the stream
+        // does not get stuck.
+        let diff = max_stream_data - self.sent_max_stream_data;
+        let transmit = self.can_send_flow_control() && diff >= (stream_receive_window / 8);
+        (max_stream_data, ShouldTransmit(transmit))
+    }
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -237,6 +259,44 @@ impl<'a> Chunks<'a> {
                 }
             }
         }
+    }
+    /// Finalize
+    pub fn finalize(mut self) -> ShouldTransmit {
+        self.finalize_inner(false)
+    }
+
+    fn finalize_inner(&mut self, drop: bool) -> ShouldTransmit {
+        let state = mem::replace(&mut self.state, ChunksState::Finalized);
+        debug_assert!(
+            !drop || matches!(state, ChunksState::Finalized),
+            "finalize must be called before drop"
+        );
+        if let ChunksState::Finalized = state {
+            // Noop on repeated calls
+            return ShouldTransmit(false);
+        }
+
+        // We issue additional stream ID credit after the application is notified that a previously
+        // open stream has finished or been reset and we've therefore disposed of its state, as
+        // recorded by `stream_freed` calls in `next`.
+        let mut should_transmit = self.streams.queue_max_stream_id(self.pending);
+
+        // If the stream hasn't finished, we may need to issue stream-level flow control credit
+        if let ChunksState::Readable(mut rs) = state {
+            let (_, max_stream_data) = rs.max_stream_data(self.streams.stream_receive_window);
+            should_transmit |= max_stream_data.0;
+            if max_stream_data.0 {
+                self.pending.max_stream_data.insert(self.id);
+            }
+            // Return the stream to storage for future use
+            self.streams.recv.insert(self.id, Some(rs));
+        }
+
+        // Issue connection-level flow control credit for any data we read regardless of state
+        let max_data = self.streams.add_read_credits(self.read);
+        self.pending.max_data |= max_data.0;
+        should_transmit |= max_data.0;
+        ShouldTransmit(should_transmit)
     }
 }
 
