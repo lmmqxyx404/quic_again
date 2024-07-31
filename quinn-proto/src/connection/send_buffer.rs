@@ -66,6 +66,12 @@ impl SendBuffer {
     ///   in the STREAM frames metadata (`true`), or whether it can be omitted
     ///   since the selected range will fill the whole packet.
     pub(super) fn poll_transmit(&mut self, mut max_len: usize) -> (Range<u64>, bool) {
+        debug_assert!(max_len >= 8 + 8);
+        let mut encode_length = false;
+
+        if let Some(range) = self.retransmits.pop_min() {
+            todo!()
+        }
         todo!()
     }
 }
