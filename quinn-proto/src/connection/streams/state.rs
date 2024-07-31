@@ -73,6 +73,10 @@ pub struct StreamsState {
     pub(super) send_streams: usize,
     /// Configured upper bound for how much unacked data the peer can send us per stream
     pub(super) stream_receive_window: u64,
+    /// Limit on incoming data, which is transmitted through `MAX_DATA` frames
+    local_max_data: u64,
+    /// Sum of end offsets of all receive streams. Includes gaps, so it's an upper bound.
+    data_recvd: u64,
 }
 
 impl StreamsState {
@@ -110,6 +114,9 @@ impl StreamsState {
             recv: FxHashMap::default(),
             send_streams: 0,
             stream_receive_window: stream_receive_window.into(),
+
+            local_max_data: receive_window.into(),
+            data_recvd: 0,
         };
 
         for dir in Dir::iter() {
@@ -370,6 +377,16 @@ impl StreamsState {
                 return Ok(ShouldTransmit(false));
             }
         };
+
+        if !rs.is_receiving() {
+            trace!("dropping frame for finished stream");
+            return Ok(ShouldTransmit(false));
+        }
+
+        let (new_bytes, closed) =
+            rs.ingest(frame, payload_len, self.data_recvd, self.local_max_data)?;
+        self.data_recvd = self.data_recvd.saturating_add(new_bytes);
+
         todo!()
     }
     /// 13. Queues MAX_STREAM_ID frames in `pending` if needed

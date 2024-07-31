@@ -1,3 +1,5 @@
+use crate::{frame, TransportError};
+
 #[derive(Debug, Default)]
 pub(super) struct Recv {
     /// 1
@@ -24,7 +26,7 @@ impl Recv {
     pub(super) fn final_offset_unknown(&self) -> bool {
         matches!(self.state, RecvState::Recv { size: None })
     }
-    /// 3 
+    /// 3
     pub(super) fn new(initial_max_data: u64) -> Box<Self> {
         Box::new(Self {
             state: RecvState::default(),
@@ -34,6 +36,22 @@ impl Recv {
             stopped: false,
         })
     }
+    /// 4. Whether data is still being accepted from the peer
+    pub(super) fn is_receiving(&self) -> bool {
+        matches!(self.state, RecvState::Recv { .. })
+    }
+    /// Process a STREAM frame
+    ///
+    /// Return value is `(number_of_new_bytes_ingested, stream_is_closed)`
+    pub(super) fn ingest(
+        &mut self,
+        frame: frame::Stream,
+        payload_len: usize,
+        received: u64,
+        max_data: u64,
+    ) -> Result<(u64, bool), TransportError> {
+        todo!()
+    }
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -41,9 +59,8 @@ enum RecvState {
     Recv { size: Option<u64> },
 }
 
-
 impl Default for RecvState {
-  fn default() -> Self {
-      Self::Recv { size: None }
-  }
+    fn default() -> Self {
+        Self::Recv { size: None }
+    }
 }
