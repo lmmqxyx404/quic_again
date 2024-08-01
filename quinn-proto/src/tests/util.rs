@@ -363,6 +363,8 @@ pub(super) struct TestEndpoint {
     pub(super) captured_packets: Vec<Vec<u8>>,
     /// 12.
     pub(super) capture_inbound_packets: bool,
+    /// 13.
+    pub(super) waiting_incoming: Vec<Incoming>,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -371,6 +373,8 @@ pub(super) enum IncomingConnectionBehavior {
     AcceptAll,
     /// 2.
     Validate,
+    /// 3.
+    Wait,
 }
 
 impl TestEndpoint {
@@ -398,6 +402,7 @@ impl TestEndpoint {
             accepted: None,
             captured_packets: Vec::new(),
             capture_inbound_packets: false,
+            waiting_incoming: Vec::new(),
         }
     }
     /// 2
