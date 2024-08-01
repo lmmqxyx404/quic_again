@@ -5,5 +5,5 @@ clear
 # RUSTFLAGS="-Awarnings" 
 # cargo watch -x "test tests::server_stateless_reset"
 # RUST_BACKTRACE=1  RUSTFLAGS="-Awarnings" 
-cargo watch -x "test tests::reject_missing_client_cert"
+cargo watch -x "test tests::high_latency_handshake"
 # tests::server_stateless_reset

@@ -520,3 +520,16 @@ fn congestion() {
     assert!(pair.client_conn_mut(client_ch).congestion_window() >= TARGET);
     pair.client_send(client_ch, s).write(&[42; 1024]).unwrap();
 }
+
+#[allow(clippy::field_reassign_with_default)] // https://github.com/rust-lang/rust-clippy/issues/6527
+#[test]
+fn high_latency_handshake() {
+    let _guard = subscribe();
+    let mut pair = Pair::default();
+    pair.latency = Duration::from_micros(200 * 1000);
+    let (client_ch, server_ch) = pair.connect();
+    assert_eq!(pair.client_conn_mut(client_ch).bytes_in_flight(), 0);
+    assert_eq!(pair.server_conn_mut(server_ch).bytes_in_flight(), 0);
+    assert!(pair.client_conn_mut(client_ch).using_ecn());
+    assert!(pair.server_conn_mut(server_ch).using_ecn());
+}

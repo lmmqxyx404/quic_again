@@ -127,7 +127,8 @@ pub(super) struct Pair {
     last_spin: bool,
     /// Simulates explicit congestion notification
     pub(super) congestion_experienced: bool,
-    latency: Duration,
+    // One-way
+    pub(super) latency: Duration,
     /// Start time
     epoch: Instant,
 }

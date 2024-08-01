@@ -2972,6 +2972,12 @@ impl Connection {
             .window()
             .saturating_sub(self.path.in_flight.bytes)
     }
+    /// 65. The number of bytes of packets containing retransmittable frames that have not been
+    /// acknowledged or declared lost.
+    #[cfg(test)]
+    pub(crate) fn bytes_in_flight(&self) -> u64 {
+        self.path.in_flight.bytes
+    }
 }
 
 #[allow(unreachable_pub)] // fuzzing only
