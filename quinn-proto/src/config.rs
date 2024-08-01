@@ -151,6 +151,22 @@ impl ServerConfig {
             retry_token_lifetime: Duration::from_secs(15),
         }
     }
+
+    /// Maximum number of received bytes to buffer for each [`Incoming`][crate::Incoming]
+    ///
+    /// An [`Incoming`][crate::Incoming] comes into existence when an incoming connection attempt
+    /// is received and stops existing when the application either accepts it or otherwise disposes
+    /// of it. This limit governs only packets received within that period, and does not include
+    /// the first packet. Packets received in excess of this limit are dropped, which may cause
+    /// 0-RTT or handshake data to have to be retransmitted.
+    ///
+    /// The default value is set to 10 MiB--an amount such that in most situations a client would
+    /// not transmit that much 0-RTT data faster than the server handles the corresponding
+    /// [`Incoming`][crate::Incoming].
+    pub fn incoming_buffer_size(&mut self, incoming_buffer_size: u64) -> &mut Self {
+        self.incoming_buffer_size = incoming_buffer_size;
+        self
+    }
 }
 
 #[cfg(feature = "ring")]

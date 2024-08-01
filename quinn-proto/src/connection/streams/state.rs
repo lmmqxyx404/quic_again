@@ -90,6 +90,8 @@ pub struct StreamsState {
     sent_max_data: VarInt,
     /// The initial receive window
     receive_window: u64,
+    /// Whether `max_concurrent_remote_count` has ever changed
+    flow_control_adjusted: bool,
 }
 
 impl StreamsState {
@@ -137,6 +139,7 @@ impl StreamsState {
             receive_window: receive_window.into(),
             sent_max_data: receive_window,
             receive_window_shrink_debt: 0,
+            flow_control_adjusted: false,
         };
 
         for dir in Dir::iter() {
@@ -695,6 +698,33 @@ impl StreamsState {
                 .push_back(StreamEvent::Stopped { id, error_code });
             self.on_stream_frame(false, id);
         }
+    }
+    /// 25.
+    pub(crate) fn zero_rtt_rejected(&mut self) {
+        // Revert to initial state for outgoing streams
+        for dir in Dir::iter() {
+            for i in 0..self.next[dir as usize] {
+                // We don't bother calling `stream_freed` here because we explicitly reset affected
+                // counters below.
+                let id = StreamId::new(self.side, dir, i);
+                self.send.remove(&id).unwrap();
+                if let Dir::Bi = dir {
+                    self.recv.remove(&id).unwrap();
+                }
+            }
+            self.next[dir as usize] = 0;
+
+            // If 0-RTT was rejected, any flow control frames we sent were lost.
+            if self.flow_control_adjusted {
+                // Conservative approximation of whatever we sent in transport parameters
+                self.sent_max_remote[dir as usize] = 0;
+            }
+        }
+
+        self.pending.streams.clear();
+        self.send_streams = 0;
+        self.data_sent = 0;
+        self.connection_blocked.clear();
     }
 }
 

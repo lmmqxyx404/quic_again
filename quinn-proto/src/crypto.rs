@@ -62,6 +62,8 @@ pub trait Session: Send + Sync + 'static {
         label: &[u8],
         context: &[u8],
     ) -> Result<(), ExportKeyingMaterialError>;
+    /// 10.If the 0-RTT-encrypted data has been accepted by the peer
+    fn early_data_accepted(&self) -> Option<bool>;
 }
 
 /// 1. A key for signing with HMAC-based algorithms

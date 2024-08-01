@@ -46,7 +46,9 @@ mod cid_state;
 use cid_state::CidState;
 /// 4.
 mod spaces;
-use spaces::{PacketNumberFilter, PacketSpace, SendableFrames, SentPacket, ThinRetransmits};
+use spaces::{
+    PacketNumberFilter, PacketSpace, Retransmits, SendableFrames, SentPacket, ThinRetransmits,
+};
 /// 5.
 mod timer;
 use thiserror::Error;
@@ -847,6 +849,22 @@ impl Connection {
                             })?;
 
                     if self.has_0rtt() {
+                        if !self.crypto.early_data_accepted().unwrap() {
+                            debug_assert!(self.side.is_client());
+                            debug!("0-RTT rejected");
+                            self.accepted_0rtt = false;
+                            self.streams.zero_rtt_rejected();
+
+                            // Discard already-queued frames
+                            self.spaces[SpaceId::Data].pending = Retransmits::default();
+
+                            // Discard 0-RTT packets
+                            let sent_packets =
+                                mem::take(&mut self.spaces[SpaceId::Data].sent_packets);
+                            for (pn, packet) in sent_packets {
+                                self.remove_in_flight(pn, &packet);
+                            }
+                        }
                         todo!()
                     }
                     if let Some(token) = params.stateless_reset_token {

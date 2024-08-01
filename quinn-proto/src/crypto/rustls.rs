@@ -277,6 +277,13 @@ impl crypto::Session for TlsSession {
             .map_err(|_| ExportKeyingMaterialError)?;
         Ok(())
     }
+
+    fn early_data_accepted(&self) -> Option<bool> {
+        match self.inner {
+            Connection::Client(ref session) => Some(session.is_early_data_accepted()),
+            _ => None,
+        }
+    }
 }
 
 fn to_vec(params: &TransportParameters) -> Vec<u8> {
