@@ -864,8 +864,10 @@ impl Connection {
                             for (pn, packet) in sent_packets {
                                 self.remove_in_flight(pn, &packet);
                             }
+                        } else {
+                            self.accepted_0rtt = true;
+                            params.validate_resumption_from(&self.peer_params)?;
                         }
-                        todo!()
                     }
                     if let Some(token) = params.stateless_reset_token {
                         self.endpoint_events
