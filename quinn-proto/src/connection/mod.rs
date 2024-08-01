@@ -1260,7 +1260,34 @@ impl Connection {
             Some(x) => x,
             None => return,
         };
-        todo!()
+        if self.side.is_client() {
+            match self.crypto.transport_parameters() {
+                Ok(params) => {
+                    let params = params
+                        .expect("crypto layer didn't supply transport parameters with ticket");
+                    // Certain values must not be cached
+                    let params = TransportParameters {
+                        initial_src_cid: None,
+                        original_dst_cid: None,
+                        preferred_address: None,
+                        retry_src_cid: None,
+                        stateless_reset_token: None,
+                        min_ack_delay: None,
+                        ack_delay_exponent: TransportParameters::default().ack_delay_exponent,
+                        max_ack_delay: TransportParameters::default().max_ack_delay,
+                        ..params
+                    };
+                    self.set_peer_params(params);
+                }
+                Err(e) => {
+                    error!("session ticket has malformed transport parameters: {}", e);
+                    return;
+                }
+            }
+        }
+        trace!("0-RTT enabled");
+        self.zero_rtt_enabled = true;
+        self.zero_rtt_crypto = Some(ZeroRttCrypto { header, packet });
     }
 
     /// 19. Switch to stronger cryptography during handshake
