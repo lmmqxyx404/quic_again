@@ -625,3 +625,11 @@ pub(super) fn min_opt<T: Ord>(x: Option<T>, y: Option<T>) -> Option<T> {
 pub(super) fn client_config_with_certs(certs: Vec<CertificateDer<'static>>) -> ClientConfig {
     ClientConfig::new(Arc::new(client_crypto_inner(Some(certs), None)))
 }
+
+pub(super) fn server_crypto_with_alpn(alpn: Vec<Vec<u8>>) -> QuicServerConfig {
+    server_crypto_inner(None, Some(alpn))
+}
+
+pub(super) fn client_crypto_with_alpn(protocols: Vec<Vec<u8>>) -> QuicClientConfig {
+    client_crypto_inner(None, Some(protocols))
+}

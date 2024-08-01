@@ -17,7 +17,7 @@ use crate::{
 mod util;
 use super::*;
 use assert_matches::assert_matches;
-use config::ServerConfig;
+use config::{ClientConfig, ServerConfig};
 use crypto::rustls::QuicServerConfig;
 use hex_literal::hex;
 use rand::RngCore;
@@ -596,6 +596,81 @@ fn zero_rtt_happypath() {
         chunks.next(usize::MAX),
         Ok(Some(chunk)) if chunk.offset == 0 && chunk.bytes == MSG
     );
+    let _ = chunks.finalize();
+    assert_eq!(pair.client_conn_mut(client_ch).lost_packets(), 0);
+}
+
+#[test]
+fn zero_rtt_rejection() {
+    let _guard = subscribe();
+    let server_config = ServerConfig::with_crypto(Arc::new(server_crypto_with_alpn(vec![
+        "foo".into(),
+        "bar".into(),
+    ])));
+    let mut pair = Pair::new(Arc::new(EndpointConfig::default()), server_config);
+    let mut client_crypto = Arc::new(client_crypto_with_alpn(vec!["foo".into()]));
+    let client_config = ClientConfig::new(client_crypto.clone());
+
+    // Establish normal connection
+    let client_ch = pair.begin_connect(client_config);
+    pair.drive();
+    let server_ch = pair.server.assert_accept();
+    assert_matches!(
+        pair.server_conn_mut(server_ch).poll(),
+        Some(Event::HandshakeDataReady)
+    );
+    assert_matches!(
+        pair.server_conn_mut(server_ch).poll(),
+        Some(Event::Connected)
+    );
+    assert_matches!(pair.server_conn_mut(server_ch).poll(), None);
+    pair.client
+        .connections
+        .get_mut(&client_ch)
+        .unwrap()
+        .close(pair.time, VarInt(0), [][..].into());
+    pair.drive();
+    assert_matches!(
+        pair.server_conn_mut(server_ch).poll(),
+        Some(Event::ConnectionLost { .. })
+    );
+    assert_matches!(pair.server_conn_mut(server_ch).poll(), None);
+    pair.client.connections.clear();
+    pair.server.connections.clear();
+
+    // We want to have a TLS client config with the existing session cache (so resumption could
+    // happen), but with different ALPN protocols (so that the server must reject it). Reuse
+    // the existing `ClientConfig` and change the ALPN protocols to make that happen.
+    let this = Arc::get_mut(&mut client_crypto).expect("QuicClientConfig is shared");
+    let inner = Arc::get_mut(&mut this.inner).expect("QuicClientConfig.inner is shared");
+    inner.alpn_protocols = vec!["bar".into()];
+
+    // Changing protocols invalidates 0-RTT
+    let client_config = ClientConfig::new(client_crypto);
+    info!("resuming session");
+    let client_ch = pair.begin_connect(client_config);
+    assert!(pair.client_conn_mut(client_ch).has_0rtt());
+    let s = pair.client_streams(client_ch).open(Dir::Uni).unwrap();
+    const MSG: &[u8] = b"Hello, 0-RTT!";
+    pair.client_send(client_ch, s).write(MSG).unwrap();
+    pair.drive();
+    assert!(!pair.client_conn_mut(client_ch).accepted_0rtt());
+    let server_ch = pair.server.assert_accept();
+    assert_matches!(
+        pair.server_conn_mut(server_ch).poll(),
+        Some(Event::HandshakeDataReady)
+    );
+    assert_matches!(
+        pair.server_conn_mut(server_ch).poll(),
+        Some(Event::Connected)
+    );
+    assert_matches!(pair.server_conn_mut(server_ch).poll(), None);
+    let s2 = pair.client_streams(client_ch).open(Dir::Uni).unwrap();
+    assert_eq!(s, s2);
+
+    let mut recv = pair.server_recv(server_ch, s2);
+    let mut chunks = recv.read(false).unwrap();
+    assert_eq!(chunks.next(usize::MAX), Err(ReadError::Blocked));
     let _ = chunks.finalize();
     assert_eq!(pair.client_conn_mut(client_ch).lost_packets(), 0);
 }
