@@ -2964,6 +2964,14 @@ impl Connection {
             pending: &mut self.spaces[SpaceId::Data].pending,
         }
     }
+    /// 64. Number of bytes worth of non-ack-only packets that may be sent
+    #[cfg(test)]
+    pub(crate) fn congestion_window(&self) -> u64 {
+        self.path
+            .congestion
+            .window()
+            .saturating_sub(self.path.in_flight.bytes)
+    }
 }
 
 #[allow(unreachable_pub)] // fuzzing only
