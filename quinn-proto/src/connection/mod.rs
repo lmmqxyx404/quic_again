@@ -224,6 +224,10 @@ pub struct Connection {
     endpoint_config: Arc<EndpointConfig>,
     /// 47. Whether or not 0-RTT was enabled during the handshake. Does not imply acceptance.
     zero_rtt_enabled: bool,
+    /// 48.
+    accepted_0rtt: bool,
+    /// 49. Total number of outgoing packets that have been deemed lost
+    lost_packets: u64,
 }
 
 impl Connection {
@@ -341,6 +345,8 @@ impl Connection {
             retry_src_cid: None,
             endpoint_config,
             zero_rtt_enabled: false,
+            accepted_0rtt: false,
+            lost_packets: 0,
         };
 
         if side.is_client() {
@@ -2977,6 +2983,17 @@ impl Connection {
     #[cfg(test)]
     pub(crate) fn bytes_in_flight(&self) -> u64 {
         self.path.in_flight.bytes
+    }
+    /// 66. For clients, if the peer accepted the 0-RTT data packets
+    ///
+    /// The value is meaningless until after the handshake completes.
+    pub fn accepted_0rtt(&self) -> bool {
+        self.accepted_0rtt
+    }
+    /// 67. Total number of outgoing packets that have been deemed lost
+    #[cfg(test)]
+    pub(crate) fn lost_packets(&self) -> u64 {
+        self.lost_packets
     }
 }
 
