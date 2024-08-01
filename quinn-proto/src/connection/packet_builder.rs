@@ -173,9 +173,13 @@ impl PacketBuilder {
                 },
                 key_phase: conn.key_phase,
             },
-            SpaceId::Data => {
-                todo!()
-            }
+            SpaceId::Data => Header::Long {
+                ty: LongType::ZeroRtt,
+                src_cid: conn.handshake_cid,
+                dst_cid,
+                number,
+                version,
+            },
             SpaceId::Handshake => Header::Long {
                 ty: LongType::Handshake,
                 src_cid: conn.handshake_cid,
