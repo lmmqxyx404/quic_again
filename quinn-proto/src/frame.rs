@@ -1,6 +1,7 @@
 use std::{
     fmt::{self, Write},
     io::{self, Read},
+    mem,
     ops::{Range, RangeInclusive},
 };
 
@@ -245,7 +246,10 @@ impl Iter {
     }
 
     fn take_remaining(&mut self) -> Bytes {
-        todo!()
+        let mut x = mem::replace(self.bytes.get_mut(), Bytes::new());
+        x.advance(self.bytes.position() as usize);
+        self.bytes.set_position(0);
+        x
     }
 }
 
