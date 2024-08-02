@@ -74,7 +74,23 @@ impl SendBuffer {
         let mut encode_length = false;
 
         if let Some(range) = self.retransmits.pop_min() {
-            todo!()
+            // Retransmit sent data
+
+            // When the offset is known, we know how many bytes are required to encode it.
+            // Offset 0 requires no space
+            if range.start != 0 {
+                max_len -= VarInt::size(unsafe { VarInt::from_u64_unchecked(range.start) });
+            }
+            if range.end - range.start < max_len as u64 {
+                encode_length = true;
+                max_len -= 8;
+            }
+
+            let end = range.end.min((max_len as u64).saturating_add(range.start));
+            if end != range.end {
+                self.retransmits.insert(end..range.end);
+            }
+            return (range.start..end, encode_length);
         }
 
         // Transmit new data
