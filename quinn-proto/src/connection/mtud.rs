@@ -315,18 +315,22 @@ struct BlackHoleDetector {
     suspicious_loss_bursts: Vec<LossBurst>,
     /// 4. Loss burst currently being aggregated, if any
     current_loss_burst: Option<CurrentLossBurst>,
+    /// 5. The UDP payload size guaranteed to be supported by the network
+    min_mtu: u16,
 }
 
 impl BlackHoleDetector {
+    /// 1
     fn new(min_mtu: u16) -> Self {
         Self {
             suspicious_loss_bursts: Vec::with_capacity(BLACK_HOLE_THRESHOLD + 1),
             largest_post_loss_packet: 0,
             acked_mtu: min_mtu,
             current_loss_burst: None,
-            /* min_mtu, */
+            min_mtu,
         }
     }
+    /// 2
     fn on_non_probe_acked(&mut self, pn: u64, len: u16) {
         if len <= self.acked_mtu {
             // We've already seen a larger packet since the most recent suspicious loss burst;
@@ -340,7 +344,7 @@ impl BlackHoleDetector {
         self.suspicious_loss_bursts
             .retain(|burst| burst.smallest_packet_size > len);
     }
-
+    /// 3
     fn on_probe_acked(&mut self, pn: u64, len: u16) {
         // MTU probes are always larger than the previous MTU, so no previous loss bursts are
         // suspicious. At most one MTU probe is in flight at a time, so we don't need to worry about
@@ -352,6 +356,7 @@ impl BlackHoleDetector {
         // successfully delivered more recently than a loss.
         self.largest_post_loss_packet = pn;
     }
+    /// 4
     fn on_non_probe_lost(&mut self, pn: u64, len: u16) {
         // A loss burst is a group of consecutive packets that are declared lost, so a distance
         // greater than 1 indicates a new burst
@@ -359,6 +364,25 @@ impl BlackHoleDetector {
             .current_loss_burst
             .as_ref()
             .map_or(false, |current| pn - current.latest_non_probe != 1);
+
+        if end_last_burst {
+            self.finish_loss_burst();
+        }
+        todo!()
+    }
+    /// 5. Marks the end of the current loss burst, checking whether it was suspicious
+    fn finish_loss_burst(&mut self) {
+        let Some(burst) = self.current_loss_burst.take() else {
+            return;
+        };
+        // If a loss burst contains a packet smaller than the minimum MTU or a more recently
+        // transmitted packet, it is not suspicious.
+        if burst.smallest_packet_size < self.min_mtu
+            || (burst.latest_non_probe < self.largest_post_loss_packet
+                && burst.smallest_packet_size < self.acked_mtu)
+        {
+            return;
+        }
 
         todo!()
     }
@@ -373,4 +397,6 @@ struct LossBurst {
 struct CurrentLossBurst {
     /// 1.
     latest_non_probe: u64,
+    /// 2.
+    smallest_packet_size: u16,
 }
