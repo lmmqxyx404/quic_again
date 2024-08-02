@@ -111,6 +111,14 @@ impl MtuDiscovery {
             _ => None,
         }
     }
+    /// 9. Notifies the [`MtuDiscovery`] that a non-probe packet was lost
+    ///
+    /// When done notifying of lost packets, [`MtuDiscovery::black_hole_detected`] must be called, to
+    /// ensure the last loss burst is properly processed and to trigger black hole recovery logic if
+    /// necessary.
+    pub(crate) fn on_non_probe_lost(&mut self, pn: u64, len: u16) {
+        self.black_hole_detector.on_non_probe_lost(pn, len);
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -297,14 +305,16 @@ const BLACK_HOLE_THRESHOLD: usize = 3;
 /// evidence for an MTU black hole to be sufficient.
 #[derive(Clone)]
 struct BlackHoleDetector {
-    /// The maximum of `min_mtu` and the size of `largest_post_loss_packet`, or exactly `min_mtu` if
+    /// 1. The maximum of `min_mtu` and the size of `largest_post_loss_packet`, or exactly `min_mtu` if
     /// no larger packets have been received since the most recent loss burst.
     acked_mtu: u16,
-    /// Packet number of the biggest packet larger than `min_mtu` which we've received
+    /// 2. Packet number of the biggest packet larger than `min_mtu` which we've received
     /// acknowledgment of more recently than any suspicious loss burst, if any
     largest_post_loss_packet: u64,
-    /// Packet loss bursts currently considered suspicious
+    /// 3. Packet loss bursts currently considered suspicious
     suspicious_loss_bursts: Vec<LossBurst>,
+    /// 4. Loss burst currently being aggregated, if any
+    current_loss_burst: Option<CurrentLossBurst>,
 }
 
 impl BlackHoleDetector {
@@ -313,10 +323,8 @@ impl BlackHoleDetector {
             suspicious_loss_bursts: Vec::with_capacity(BLACK_HOLE_THRESHOLD + 1),
             largest_post_loss_packet: 0,
             acked_mtu: min_mtu,
-            /*
             current_loss_burst: None,
-
-            min_mtu, */
+            /* min_mtu, */
         }
     }
     fn on_non_probe_acked(&mut self, pn: u64, len: u16) {
@@ -344,9 +352,25 @@ impl BlackHoleDetector {
         // successfully delivered more recently than a loss.
         self.largest_post_loss_packet = pn;
     }
+    fn on_non_probe_lost(&mut self, pn: u64, len: u16) {
+        // A loss burst is a group of consecutive packets that are declared lost, so a distance
+        // greater than 1 indicates a new burst
+        let end_last_burst = self
+            .current_loss_burst
+            .as_ref()
+            .map_or(false, |current| pn - current.latest_non_probe != 1);
+
+        todo!()
+    }
 }
 
 #[derive(Copy, Clone)]
 struct LossBurst {
     smallest_packet_size: u16,
+}
+
+#[derive(Copy, Clone)]
+struct CurrentLossBurst {
+    /// 1.
+    latest_non_probe: u64,
 }

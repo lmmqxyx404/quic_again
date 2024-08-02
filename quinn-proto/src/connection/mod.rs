@@ -2907,7 +2907,8 @@ impl Connection {
                 for frame in info.stream_frames {
                     self.streams.retransmit(frame);
                 }
-                todo!()
+                self.spaces[pn_space].pending |= info.retransmits;
+                self.path.mtud.on_non_probe_lost(packet, info.size);
             }
         }
 
