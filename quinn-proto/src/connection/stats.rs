@@ -120,4 +120,8 @@ pub struct PathStats {
     pub congestion_events: u64,
     /// 3. The amount of PLPMTUD probe packets sent on this path (also counted by `sent_packets`)
     pub sent_plpmtud_probes: u64,
+    /// 4. The amount of packets lost on this path
+    pub lost_packets: u64,
+    /// 5. The amount of bytes lost on this path
+    pub lost_bytes: u64,
 }
