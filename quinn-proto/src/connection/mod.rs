@@ -930,7 +930,8 @@ impl Connection {
                 ty: LongType::ZeroRtt,
                 ..
             } => {
-                todo!()
+                self.process_payload(now, remote, number.unwrap(), packet)?;
+                Ok(())
             }
             Header::VersionNegotiate { .. } => {
                 if self.total_authed_packets > 1 {
