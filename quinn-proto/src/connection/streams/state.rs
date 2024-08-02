@@ -726,6 +726,19 @@ impl StreamsState {
         self.data_sent = 0;
         self.connection_blocked.clear();
     }
+    /// 26.
+    pub(crate) fn retransmit(&mut self, frame: frame::StreamMeta) {
+        let stream = match self.send.get_mut(&frame.id).and_then(|s| s.as_mut()) {
+            // Loss of data on a closed stream is a noop
+            None => return,
+            Some(x) => x,
+        };
+        if !stream.is_pending() {
+            self.pending.push_pending(frame.id, stream.priority);
+        }
+        stream.fin_pending |= frame.fin;
+        stream.pending.retransmit(frame.offsets);
+    }
 }
 
 #[inline]

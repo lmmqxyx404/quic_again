@@ -158,4 +158,9 @@ impl SendBuffer {
     pub(super) fn unacked(&self) -> u64 {
         self.unacked_len as u64 - self.acks.iter().map(|x| x.end - x.start).sum::<u64>()
     }
+    /// 11. Queue a range of sent but unacknowledged data to be retransmitted
+    pub(super) fn retransmit(&mut self, range: Range<u64>) {
+        debug_assert!(range.end <= self.unsent, "unsent data can't be lost");
+        self.retransmits.insert(range);
+    }
 }

@@ -2900,7 +2900,15 @@ impl Connection {
                 lost_packets,
                 size_of_lost_packets
             );
-            todo!()
+
+            for &packet in &lost_packets {
+                let info = self.spaces[pn_space].take(packet).unwrap(); // safe: lost_packets is populated just above
+                self.remove_in_flight(packet, &info);
+                for frame in info.stream_frames {
+                    self.streams.retransmit(frame);
+                }
+                todo!()
+            }
         }
 
         // Handle a lost MTU probe
