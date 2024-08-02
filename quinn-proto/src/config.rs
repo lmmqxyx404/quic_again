@@ -115,21 +115,8 @@ pub struct ServerConfig {
     pub(crate) retry_token_lifetime: Duration,
 }
 
-#[cfg(feature = "ring")]
 impl ServerConfig {
-    /// Create a server config with the given [`crypto::ServerConfig`]
-    ///
-    /// Uses a randomized handshake token key.
-    pub fn with_crypto(crypto: Arc<dyn crypto::ServerConfig>) -> Self {
-        let rng = &mut rand::thread_rng();
-        let mut master_key = [0u8; 64];
-        rng.fill_bytes(&mut master_key);
-        let master_key = ring::hkdf::Salt::new(ring::hkdf::HKDF_SHA256, &[]).extract(&master_key);
-
-        Self::new(crypto, Arc::new(master_key))
-    }
-
-    /// Create a default config with a particular handshake token key
+    /// 1. Create a default config with a particular handshake token key
     pub fn new(
         crypto: Arc<dyn crypto::ServerConfig>,
         token_key: Arc<dyn HandshakeTokenKey>,
@@ -151,8 +138,7 @@ impl ServerConfig {
             retry_token_lifetime: Duration::from_secs(15),
         }
     }
-
-    /// Maximum number of received bytes to buffer for each [`Incoming`][crate::Incoming]
+    /// 2. Maximum number of received bytes to buffer for each [`Incoming`][crate::Incoming]
     ///
     /// An [`Incoming`][crate::Incoming] comes into existence when an incoming connection attempt
     /// is received and stops existing when the application either accepts it or otherwise disposes
@@ -166,6 +152,36 @@ impl ServerConfig {
     pub fn incoming_buffer_size(&mut self, incoming_buffer_size: u64) -> &mut Self {
         self.incoming_buffer_size = incoming_buffer_size;
         self
+    }
+    /// 3. Maximum number of received bytes to buffer for all [`Incoming`][crate::Incoming]
+    /// collectively
+    ///
+    /// An [`Incoming`][crate::Incoming] comes into existence when an incoming connection attempt
+    /// is received and stops existing when the application either accepts it or otherwise disposes
+    /// of it. This limit governs only packets received within that period, and does not include
+    /// the first packet. Packets received in excess of this limit are dropped, which may cause
+    /// 0-RTT or handshake data to have to be retransmitted.
+    ///
+    /// The default value is set to 100 MiB--a generous amount that still prevents memory
+    /// exhaustion in most contexts.
+    pub fn incoming_buffer_size_total(&mut self, incoming_buffer_size_total: u64) -> &mut Self {
+        self.incoming_buffer_size_total = incoming_buffer_size_total;
+        self
+    }
+}
+
+#[cfg(feature = "ring")]
+impl ServerConfig {
+    /// Create a server config with the given [`crypto::ServerConfig`]
+    ///
+    /// Uses a randomized handshake token key.
+    pub fn with_crypto(crypto: Arc<dyn crypto::ServerConfig>) -> Self {
+        let rng = &mut rand::thread_rng();
+        let mut master_key = [0u8; 64];
+        rng.fill_bytes(&mut master_key);
+        let master_key = ring::hkdf::Salt::new(ring::hkdf::HKDF_SHA256, &[]).extract(&master_key);
+
+        Self::new(crypto, Arc::new(master_key))
     }
 }
 

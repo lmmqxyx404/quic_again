@@ -774,3 +774,10 @@ fn zero_rtt_incoming_buffer_size() {
         config.incoming_buffer_size(4000);
     });
 }
+
+#[test]
+fn zero_rtt_incoming_buffer_size_total() {
+    test_zero_rtt_incoming_limit(|config| {
+        config.incoming_buffer_size_total(4000);
+    });
+}
