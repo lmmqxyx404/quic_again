@@ -106,7 +106,8 @@ impl Endpoint {
         let remote_id = {
             #[cfg(test)]
             {
-                ConnectionId::new(&hex!("06b858ec6f80452b"))
+                (config.initial_dst_cid_provider)()
+                // ConnectionId::new(&hex!("06b858ec6f80452b"))
             }
             #[cfg(not(test))]
             {
