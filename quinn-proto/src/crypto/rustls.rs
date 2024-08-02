@@ -1,4 +1,4 @@
-use std::{io, sync::Arc};
+use std::{any::Any, io, sync::Arc};
 
 use bytes::BytesMut;
 use ring::aead;
@@ -284,6 +284,19 @@ impl crypto::Session for TlsSession {
             _ => None,
         }
     }
+
+    fn handshake_data(&self) -> Option<Box<dyn Any>> {
+        if !self.got_handshake_data {
+            return None;
+        }
+        Some(Box::new(HandshakeData {
+            protocol: self.inner.alpn_protocol().map(|x| x.into()),
+            server_name: match self.inner {
+                Connection::Client(_) => None,
+                Connection::Server(ref session) => session.server_name().map(|x| x.into()),
+            },
+        }))
+    }
 }
 
 fn to_vec(params: &TransportParameters) -> Vec<u8> {
@@ -505,3 +518,15 @@ const RETRY_INTEGRITY_KEY_V1: [u8; 16] = [
 const RETRY_INTEGRITY_NONCE_V1: [u8; 12] = [
     0x46, 0x15, 0x99, 0xd3, 0x5d, 0x63, 0x2b, 0xf2, 0x23, 0x98, 0x25, 0xbb,
 ];
+
+/// Authentication data for (rustls) TLS session
+pub struct HandshakeData {
+    /// The negotiated application protocol, if ALPN is in use
+    ///
+    /// Guaranteed to be set if a nonempty list of protocols was specified for this connection.
+    pub protocol: Option<Vec<u8>>,
+    /// The server name specified by the client, if any
+    ///
+    /// Always `None` for outgoing connections
+    pub server_name: Option<String>,
+}

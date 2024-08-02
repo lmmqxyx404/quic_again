@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{any::Any, sync::Arc};
 
 use bytes::BytesMut;
 
@@ -64,6 +64,10 @@ pub trait Session: Send + Sync + 'static {
     ) -> Result<(), ExportKeyingMaterialError>;
     /// 10.If the 0-RTT-encrypted data has been accepted by the peer
     fn early_data_accepted(&self) -> Option<bool>;
+    /// 11. Get data negotiated during the handshake, if available
+    ///
+    /// Returns `None` until the connection emits `HandshakeDataReady`.
+    fn handshake_data(&self) -> Option<Box<dyn Any>>;
 }
 
 /// 1. A key for signing with HMAC-based algorithms
