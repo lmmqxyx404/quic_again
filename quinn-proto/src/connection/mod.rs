@@ -1413,6 +1413,10 @@ impl Connection {
                 Timer::LossDetection => {
                     self.on_loss_detection_timeout(now);
                 }
+                Timer::KeyDiscard => {
+                    self.zero_rtt_crypto = None;
+                    self.prev_crypto = None;
+                }
                 _ => {
                     unreachable!(" handle_timeout {:?}", timer)
                 }
