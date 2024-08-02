@@ -1,4 +1,4 @@
-use std::time::Instant;
+use std::{cmp, time::Instant};
 
 use tracing::trace;
 
@@ -368,7 +368,13 @@ impl BlackHoleDetector {
         if end_last_burst {
             self.finish_loss_burst();
         }
-        todo!()
+
+        self.current_loss_burst = Some(CurrentLossBurst {
+            latest_non_probe: pn,
+            smallest_packet_size: self
+                .current_loss_burst
+                .map_or(len, |prev| cmp::min(prev.smallest_packet_size, len)),
+        });
     }
     /// 5. Marks the end of the current loss burst, checking whether it was suspicious
     fn finish_loss_burst(&mut self) {
