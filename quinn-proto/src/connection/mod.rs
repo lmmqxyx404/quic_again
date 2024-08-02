@@ -2847,7 +2847,45 @@ impl Connection {
                 persistent_congestion_start = None;
             }
 
-            todo!()
+            if info.time_sent <= lost_send_time || largest_acked_packet >= packet + packet_threshold
+            {
+                if Some(packet) == in_flight_mtu_probe {
+                    // Lost MTU probes are not included in `lost_packets`, because they should not
+                    // trigger a congestion control response
+                    lost_mtu_probe = in_flight_mtu_probe;
+                } else {
+                    lost_packets.push(packet);
+                    size_of_lost_packets += info.size as u64;
+                    if info.ack_eliciting && due_to_ack {
+                        match persistent_congestion_start {
+                            // Two ACK-eliciting packets lost more than congestion_period apart, with no
+                            // ACKed packets in between
+                            Some(start) if info.time_sent - start > congestion_period => {
+                                in_persistent_congestion = true;
+                            }
+                            // Persistent congestion must start after the first RTT sample
+                            None if self
+                                .path
+                                .first_packet_after_rtt_sample
+                                .map_or(false, |x| x < (pn_space, packet)) =>
+                            {
+                                persistent_congestion_start = Some(info.time_sent);
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+            } else {
+                let next_loss_time = info.time_sent + loss_delay;
+                space.loss_time = Some(
+                    space
+                        .loss_time
+                        .map_or(next_loss_time, |x| cmp::min(x, next_loss_time)),
+                );
+                persistent_congestion_start = None;
+            }
+
+            prev_packet = Some(packet);
         }
 
         // OnPacketsLost
