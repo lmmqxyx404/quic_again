@@ -697,7 +697,19 @@ impl Connection {
     }
     /// 10
     fn set_key_discard_timer(&mut self, now: Instant, space: SpaceId) {
-        todo!()
+        let start = if self.zero_rtt_crypto.is_some() {
+            now
+        } else {
+            self.prev_crypto
+                .as_ref()
+                .expect("no previous keys")
+                .end_packet
+                .as_ref()
+                .expect("update not acknowledged yet")
+                .1
+        };
+        self.timers
+            .set(Timer::KeyDiscard, start + self.pto(space) * 3);
     }
     /// 11
     fn process_decrypted_packet(
