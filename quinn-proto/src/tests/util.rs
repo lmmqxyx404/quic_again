@@ -452,6 +452,9 @@ impl TestEndpoint {
                                     self.retry(incoming);
                                 }
                             }
+                            IncomingConnectionBehavior::Wait => {
+                                self.waiting_incoming.push(incoming);
+                            }
                             _ => {
                                 todo!()
                             }
