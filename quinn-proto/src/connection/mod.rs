@@ -1124,6 +1124,9 @@ impl Connection {
                     }
                     self.streams.received_stop_sending(id, error_code);
                 }
+                Frame::MaxStreams { dir, count } => {
+                    self.streams.received_max_streams(dir, count)?;
+                }
             }
         }
 

@@ -14,7 +14,7 @@ use crate::{
     range_set::ArrayRangeSet,
     shared::{ConnectionId, EcnCodepoint},
     token::ResetToken,
-    StreamId, TransportError, TransportErrorCode, VarInt, MAX_CID_SIZE, RESET_TOKEN_SIZE,
+    Dir, StreamId, TransportError, TransportErrorCode, VarInt, MAX_CID_SIZE, RESET_TOKEN_SIZE,
 };
 /// 1
 #[derive(Clone, Debug)]
@@ -210,6 +210,14 @@ impl Iter {
                 id: self.bytes.get()?,
                 error_code: self.bytes.get()?,
             }),
+            Type::MAX_STREAMS_BIDI => Frame::MaxStreams {
+                dir: Dir::Bi,
+                count: self.bytes.get_var()?,
+            },
+            Type::MAX_STREAMS_UNI => Frame::MaxStreams {
+                dir: Dir::Uni,
+                count: self.bytes.get_var()?,
+            },
             _ => {
                 #[cfg(test)]
                 {
@@ -304,6 +312,7 @@ pub(crate) enum Frame {
     RetireConnectionId { sequence: u64 },
     ResetStream(ResetStream),
     StopSending(StopSending),
+    MaxStreams { dir: Dir, count: u64 },
 }
 
 impl Frame {
@@ -335,6 +344,8 @@ impl Frame {
             RetireConnectionId { .. } => Type::RETIRE_CONNECTION_ID,
             ResetStream(_) => Type::RESET_STREAM,
             StopSending { .. } => Type::STOP_SENDING,
+            MaxStreams { dir: Dir::Bi, .. } => Type::MAX_STREAMS_BIDI,
+            MaxStreams { dir: Dir::Uni, .. } => Type::MAX_STREAMS_UNI,
         }
     }
     /// 2.

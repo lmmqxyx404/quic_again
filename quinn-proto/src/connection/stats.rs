@@ -1,4 +1,4 @@
-use crate::frame::Frame;
+use crate::{frame::Frame, Dir};
 
 /// 1. Connection statistics
 #[derive(Debug, Default, Copy, Clone)]
@@ -73,6 +73,10 @@ pub struct FrameStats {
     pub reset_stream: u64,
     /// 15.
     pub stop_sending: u64,
+    /// 16
+    pub max_streams_bidi: u64,
+    /// 17
+    pub max_streams_uni: u64,
 }
 
 impl FrameStats {
@@ -95,6 +99,13 @@ impl FrameStats {
             Frame::RetireConnectionId { .. } => self.retire_connection_id += 1,
             Frame::ResetStream(_) => self.reset_stream += 1,
             Frame::StopSending(_) => self.stop_sending += 1,
+            Frame::MaxStreams { dir, .. } => {
+                if *dir == Dir::Bi {
+                    self.max_streams_bidi += 1;
+                } else {
+                    self.max_streams_uni += 1;
+                }
+            }
         }
     }
 }

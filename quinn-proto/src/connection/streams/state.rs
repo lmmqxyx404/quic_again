@@ -10,7 +10,7 @@ use crate::{
     },
     frame::{self, FrameStruct, StreamMetaVec},
     transport_parameters::TransportParameters,
-    Dir, Side, StreamId, TransportError, VarInt,
+    Dir, Side, StreamId, TransportError, VarInt, MAX_STREAM_COUNT,
 };
 
 use super::{
@@ -266,7 +266,11 @@ impl StreamsState {
                 Dir::Uni => frame::Type::MAX_STREAMS_UNI,
                 Dir::Bi => frame::Type::MAX_STREAMS_BIDI,
             });
-            todo!()
+            buf.write_var(self.max_remote[dir as usize]);
+            match dir {
+                Dir::Uni => stats.max_streams_uni += 1,
+                Dir::Bi => stats.max_streams_bidi += 1,
+            }
         }
     }
     /// 5.
@@ -751,6 +755,26 @@ impl StreamsState {
         }
         stream.fin_pending |= frame.fin;
         stream.pending.retransmit(frame.offsets);
+    }
+    /// 27.
+    pub(crate) fn received_max_streams(
+        &mut self,
+        dir: Dir,
+        count: u64,
+    ) -> Result<(), TransportError> {
+        if count > MAX_STREAM_COUNT {
+            return Err(TransportError::FRAME_ENCODING_ERROR(
+                "unrepresentable stream limit",
+            ));
+        }
+
+        let current = &mut self.max[dir as usize];
+        if count > *current {
+            *current = count;
+            self.events.push_back(StreamEvent::Available { dir });
+        }
+
+        Ok(())
     }
 }
 
