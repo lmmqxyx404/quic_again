@@ -488,6 +488,8 @@ frame_types! {
     RESET_STREAM = 0x04,
     STOP_SENDING = 0x05,
     APPLICATION_CLOSE = 0x1d,
+    MAX_STREAMS_BIDI = 0x12,
+    MAX_STREAMS_UNI = 0x13,
 }
 
 const STREAM_TYS: RangeInclusive<u64> = RangeInclusive::new(0x08, 0x0f);

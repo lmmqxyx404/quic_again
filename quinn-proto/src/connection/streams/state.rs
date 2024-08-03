@@ -3,6 +3,7 @@ use rustc_hash::FxHashMap;
 use tracing::{debug, trace};
 
 use crate::{
+    coding::BufMutExt,
     connection::{
         spaces::{Retransmits, ThinRetransmits},
         stats::FrameStats,
@@ -249,10 +250,22 @@ impl StreamsState {
 
         // MAX_STREAMS
         for dir in Dir::iter() {
-            trace!("for dir in Dir::iter()");
             if !pending.max_stream_id[dir as usize] || buf.len() + 9 >= max_size {
                 continue;
             }
+
+            pending.max_stream_id[dir as usize] = false;
+            retransmits.get_or_create().max_stream_id[dir as usize] = true;
+            self.sent_max_remote[dir as usize] = self.max_remote[dir as usize];
+            trace!(
+                value = self.max_remote[dir as usize],
+                "MAX_STREAMS ({:?})",
+                dir
+            );
+            buf.write(match dir {
+                Dir::Uni => frame::Type::MAX_STREAMS_UNI,
+                Dir::Bi => frame::Type::MAX_STREAMS_BIDI,
+            });
             todo!()
         }
     }
