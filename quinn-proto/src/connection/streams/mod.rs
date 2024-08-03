@@ -51,6 +51,11 @@ pub enum StreamEvent {
         /// Error code supplied by the peer
         error_code: VarInt,
     },
+    /// 6. At least one new stream of a certain directionality may be opened
+    Available {
+        /// Directionality for which streams are newly available
+        dir: Dir,
+    },
 }
 
 /// A queue of streams with pending outgoing data, sorted by priority
