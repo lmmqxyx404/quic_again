@@ -3217,7 +3217,24 @@ impl Connection {
             )
         };
 
-        todo!()
+        new_path.challenge = Some(self.rng.gen());
+        new_path.challenge_pending = true;
+        let prev_pto = self.pto(SpaceId::Data);
+
+        let mut prev = mem::replace(&mut self.path, new_path);
+        // Don't clobber the original path if the previous one hasn't been validated yet
+        if prev.challenge.is_none() {
+            prev.challenge = Some(self.rng.gen());
+            prev.challenge_pending = true;
+            // We haven't updated the remote CID yet, this captures the remote CID we were using on
+            // the previous path.
+            self.prev_path = Some((self.rem_cids.active(), prev));
+        }
+
+        self.timers.set(
+            Timer::PathValidation,
+            now + 3 * cmp::max(self.pto(SpaceId::Data), prev_pto),
+        );
     }
 }
 
