@@ -2061,7 +2061,33 @@ impl Connection {
     }
     /// 32.
     fn update_keys(&mut self, end_packet: Option<(u64, Instant)>, remote: bool) {
-        todo!()
+        trace!("executing key update");
+        // Generate keys for the key phase after the one we're switching to, store them in
+        // `next_crypto`, make the contents of `next_crypto` current, and move the current keys into
+        // `prev_crypto`.
+        let new = self
+            .crypto
+            .next_1rtt_keys()
+            .expect("only called for `Data` packets");
+        self.key_phase_size = new
+            .local
+            .confidentiality_limit()
+            .saturating_sub(KEY_UPDATE_MARGIN);
+        let old = mem::replace(
+            &mut self.spaces[SpaceId::Data]
+                .crypto
+                .as_mut()
+                .unwrap() // safe because update_keys() can only be triggered by short packets
+                .packet,
+            mem::replace(self.next_crypto.as_mut().unwrap(), new),
+        );
+        self.spaces[SpaceId::Data].sent_with_keys = 0;
+        self.prev_crypto = Some(PrevCrypto {
+            crypto: old,
+            end_packet,
+            update_unacked: remote,
+        });
+        self.key_phase = !self.key_phase;
     }
     /// 33 first executed by [`Self::close`]
     fn close_inner(&mut self, now: Instant, reason: Close) {
@@ -3300,3 +3326,8 @@ impl SentFrames {
         !self.non_retransmits && self.largest_acked.is_some() && self.retransmits.is_empty(streams)
     }
 }
+
+/// Perform key updates this many packets before the AEAD confidentiality limit.
+///
+/// Chosen arbitrarily, intended to be large enough to prevent spurious connection loss.
+const KEY_UPDATE_MARGIN: u64 = 10_000;
