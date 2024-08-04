@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use crate::{frame::Frame, Dir};
 
 /// 1. Connection statistics
@@ -135,4 +137,8 @@ pub struct PathStats {
     pub lost_packets: u64,
     /// 5. The amount of bytes lost on this path
     pub lost_bytes: u64,
+    /// 6. Current best estimate of this connection's latency (round-trip-time)
+    pub rtt: Duration,
+    /// 7. Current congestion window of the connection
+    pub cwnd: u64,
 }

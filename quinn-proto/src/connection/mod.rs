@@ -3165,6 +3165,14 @@ impl Connection {
         self.state = State::Drained;
         self.endpoint_events.push_back(EndpointEventInner::Drained);
     }
+    /// 70. Returns connection statistics
+    pub fn stats(&self) -> ConnectionStats {
+        let mut stats = self.stats;
+        stats.path.rtt = self.path.rtt.get();
+        stats.path.cwnd = self.path.congestion.window();
+
+        stats
+    }
 }
 
 #[allow(unreachable_pub)] // fuzzing only
