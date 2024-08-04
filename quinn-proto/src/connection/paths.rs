@@ -4,6 +4,8 @@ use std::{
     time::{Duration, Instant},
 };
 
+use tracing::trace;
+
 use crate::{config::TransportConfig, congestion, packet::SpaceId, TIMER_GRANULARITY};
 
 use super::{
@@ -273,13 +275,37 @@ impl PathResponses {
     }
     /// 4
     pub(crate) fn push(&mut self, packet: u64, token: u64, remote: SocketAddr) {
-        todo!()
+        /// Arbitrary permissive limit to prevent abuse
+        const MAX_PATH_RESPONSES: usize = 16;
+        let response = PathResponse {
+            packet,
+            token,
+            remote,
+        };
+        let existing = self.pending.iter_mut().find(|x| x.remote == remote);
+        if let Some(existing) = existing {
+            // Update a queued response
+            if existing.packet <= packet {
+                *existing = response;
+            }
+            return;
+        }
+        if self.pending.len() < MAX_PATH_RESPONSES {
+            self.pending.push(response);
+        } else {
+            // We don't expect to ever hit this with well-behaved peers, so we don't bother dropping
+            // older challenges.
+            trace!("ignoring excessive PATH_CHALLENGE");
+        }
     }
 }
 
 #[derive(Copy, Clone)]
 struct PathResponse {
+    /// 1
     token: u64,
-    /// The address the corresponding PATH_CHALLENGE was received from
+    /// 2.The address the corresponding PATH_CHALLENGE was received from
     remote: SocketAddr,
+    /// 3.The packet number the corresponding PATH_CHALLENGE was received in
+    packet: u64,
 }

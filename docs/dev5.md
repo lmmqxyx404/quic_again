@@ -85,3 +85,67 @@ stack backtrace:
              at /rustc/129f3b9964af4d4a709d1383930ade12dfe7c081/library/core/src/ops/function.rs:250:5
 note: Some details are omitted, run with `RUST_BACKTRACE=full` for a verbose backtrace.
 ```
+
+#
+```
+thread 'tests::migration' panicked at quinn-proto/src/connection/paths.rs:276:9:
+not yet implemented
+stack backtrace:
+   0: rust_begin_unwind
+             at /rustc/129f3b9964af4d4a709d1383930ade12dfe7c081/library/std/src/panicking.rs:652:5
+   1: core::panicking::panic_fmt
+             at /rustc/129f3b9964af4d4a709d1383930ade12dfe7c081/library/core/src/panicking.rs:72:14
+   2: core::panicking::panic
+             at /rustc/129f3b9964af4d4a709d1383930ade12dfe7c081/library/core/src/panicking.rs:146:5
+   3: scratch_quinn_proto::connection::paths::PathResponses::push
+             at ./src/connection/paths.rs:276:9
+   4: scratch_quinn_proto::connection::Connection::process_payload
+             at ./src/connection/mod.rs:1134:21
+   5: scratch_quinn_proto::connection::Connection::process_decrypted_packet
+             at ./src/connection/mod.rs:728:38
+   6: scratch_quinn_proto::connection::Connection::handle_packet
+             at ./src/connection/mod.rs:611:21
+   7: scratch_quinn_proto::connection::Connection::handle_decode
+             at ./src/connection/mod.rs:447:13
+   8: scratch_quinn_proto::connection::Connection::handle_event
+             at ./src/connection/mod.rs:397:17
+   9: scratch_quinn_proto::tests::util::TestEndpoint::drive_outgoing
+             at ./src/tests/util.rs:499:25
+  10: scratch_quinn_proto::tests::util::TestEndpoint::drive
+             at ./src/tests/util.rs:426:9
+  11: scratch_quinn_proto::tests::util::Pair::drive_client
+             at ./src/tests/util.rs:260:9
+  12: scratch_quinn_proto::tests::util::Pair::step
+             at ./src/tests/util.rs:209:9
+  13: scratch_quinn_proto::tests::util::Pair::drive
+             at ./src/tests/util.rs:205:15
+  14: scratch_quinn_proto::tests::migration
+             at ./src/tests/mod.rs:1228:5
+  15: scratch_quinn_proto::tests::migration::{{closure}}
+             at ./src/tests/mod.rs:1208:15
+  16: core::ops::function::FnOnce::call_once
+             at /rustc/129f3b9964af4d4a709d1383930ade12dfe7c081/library/core/src/ops/function.rs:250:5
+  17: core::ops::function::FnOnce::call_once
+             at /rustc/129f3b9964af4d4a709d1383930ade12dfe7c081/library/core/src/ops/function.rs:250:5
+note: Some details are omitted, run with `RUST_BACKTRACE=full` for a verbose backtrace.
+```
+
+# to add `PATH_RESPONSE`
+```
+thread 'tests::migration' panicked at quinn-proto/src/tests/mod.rs:1229:5:
+assertion failed: `Some(ConnectionLost { reason: ConnectionClosed(ConnectionClose { reason: b"invalid frame ID", error_code: FRAME_ENCODING_ERROR, frame_type: Some(PATH_RESPONSE) }) })` does not match `None`
+stack backtrace:
+   0: rust_begin_unwind
+             at /rustc/129f3b9964af4d4a709d1383930ade12dfe7c081/library/std/src/panicking.rs:652:5
+   1: core::panicking::panic_fmt
+             at /rustc/129f3b9964af4d4a709d1383930ade12dfe7c081/library/core/src/panicking.rs:72:14
+   2: scratch_quinn_proto::tests::migration
+             at ./src/tests/mod.rs:1229:5
+   3: scratch_quinn_proto::tests::migration::{{closure}}
+             at ./src/tests/mod.rs:1208:15
+   4: core::ops::function::FnOnce::call_once
+             at /rustc/129f3b9964af4d4a709d1383930ade12dfe7c081/library/core/src/ops/function.rs:250:5
+   5: core::ops::function::FnOnce::call_once
+             at /rustc/129f3b9964af4d4a709d1383930ade12dfe7c081/library/core/src/ops/function.rs:250:5
+note: Some details are omitted, run with `RUST_BACKTRACE=full` for a verbose backtrace.
+```
