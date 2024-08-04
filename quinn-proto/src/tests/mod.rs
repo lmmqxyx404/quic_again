@@ -962,3 +962,56 @@ fn stream_id_limit() {
     assert_matches!(chunks.next(usize::MAX), Ok(None));
     let _ = chunks.finalize();
 }
+
+#[test]
+fn key_update_simple() {
+    let _guard = subscribe();
+    let mut pair = Pair::default();
+    let (client_ch, server_ch) = pair.connect();
+    let s = pair
+        .client
+        .connections
+        .get_mut(&client_ch)
+        .unwrap()
+        .streams()
+        .open(Dir::Bi)
+        .expect("couldn't open first stream");
+
+    const MSG1: &[u8] = b"hello1";
+    pair.client_send(client_ch, s).write(MSG1).unwrap();
+    pair.drive();
+
+    assert_matches!(
+        pair.server_conn_mut(server_ch).poll(),
+        Some(Event::Stream(StreamEvent::Opened { dir: Dir::Bi }))
+    );
+    assert_matches!(pair.server_streams(server_ch).accept(Dir::Bi), Some(stream) if stream == s);
+    assert_matches!(pair.server_conn_mut(server_ch).poll(), None);
+    let mut recv = pair.server_recv(server_ch, s);
+    let mut chunks = recv.read(false).unwrap();
+    assert_matches!(
+        chunks.next(usize::MAX),
+        Ok(Some(chunk)) if chunk.offset == 0 && chunk.bytes == MSG1
+    );
+    let _ = chunks.finalize();
+
+    info!("initiating key update");
+    pair.client_conn_mut(client_ch).initiate_key_update();
+
+    const MSG2: &[u8] = b"hello2";
+    pair.client_send(client_ch, s).write(MSG2).unwrap();
+    pair.drive();
+
+    assert_matches!(pair.server_conn_mut(server_ch).poll(), Some(Event::Stream(StreamEvent::Readable { id })) if id == s);
+    assert_matches!(pair.server_conn_mut(server_ch).poll(), None);
+    let mut recv = pair.server_recv(server_ch, s);
+    let mut chunks = recv.read(false).unwrap();
+    assert_matches!(
+        chunks.next(usize::MAX),
+        Ok(Some(chunk)) if chunk.offset == 6 && chunk.bytes == MSG2
+    );
+    let _ = chunks.finalize();
+
+    assert_eq!(pair.client_conn_mut(client_ch).lost_packets(), 0);
+    assert_eq!(pair.server_conn_mut(server_ch).lost_packets(), 0);
+}

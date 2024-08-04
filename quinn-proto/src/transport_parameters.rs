@@ -160,6 +160,10 @@ impl TransportParameters {
             initial_max_streams_uni: config.max_concurrent_uni_streams,
             initial_max_data: config.receive_window,
             initial_max_stream_data_uni: config.stream_receive_window,
+            
+            initial_max_streams_bidi: config.max_concurrent_bidi_streams,
+            // initial_max_stream_data_bidi_remote: config.stream_receive_window,
+
             ..Self::default()
         }
     }
