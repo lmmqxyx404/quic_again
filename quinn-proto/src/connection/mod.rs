@@ -1420,6 +1420,9 @@ impl Connection {
                     self.zero_rtt_crypto = None;
                     self.prev_crypto = None;
                 }
+                Timer::Idle => {
+                    self.kill(ConnectionError::TimedOut);
+                }
                 _ => {
                     unreachable!(" handle_timeout {:?}", timer)
                 }
@@ -3154,6 +3157,13 @@ impl Connection {
     /// A `ConnectionLost` event is emitted with details when the connection becomes closed.
     pub fn is_closed(&self) -> bool {
         self.state.is_closed()
+    }
+    /// 69. Terminate the connection instantly, without sending a close packet
+    fn kill(&mut self, reason: ConnectionError) {
+        self.close_common();
+        self.error = Some(reason);
+        self.state = State::Drained;
+        self.endpoint_events.push_back(EndpointEventInner::Drained);
     }
 }
 
