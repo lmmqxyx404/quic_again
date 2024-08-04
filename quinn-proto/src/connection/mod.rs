@@ -1024,7 +1024,7 @@ impl Connection {
 
             // Check whether this could be a probing packet
             match frame {
-                Frame::Padding | Frame::NewConnectionId(_) => {}
+                Frame::Padding | Frame::NewConnectionId(_) | Frame::PathChallenge(_) => {}
                 _ => {
                     is_probing_packet = false;
                 }
@@ -1129,6 +1129,17 @@ impl Connection {
                 }
                 Frame::MaxStreams { dir, count } => {
                     self.streams.received_max_streams(dir, count)?;
+                }
+                Frame::PathChallenge(token) => {
+                    self.path_responses.push(number, token, remote);
+                    if remote == self.path.remote {
+                        // PATH_CHALLENGE on active path, possible off-path packet forwarding
+                        // attack. Send a non-probing packet to recover the active path.
+                        match self.peer_supports_ack_frequency() {
+                            true => self.immediate_ack(),
+                            false => self.ping(),
+                        }
+                    }
                 }
             }
         }
@@ -3285,6 +3296,13 @@ impl Connection {
             Timer::PathValidation,
             now + 3 * cmp::max(self.pto(SpaceId::Data), prev_pto),
         );
+    }
+    /// 74. Send an IMMEDIATE_ACK frame to the remote endpoint
+    ///
+    /// According to the spec, this will result in an error if the remote endpoint does not support
+    /// the Acknowledgement Frequency extension
+    pub(crate) fn immediate_ack(&mut self) {
+        self.spaces[self.highest_space].immediate_ack_pending = true;
     }
 }
 

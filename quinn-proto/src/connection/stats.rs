@@ -108,6 +108,7 @@ impl FrameStats {
                     self.max_streams_uni += 1;
                 }
             }
+            Frame::PathChallenge(_) => self.path_challenge += 1,
         }
     }
 }

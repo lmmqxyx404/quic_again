@@ -271,6 +271,10 @@ impl PathResponses {
     pub(crate) fn is_empty(&self) -> bool {
         self.pending.is_empty()
     }
+    /// 4
+    pub(crate) fn push(&mut self, packet: u64, token: u64, remote: SocketAddr) {
+        todo!()
+    }
 }
 
 #[derive(Copy, Clone)]

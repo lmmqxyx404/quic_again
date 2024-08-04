@@ -218,6 +218,7 @@ impl Iter {
                 dir: Dir::Uni,
                 count: self.bytes.get_var()?,
             },
+            Type::PATH_CHALLENGE => Frame::PathChallenge(self.bytes.get()?),
             _ => {
                 #[cfg(test)]
                 {
@@ -313,6 +314,7 @@ pub(crate) enum Frame {
     ResetStream(ResetStream),
     StopSending(StopSending),
     MaxStreams { dir: Dir, count: u64 },
+    PathChallenge(u64),
 }
 
 impl Frame {
@@ -346,6 +348,8 @@ impl Frame {
             StopSending { .. } => Type::STOP_SENDING,
             MaxStreams { dir: Dir::Bi, .. } => Type::MAX_STREAMS_BIDI,
             MaxStreams { dir: Dir::Uni, .. } => Type::MAX_STREAMS_UNI,
+
+            PathChallenge(_) => Type::PATH_CHALLENGE,
         }
     }
     /// 2.
