@@ -1015,3 +1015,21 @@ fn key_update_simple() {
     assert_eq!(pair.client_conn_mut(client_ch).lost_packets(), 0);
     assert_eq!(pair.server_conn_mut(server_ch).lost_packets(), 0);
 }
+
+#[test]
+fn initial_retransmit() {
+    let _guard = subscribe();
+    let mut pair = Pair::default();
+    let client_ch = pair.begin_connect(client_config());
+    pair.client.drive(pair.time, pair.server.addr);
+    pair.client.outbound.clear(); // Drop initial
+    pair.drive();
+    assert_matches!(
+        pair.client_conn_mut(client_ch).poll(),
+        Some(Event::HandshakeDataReady)
+    );
+    assert_matches!(
+        pair.client_conn_mut(client_ch).poll(),
+        Some(Event::Connected { .. })
+    );
+}
