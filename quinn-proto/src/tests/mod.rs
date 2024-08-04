@@ -17,8 +17,10 @@ use crate::{
 mod util;
 use super::*;
 use assert_matches::assert_matches;
+use bytes::Bytes;
 use config::{ClientConfig, ServerConfig, TransportConfig};
 use crypto::rustls::QuicServerConfig;
+use frame::ConnectionClose;
 use hex_literal::hex;
 use rand::RngCore;
 use ring::hmac;
@@ -1031,5 +1033,30 @@ fn initial_retransmit() {
     assert_matches!(
         pair.client_conn_mut(client_ch).poll(),
         Some(Event::Connected { .. })
+    );
+}
+
+#[test]
+fn instant_close_1() {
+    let _guard = subscribe();
+    let mut pair = Pair::default();
+    info!("connecting");
+    let client_ch = pair.begin_connect(client_config());
+    pair.client
+        .connections
+        .get_mut(&client_ch)
+        .unwrap()
+        .close(pair.time, VarInt(0), Bytes::new());
+    pair.drive();
+    let server_ch = pair.server.assert_accept();
+    assert_matches!(pair.client_conn_mut(client_ch).poll(), None);
+    assert_matches!(
+        pair.server_conn_mut(server_ch).poll(),
+        Some(Event::ConnectionLost {
+            reason: ConnectionError::ConnectionClosed(ConnectionClose {
+                error_code: TransportErrorCode::APPLICATION_ERROR,
+                ..
+            }),
+        })
     );
 }
