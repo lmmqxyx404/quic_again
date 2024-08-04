@@ -1156,7 +1156,17 @@ impl Connection {
             && !is_probing_packet
             && number == self.spaces[SpaceId::Data].rx_packet
         {
-            todo!()
+            debug_assert!(
+                self.server_config
+                    .as_ref()
+                    .expect("packets from unknown remote should be dropped by clients")
+                    .migration,
+                "migration-initiating packets should have been dropped immediately"
+            );
+            self.migrate(now, remote);
+            // Break linkability, if possible
+            self.update_rem_cid();
+            self.spin = false;
         }
 
         Ok(())
@@ -3181,6 +3191,10 @@ impl Connection {
     /// 72. The latest socket address for this connection's peer
     pub fn remote_address(&self) -> SocketAddr {
         self.path.remote
+    }
+    /// 73.
+    fn migrate(&mut self, now: Instant, remote: SocketAddr) {
+        todo!()
     }
 }
 
