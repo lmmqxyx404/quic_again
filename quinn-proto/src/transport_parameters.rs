@@ -164,7 +164,8 @@ impl TransportParameters {
             // following two are used for `key_update_simple`
             initial_max_streams_bidi: config.max_concurrent_bidi_streams,
             initial_max_stream_data_bidi_remote: config.stream_receive_window,
-
+            // used for `idle_timeout`
+            max_idle_timeout: config.max_idle_timeout.unwrap_or(VarInt(0)),
             ..Self::default()
         }
     }

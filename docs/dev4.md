@@ -28,3 +28,24 @@ stack backtrace:
 note: Some details are omitted, run with `RUST_BACKTRACE=full` for a verbose backtrace.
 ```
 
+#
+```
+thread 'tests::idle_timeout' panicked at quinn-proto/src/tests/mod.rs:1149:5:
+assertion failed: pair.time - start < Duration::from_millis(2 * IDLE_TIMEOUT)
+stack backtrace:
+   0: rust_begin_unwind
+             at /rustc/129f3b9964af4d4a709d1383930ade12dfe7c081/library/std/src/panicking.rs:652:5
+   1: core::panicking::panic_fmt
+             at /rustc/129f3b9964af4d4a709d1383930ade12dfe7c081/library/core/src/panicking.rs:72:14
+   2: core::panicking::panic
+             at /rustc/129f3b9964af4d4a709d1383930ade12dfe7c081/library/core/src/panicking.rs:146:5
+   3: scratch_quinn_proto::tests::idle_timeout
+             at ./src/tests/mod.rs:1149:5
+   4: scratch_quinn_proto::tests::idle_timeout::{{closure}}
+             at ./src/tests/mod.rs:1123:18
+   5: core::ops::function::FnOnce::call_once
+             at /rustc/129f3b9964af4d4a709d1383930ade12dfe7c081/library/core/src/ops/function.rs:250:5
+   6: core::ops::function::FnOnce::call_once
+             at /rustc/129f3b9964af4d4a709d1383930ade12dfe7c081/library/core/src/ops/function.rs:250:5
+note: Some details are omitted, run with `RUST_BACKTRACE=full` for a verbose backtrace.
+```
