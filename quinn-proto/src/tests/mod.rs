@@ -1184,3 +1184,22 @@ fn connection_close_sends_acks() {
         "Connection close should send pending ACKs"
     );
 }
+
+#[test]
+fn server_hs_retransmit() {
+    let _guard = subscribe();
+    let mut pair = Pair::default();
+    let client_ch = pair.begin_connect(client_config());
+    pair.step();
+    assert!(!pair.client.inbound.is_empty()); // Initial + Handshakes
+    pair.client.inbound.clear();
+    pair.drive();
+    assert_matches!(
+        pair.client_conn_mut(client_ch).poll(),
+        Some(Event::HandshakeDataReady)
+    );
+    assert_matches!(
+        pair.client_conn_mut(client_ch).poll(),
+        Some(Event::Connected { .. })
+    );
+}
