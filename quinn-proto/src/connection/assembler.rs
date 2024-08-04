@@ -48,7 +48,22 @@ impl Assembler {
         );
         self.end = self.end.max(offset + bytes.len() as u64);
         if let State::Unordered { ref mut recvd } = self.state {
-            todo!()
+            // Discard duplicate data
+            for duplicate in recvd.replace(offset..offset + bytes.len() as u64) {
+                if duplicate.start > offset {
+                    let buffer = Buffer::new(
+                        offset,
+                        bytes.split_to((duplicate.start - offset) as usize),
+                        allocation_size,
+                    );
+                    self.buffered += buffer.bytes.len();
+                    self.allocated += buffer.allocation_size;
+                    self.data.push(buffer);
+                    offset = duplicate.start;
+                }
+                bytes.advance((duplicate.end - offset) as usize);
+                offset = duplicate.end;
+            }
         } else if offset < self.bytes_read {
             if (offset + bytes.len() as u64) <= self.bytes_read {
                 return;
