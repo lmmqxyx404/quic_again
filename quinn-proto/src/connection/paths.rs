@@ -131,6 +131,10 @@ impl PathData {
         self.in_flight.remove(packet);
         true
     }
+    /// 6.
+    pub(super) fn from_previous(remote: SocketAddr, prev: &Self, now: Instant) -> Self {
+        todo!()
+    }
 }
 
 /// RTT estimation for a particular network path

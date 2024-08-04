@@ -230,6 +230,8 @@ pub struct Connection {
     accepted_0rtt: bool,
     /// 49. Total number of outgoing packets that have been deemed lost
     lost_packets: u64,
+    /// 50. Whether MTU detection is supported in this environment
+    allow_mtud: bool,
 }
 
 impl Connection {
@@ -349,6 +351,7 @@ impl Connection {
             zero_rtt_enabled: false,
             accepted_0rtt: false,
             lost_packets: 0,
+            allow_mtud,
         };
 
         if side.is_client() {
@@ -3194,6 +3197,26 @@ impl Connection {
     }
     /// 73.
     fn migrate(&mut self, now: Instant, remote: SocketAddr) {
+        trace!(%remote, "migration initiated");
+        // Reset rtt/congestion state for new path unless it looks like a NAT rebinding.
+        // Note that the congestion window will not grow until validation terminates. Helps mitigate
+        // amplification attacks performed by spoofing source addresses.
+        let mut new_path = if remote.is_ipv4() && remote.ip() == self.path.remote.ip() {
+            PathData::from_previous(remote, &self.path, now)
+        } else {
+            let peer_max_udp_payload_size =
+                u16::try_from(self.peer_params.max_udp_payload_size.into_inner())
+                    .unwrap_or(u16::MAX);
+            PathData::new(
+                remote,
+                self.allow_mtud,
+                Some(peer_max_udp_payload_size),
+                now,
+                false,
+                &self.config,
+            )
+        };
+
         todo!()
     }
 }
