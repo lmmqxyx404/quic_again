@@ -3145,6 +3145,16 @@ impl Connection {
     pub(crate) fn lost_packets(&self) -> u64 {
         self.lost_packets
     }
+    /// 68. Whether the connection is closed
+    ///
+    /// Closed connections cannot transport any further data. A connection becomes closed when
+    /// either peer application intentionally closes it, or when either transport layer detects an
+    /// error such as a time-out or certificate validation failure.
+    ///
+    /// A `ConnectionLost` event is emitted with details when the connection becomes closed.
+    pub fn is_closed(&self) -> bool {
+        self.state.is_closed()
+    }
 }
 
 #[allow(unreachable_pub)] // fuzzing only
