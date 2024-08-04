@@ -3173,6 +3173,15 @@ impl Connection {
 
         stats
     }
+    /// 71. The number of received bytes in the current path
+    #[cfg(test)]
+    pub(crate) fn total_recvd(&self) -> u64 {
+        self.path.total_recvd
+    }
+    /// 72. The latest socket address for this connection's peer
+    pub fn remote_address(&self) -> SocketAddr {
+        self.path.remote
+    }
 }
 
 #[allow(unreachable_pub)] // fuzzing only
