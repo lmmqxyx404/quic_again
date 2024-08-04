@@ -3,6 +3,7 @@ use std::{
     collections::{HashMap, VecDeque},
     env,
     io::{self, Write},
+    mem,
     net::{Ipv6Addr, SocketAddr, UdpSocket},
     ops::RangeFrom,
     str,
@@ -365,6 +366,8 @@ pub(super) struct TestEndpoint {
     pub(super) capture_inbound_packets: bool,
     /// 13.
     pub(super) waiting_incoming: Vec<Incoming>,
+    /// 14.
+    delayed: VecDeque<(Transmit, Bytes)>,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -403,6 +406,7 @@ impl TestEndpoint {
             captured_packets: Vec::new(),
             capture_inbound_packets: false,
             waiting_incoming: Vec::new(),
+            delayed: VecDeque::new(),
         }
     }
     /// 2
@@ -555,6 +559,15 @@ impl TestEndpoint {
         let transmit = self.endpoint.retry(incoming, &mut buf).unwrap();
         let size = transmit.size;
         self.outbound.extend(split_transmit(transmit, &buf[..size]));
+    }
+    /// 10.
+    pub(super) fn delay_outbound(&mut self) {
+        assert!(self.delayed.is_empty());
+        mem::swap(&mut self.delayed, &mut self.outbound);
+    }
+    /// 11.
+    pub(super) fn finish_delay(&mut self) {
+        self.outbound.extend(self.delayed.drain(..));
     }
 }
 
