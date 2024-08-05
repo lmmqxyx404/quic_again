@@ -73,7 +73,28 @@ impl CidQueue {
             tracing::debug!("returned CidQueue::insert Ok(None)");
             return Ok(None);
         }
-        todo!()
+
+        // The active CID was retired. Find the first known CID with sequence number of at least
+        // retire_prior_to, and inform the caller that all prior CIDs have been retired, and of
+        // the new CID's reset token.
+        self.cursor = ((self.cursor as u64 + retired_count) % Self::LEN as u64) as usize;
+        let (i, (_, token)) = self
+            .iter()
+            .next()
+            .expect("it is impossible to retire a CID without supplying a new one");
+        self.cursor = (self.cursor + i) % Self::LEN;
+        let orig_offset = self.offset;
+        self.offset = cid.retire_prior_to + i as u64;
+        // We don't immediately retire CIDs in the range (orig_offset +
+        // Self::LEN)..self.offset. These are CIDs that we haven't yet received from a
+        // NEW_CONNECTION_ID frame, since having previously received them would violate the
+        // connection ID limit we specified based on Self::LEN. If we do receive a such a frame
+        // in the future, e.g. due to reordering, we'll retire it then. This ensures we can't be
+        // made to buffer an arbitrarily large number of RETIRE_CONNECTION_ID frames.
+        Ok(Some((
+            orig_offset..self.offset.min(orig_offset + Self::LEN as u64),
+            token.expect("non-initial CID missing reset token"),
+        )))
     }
     /// 5. Return the sequence number of active remote CID
     pub(crate) fn active_seq(&self) -> u64 {
