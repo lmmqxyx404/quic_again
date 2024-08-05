@@ -1158,6 +1158,12 @@ impl Connection {
                         debug!(token, "ignoring invalid PATH_RESPONSE");
                     }
                 }
+                Frame::ImmediateAck => {
+                    // This frame can only be sent in the Data space
+                    self.spaces[SpaceId::Data]
+                        .pending_acks
+                        .set_immediate_ack_required();
+                }
             }
         }
 

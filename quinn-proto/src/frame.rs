@@ -220,6 +220,7 @@ impl Iter {
             },
             Type::PATH_CHALLENGE => Frame::PathChallenge(self.bytes.get()?),
             Type::PATH_RESPONSE => Frame::PathResponse(self.bytes.get()?),
+            Type::IMMEDIATE_ACK => Frame::ImmediateAck,
 
             _ => {
                 #[cfg(test)]
@@ -318,6 +319,8 @@ pub(crate) enum Frame {
     MaxStreams { dir: Dir, count: u64 },
     PathChallenge(u64),
     PathResponse(u64),
+    ImmediateAck,
+
 }
 
 impl Frame {
@@ -354,6 +357,9 @@ impl Frame {
 
             PathChallenge(_) => Type::PATH_CHALLENGE,
             PathResponse(_) => Type::PATH_RESPONSE,
+
+            ImmediateAck => Type::IMMEDIATE_ACK,
+
         }
     }
     /// 2.

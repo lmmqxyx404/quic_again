@@ -5,5 +5,5 @@ clear
 # RUSTFLAGS="-Awarnings" 
 # cargo watch -x "test tests::server_stateless_reset"
 # RUST_BACKTRACE=1  RUSTFLAGS="-Awarnings" 
-cargo watch -x "test tests::migration"
+cargo watch -x "test -p scratch-quinn-proto tests::migration"
 # tests::server_stateless_reset

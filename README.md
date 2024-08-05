@@ -9,6 +9,7 @@ RFC 12.4
 add 3 main Frame
 `Frame::PathResponse`
 `Frame::PATH_CHALLENGE`
+`Frame::IMMEDIATE_ACK`
 
 ## Packet
 RFC 12.1
