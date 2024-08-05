@@ -113,6 +113,8 @@ impl FrameStats {
             Frame::PathChallenge(_) => self.path_challenge += 1,
             Frame::PathResponse(_) => self.path_response += 1,
             Frame::ImmediateAck => self.immediate_ack += 1,
+
+            Frame::MaxStreamData { .. } => self.max_stream_data += 1,
         }
     }
 }

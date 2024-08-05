@@ -221,7 +221,10 @@ impl Iter {
             Type::PATH_CHALLENGE => Frame::PathChallenge(self.bytes.get()?),
             Type::PATH_RESPONSE => Frame::PathResponse(self.bytes.get()?),
             Type::IMMEDIATE_ACK => Frame::ImmediateAck,
-
+            Type::MAX_STREAM_DATA => Frame::MaxStreamData {
+                id: self.bytes.get()?,
+                offset: self.bytes.get_var()?,
+            },
             _ => {
                 #[cfg(test)]
                 {
@@ -320,7 +323,7 @@ pub(crate) enum Frame {
     PathChallenge(u64),
     PathResponse(u64),
     ImmediateAck,
-
+    MaxStreamData { id: StreamId, offset: u64 },
 }
 
 impl Frame {
@@ -359,7 +362,7 @@ impl Frame {
             PathResponse(_) => Type::PATH_RESPONSE,
 
             ImmediateAck => Type::IMMEDIATE_ACK,
-
+            MaxStreamData { .. } => Type::MAX_STREAM_DATA,
         }
     }
     /// 2.

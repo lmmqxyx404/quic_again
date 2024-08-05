@@ -1164,6 +1164,9 @@ impl Connection {
                         .pending_acks
                         .set_immediate_ack_required();
                 }
+                Frame::MaxStreamData { id, offset } => {
+                    self.streams.received_max_stream_data(id, offset)?;
+                }
             }
         }
 

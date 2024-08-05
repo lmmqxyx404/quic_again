@@ -130,6 +130,17 @@ impl Send {
             false
         }
     }
+    /// Handle increase to stream-level flow control limit
+    ///
+    /// Returns whether the stream was unblocked
+    pub(super) fn increase_max_data(&mut self, offset: u64) -> bool {
+        if offset <= self.max_data || self.state != SendState::Ready {
+            return false;
+        }
+        let was_blocked = self.pending.offset() == self.max_data;
+        self.max_data = offset;
+        was_blocked
+    }
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]

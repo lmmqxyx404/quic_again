@@ -793,6 +793,47 @@ impl StreamsState {
 
         Ok(())
     }
+    /// 28.
+    pub(crate) fn received_max_stream_data(
+        &mut self,
+        id: StreamId,
+        offset: u64,
+    ) -> Result<(), TransportError> {
+        if id.initiator() != self.side && id.dir() == Dir::Uni {
+            debug!("got MAX_STREAM_DATA on recv-only {}", id);
+            return Err(TransportError::STREAM_STATE_ERROR(
+                "MAX_STREAM_DATA on recv-only stream",
+            ));
+        }
+
+        let write_limit = self.write_limit();
+        let max_send_data = self.max_send_data(id);
+        if let Some(ss) = self
+            .send
+            .get_mut(&id)
+            .map(get_or_insert_send(max_send_data))
+        {
+            if ss.increase_max_data(offset) {
+                if write_limit > 0 {
+                    self.events.push_back(StreamEvent::Writable { id });
+                } else if !ss.connection_blocked {
+                    // The stream is still blocked on the connection flow control
+                    // window. In order to get unblocked when the window relaxes
+                    // it needs to be in the connection blocked list.
+                    ss.connection_blocked = true;
+                    self.connection_blocked.push(id);
+                }
+            }
+        } else if id.initiator() == self.side && self.is_local_unopened(id) {
+            debug!("got MAX_STREAM_DATA on unopened {}", id);
+            return Err(TransportError::STREAM_STATE_ERROR(
+                "MAX_STREAM_DATA on unopened stream",
+            ));
+        }
+
+        self.on_stream_frame(false, id);
+        Ok(())
+    }
 }
 
 #[inline]
