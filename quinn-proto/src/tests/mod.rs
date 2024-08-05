@@ -20,7 +20,7 @@ use assert_matches::assert_matches;
 use bytes::Bytes;
 use config::{ClientConfig, ServerConfig, TransportConfig};
 use crypto::rustls::QuicServerConfig;
-use frame::ConnectionClose;
+use frame::{ConnectionClose, Datagram, FrameStruct};
 use hex_literal::hex;
 use rand::RngCore;
 use ring::hmac;
@@ -1752,5 +1752,53 @@ fn datagram_send_recv() {
         Some(Event::DatagramReceived)
     );
     assert_eq!(pair.server_datagrams(server_ch).recv().unwrap(), DATA);
+    assert_matches!(pair.server_datagrams(server_ch).recv(), None);
+}
+
+#[test]
+fn datagram_recv_buffer_overflow() {
+    let _guard = subscribe();
+    const WINDOW: usize = 100;
+    let server = ServerConfig {
+        transport: Arc::new(TransportConfig {
+            datagram_receive_buffer_size: Some(WINDOW),
+            ..TransportConfig::default()
+        }),
+        ..server_config()
+    };
+    let mut pair = Pair::new(Default::default(), server);
+    let (client_ch, server_ch) = pair.connect();
+    assert_matches!(pair.server_conn_mut(server_ch).poll(), None);
+    assert_eq!(
+        pair.client_conn_mut(client_ch).datagrams().max_size(),
+        Some(WINDOW - Datagram::SIZE_BOUND)
+    );
+
+    const DATA1: &[u8] = &[0xAB; (WINDOW / 3) + 1];
+    const DATA2: &[u8] = &[0xBC; (WINDOW / 3) + 1];
+    const DATA3: &[u8] = &[0xCD; (WINDOW / 3) + 1];
+    pair.client_datagrams(client_ch)
+        .send(DATA1.into(), true)
+        .unwrap();
+    pair.client_datagrams(client_ch)
+        .send(DATA2.into(), true)
+        .unwrap();
+    pair.client_datagrams(client_ch)
+        .send(DATA3.into(), true)
+        .unwrap();
+    pair.drive();
+    assert_matches!(
+        pair.server_conn_mut(server_ch).poll(),
+        Some(Event::DatagramReceived)
+    );
+    assert_eq!(pair.server_datagrams(server_ch).recv().unwrap(), DATA2);
+    assert_eq!(pair.server_datagrams(server_ch).recv().unwrap(), DATA3);
+    assert_matches!(pair.server_datagrams(server_ch).recv(), None);
+
+    pair.client_datagrams(client_ch)
+        .send(DATA1.into(), true)
+        .unwrap();
+    pair.drive();
+    assert_eq!(pair.server_datagrams(server_ch).recv().unwrap(), DATA1);
     assert_matches!(pair.server_datagrams(server_ch).recv(), None);
 }

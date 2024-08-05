@@ -70,8 +70,7 @@ impl DatagramState {
         let was_empty = self.recv_buffered == 0;
         while datagram.data.len() + self.recv_buffered > window {
             debug!("dropping stale datagram");
-            todo!()
-            // self.recv();
+            self.recv();
         }
 
         self.recv_buffered += datagram.data.len();

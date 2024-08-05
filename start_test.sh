@@ -4,5 +4,5 @@ clear
 # RUST_BACKTRACE=1 
 # RUSTFLAGS="-Awarnings" 
 # cargo watch -x "test tests::server_stateless_reset"
-RUST_BACKTRACE=1  RUSTFLAGS="-Awarnings"  cargo watch -x "test -p scratch-quinn-proto tests::stream_flow_control"
+RUST_BACKTRACE=1  RUSTFLAGS="-Awarnings"  cargo watch -x "test -p scratch-quinn-proto tests::datagram_recv_buffer_overflow"
 # tests::server_stateless_reset
