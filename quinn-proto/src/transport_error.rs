@@ -110,4 +110,5 @@ errors! {
     STREAM_STATE_ERROR(0x5) "received a frame for a stream that was not in a state that permitted that frame";
     FLOW_CONTROL_ERROR(0x3) "received more data than permitted in advertised data limits";
     FINAL_SIZE_ERROR(0x6) "received a STREAM frame or a RESET_STREAM frame containing a different final size to the one already established";
+    CONNECTION_ID_LIMIT_ERROR(0x9) "the number of connection IDs provided by the peer exceeds the advertised active_connection_id_limit";
 }
