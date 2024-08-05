@@ -199,6 +199,15 @@ impl CidState {
         // If no (return false), it means CIDs that reach the end of lifetime have been retired already. Do not push a new CID in order to avoid violating above RFC.
         (current_retire_prior_to..self.retire_seq).any(|seq| self.active_seq.contains(&seq))
     }
+    /// 10.
+    #[cfg(test)]
+    pub(crate) fn assign_retire_seq(&mut self, v: u64) -> u64 {
+        // Cannot retire more CIDs than what have been issued
+        debug_assert!(v <= *self.active_seq.iter().max().unwrap() + 1);
+        let n = v.checked_sub(self.retire_seq).unwrap();
+        self.retire_seq = v;
+        n
+    }
 }
 
 /// 2. Data structure that records when issued cids should be retired

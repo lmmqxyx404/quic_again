@@ -4,6 +4,7 @@ use bytes::{Buf, BufMut};
 use thiserror::Error;
 
 use crate::{
+    cid_queue::CidQueue,
     coding::{BufExt, BufMutExt, UnexpectedEnd},
     config::{EndpointConfig, ServerConfig, TransportConfig},
     shared::ConnectionId,
@@ -170,6 +171,13 @@ impl TransportParameters {
             min_ack_delay: Some(
                 VarInt::from_u64(u64::try_from(TIMER_GRANULARITY.as_micros()).unwrap()).unwrap(),
             ),
+            // used for 
+            active_connection_id_limit: if cid_gen.cid_len() == 0 {
+                2 // i.e. default, i.e. unsent
+            } else {
+                CidQueue::LEN as u32
+            }
+            .into(),
             ..Self::default()
         }
     }

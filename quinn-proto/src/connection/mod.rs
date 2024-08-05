@@ -3370,6 +3370,19 @@ impl Connection {
     pub(crate) fn active_local_cid_seq(&self) -> (u64, u64) {
         self.local_cid_state.active_seq()
     }
+    /// 76. Instruct the peer to replace previously issued CIDs by sending a NEW_CONNECTION_ID frame
+    /// with updated `retire_prior_to` field set to `v`
+    #[cfg(test)]
+    pub(crate) fn rotate_local_cid(&mut self, v: u64, now: Instant) {
+        let n = self.local_cid_state.assign_retire_seq(v);
+        self.endpoint_events
+            .push_back(EndpointEventInner::NeedIdentifiers(now, n));
+    }
+    /// 77. Check the current active remote CID sequence
+    #[cfg(test)]
+    pub(crate) fn active_rem_cid_seq(&self) -> u64 {
+        self.rem_cids.active_seq()
+    }
 }
 
 #[allow(unreachable_pub)] // fuzzing only
