@@ -1742,5 +1742,10 @@ fn datagram_send_recv() {
     assert_matches!(pair.server_conn_mut(server_ch).poll(), None);
     assert_matches!(pair.client_datagrams(client_ch).max_size(), Some(x) if x > 0);
 
+    const DATA: &[u8] = b"whee";
+    pair.client_datagrams(client_ch)
+        .send(DATA.into(), true)
+        .unwrap();
+
     todo!()
 }

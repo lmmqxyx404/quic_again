@@ -1,5 +1,8 @@
 use std::collections::VecDeque;
 
+use bytes::Bytes;
+use thiserror::Error;
+
 use crate::frame::{Datagram, FrameStruct};
 
 use super::Connection;
@@ -56,4 +59,21 @@ impl<'a> Datagrams<'a> {
             .saturating_sub(Datagram::SIZE_BOUND as u64);
         Some(limit.min(max_size as u64) as usize)
     }
+
+    /// Queue an unreliable, unordered datagram for immediate transmission
+    ///
+    /// If `drop` is true, previously queued datagrams which are still unsent may be discarded to
+    /// make space for this datagram, in order of oldest to newest. If `drop` is false, and there
+    /// isn't enough space due to previously queued datagrams, this function will return
+    /// `SendDatagramError::Blocked`. `Event::DatagramsUnblocked` will be emitted once datagrams
+    /// have been sent.
+    ///
+    /// Returns `Err` iff a `len`-byte datagram cannot currently be sent.
+    pub fn send(&mut self, data: Bytes, drop: bool) -> Result<(), SendDatagramError> {
+        todo!()
+    }
 }
+
+/// Errors that can arise when sending a datagram
+#[derive(Debug, Error, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+pub enum SendDatagramError {}
