@@ -1751,6 +1751,6 @@ fn datagram_send_recv() {
         pair.server_conn_mut(server_ch).poll(),
         Some(Event::DatagramReceived)
     );
-    // assert_eq!(pair.server_datagrams(server_ch).recv().unwrap(), DATA);
-    todo!()
+    assert_eq!(pair.server_datagrams(server_ch).recv().unwrap(), DATA);
+    assert_matches!(pair.server_datagrams(server_ch).recv(), None);
 }

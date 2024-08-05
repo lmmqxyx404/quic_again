@@ -340,6 +340,10 @@ impl Pair {
     pub(super) fn client_datagrams(&mut self, ch: ConnectionHandle) -> Datagrams<'_> {
         self.client_conn_mut(ch).datagrams()
     }
+    /// 19.
+    pub(super) fn server_datagrams(&mut self, ch: ConnectionHandle) -> Datagrams<'_> {
+        self.server_conn_mut(ch).datagrams()
+    }
 }
 
 impl Default for Pair {

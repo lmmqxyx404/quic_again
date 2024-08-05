@@ -78,6 +78,12 @@ impl DatagramState {
         self.incoming.push_back(datagram);
         Ok(was_empty)
     }
+
+    pub(super) fn recv(&mut self) -> Option<Bytes> {
+        let x = self.incoming.pop_front()?.data;
+        self.recv_buffered -= x.len();
+        Some(x)
+    }
 }
 
 /// API to control datagram traffic
@@ -143,6 +149,10 @@ impl<'a> Datagrams<'a> {
         self.conn.datagrams.outgoing_total += data.len();
         self.conn.datagrams.outgoing.push_back(Datagram { data });
         Ok(())
+    }
+    /// Receive an unreliable, unordered datagram
+    pub fn recv(&mut self) -> Option<Bytes> {
+        self.conn.datagrams.recv()
     }
 }
 
