@@ -13,6 +13,8 @@ pub(super) struct DatagramState {
     pub(super) outgoing: VecDeque<Datagram>,
     /// 2.
     pub(super) send_blocked: bool,
+    /// 3.
+    pub(super) outgoing_total: usize,
 }
 
 impl DatagramState {
@@ -79,7 +81,14 @@ impl<'a> Datagrams<'a> {
         if data.len() > max {
             return Err(SendDatagramError::TooLarge);
         }
-
+        if drop {
+            todo!()
+        } else if self.conn.datagrams.outgoing_total + data.len()
+            > self.conn.config.datagram_send_buffer_size
+        {
+            self.conn.datagrams.send_blocked = true;
+            return Err(SendDatagramError::Blocked(data));
+        }
         todo!()
     }
 }
@@ -99,4 +108,7 @@ pub enum SendDatagramError {
     /// exceeded.
     #[error("datagram too large")]
     TooLarge,
+    /// 4. Send would block
+    #[error("datagram send blocked")]
+    Blocked(Bytes),
 }

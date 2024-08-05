@@ -366,6 +366,8 @@ pub struct TransportConfig {
     pub(crate) persistent_congestion_threshold: u32,
     /// 21.
     pub(crate) datagram_receive_buffer_size: Option<usize>,
+    /// 22.
+    pub(crate) datagram_send_buffer_size: usize,
 }
 
 impl TransportConfig {
@@ -410,6 +412,8 @@ impl Default for TransportConfig {
             packet_threshold: 3,
             persistent_congestion_threshold: 3,
             datagram_receive_buffer_size: Some(STREAM_RWND as usize),
+            datagram_send_buffer_size: 1024 * 1024,
+
         }
     }
 }
