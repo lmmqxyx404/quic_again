@@ -4,7 +4,10 @@ use bytes::Bytes;
 use thiserror::Error;
 use tracing::trace;
 
-use crate::frame::{Datagram, FrameStruct};
+use crate::{
+    frame::{Datagram, FrameStruct},
+    TransportError,
+};
 
 use super::Connection;
 
@@ -40,6 +43,14 @@ impl DatagramState {
         self.outgoing_total -= datagram.data.len();
         datagram.encode(true, buf);
         true
+    }
+    /// 2.
+    pub(super) fn received(
+        &mut self,
+        datagram: Datagram,
+        window: &Option<usize>,
+    ) -> Result<bool, TransportError> {
+        todo!()
     }
 }
 

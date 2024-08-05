@@ -1055,7 +1055,12 @@ impl Connection {
                     close = Some(reason);
                 }
                 Frame::Datagram(datagram) => {
-                    todo!()
+                    if self
+                        .datagrams
+                        .received(datagram, &self.config.datagram_receive_buffer_size)?
+                    {
+                        self.events.push_back(Event::DatagramReceived);
+                    }
                 }
                 Frame::NewConnectionId(frame) => {
                     trace!(

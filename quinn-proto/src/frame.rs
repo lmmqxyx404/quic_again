@@ -230,7 +230,7 @@ impl Iter {
             _ => {
                 #[cfg(test)]
                 {
-                    if ty.to_string() != "STREAM" {
+                    if ty.to_string() != "STREAM" && ty.to_string() != "DATAGRAM" {
                         tracing::info!("ty is {}", ty);
                         unimplemented!("current frame type is {}", ty.to_string());
                     }
@@ -247,7 +247,13 @@ impl Iter {
                         },
                     })
                 } else if let Some(d) = ty.datagram() {
-                    todo!()
+                    Frame::Datagram(Datagram {
+                        data: if d.len() {
+                            self.take_len()?
+                        } else {
+                            self.take_remaining()
+                        },
+                    })
                 } else {
                     return Err(IterErr::InvalidFrameId);
                 }
@@ -736,6 +742,12 @@ impl FrameStruct for Stream {
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 struct DatagramInfo(u8);
+
+impl DatagramInfo {
+    fn len(self) -> bool {
+        self.0 & 0x01 != 0
+    }
+}
 
 #[derive(Clone, Eq, PartialEq)]
 pub struct Ack {
