@@ -1627,3 +1627,38 @@ fn finish_stream_flow_control_reordered() {
     assert_matches!(chunks.next(usize::MAX), Ok(None));
     let _ = chunks.finalize();
 }
+
+#[test]
+fn handshake_1rtt_handling() {
+    let _guard = subscribe();
+    let mut pair = Pair::default();
+    let client_ch = pair.begin_connect(client_config());
+    pair.drive_client();
+    pair.drive_server();
+    let server_ch = pair.server.assert_accept();
+    // Server now has 1-RTT keys, but remains in Handshake state until the TLS CFIN has
+    // authenticated the client. Delay the final client handshake flight so that doesn't happen yet.
+    pair.client.drive(pair.time, pair.server.addr);
+    pair.client.delay_outbound();
+
+    // Send some 1-RTT data which will be received first.
+    let s = pair.client_streams(client_ch).open(Dir::Uni).unwrap();
+    const MSG: &[u8] = b"hello";
+    pair.client_send(client_ch, s).write(MSG).unwrap();
+    pair.client_send(client_ch, s).finish().unwrap();
+    pair.client.drive(pair.time, pair.server.addr);
+
+    // Add the handshake flight back on.
+    pair.client.finish_delay();
+
+    pair.drive();
+
+    assert!(pair.client_conn_mut(client_ch).lost_packets() != 0);
+    let mut recv = pair.server_recv(server_ch, s);
+    let mut chunks = recv.read(false).unwrap();
+    assert_matches!(
+        chunks.next(usize::MAX),
+        Ok(Some(chunk)) if chunk.offset == 0 && chunk.bytes == MSG
+    );
+    let _ = chunks.finalize();
+}
