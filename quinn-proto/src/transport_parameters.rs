@@ -8,7 +8,7 @@ use crate::{
     config::{EndpointConfig, ServerConfig, TransportConfig},
     shared::ConnectionId,
     ConnectionIdGenerator, ResetToken, Side, TransportError, VarInt, LOC_CID_COUNT, MAX_CID_SIZE,
-    MAX_STREAM_COUNT, RESET_TOKEN_SIZE,
+    MAX_STREAM_COUNT, RESET_TOKEN_SIZE, TIMER_GRANULARITY,
 };
 // Apply a given macro to a list of all the transport parameters having integer types, along with
 // their codes and default values. Using this helps us avoid error-prone duplication of the
@@ -166,6 +166,10 @@ impl TransportParameters {
             initial_max_stream_data_bidi_remote: config.stream_receive_window,
             // used for `idle_timeout`
             max_idle_timeout: config.max_idle_timeout.unwrap_or(VarInt(0)),
+            // used for `migration`
+            min_ack_delay: Some(
+                VarInt::from_u64(u64::try_from(TIMER_GRANULARITY.as_micros()).unwrap()).unwrap(),
+            ),
             ..Self::default()
         }
     }
