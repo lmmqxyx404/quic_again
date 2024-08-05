@@ -19,6 +19,7 @@ use super::*;
 use assert_matches::assert_matches;
 use bytes::Bytes;
 use config::{ClientConfig, ServerConfig, TransportConfig};
+use connection::SendDatagramError;
 use crypto::rustls::QuicServerConfig;
 use frame::{ConnectionClose, Datagram, FrameStruct};
 use hex_literal::hex;
@@ -1801,4 +1802,26 @@ fn datagram_recv_buffer_overflow() {
     pair.drive();
     assert_eq!(pair.server_datagrams(server_ch).recv().unwrap(), DATA1);
     assert_matches!(pair.server_datagrams(server_ch).recv(), None);
+}
+
+#[test]
+fn datagram_unsupported() {
+    let _guard = subscribe();
+    let server = ServerConfig {
+        transport: Arc::new(TransportConfig {
+            datagram_receive_buffer_size: None,
+            ..TransportConfig::default()
+        }),
+        ..server_config()
+    };
+    let mut pair = Pair::new(Default::default(), server);
+    let (client_ch, server_ch) = pair.connect();
+    assert_matches!(pair.server_conn_mut(server_ch).poll(), None);
+    assert_matches!(pair.client_datagrams(client_ch).max_size(), None);
+
+    match pair.client_datagrams(client_ch).send(Bytes::new(), true) {
+        Err(SendDatagramError::UnsupportedByPeer) => {}
+        Err(e) => panic!("unexpected error: {e}"),
+        Ok(_) => panic!("unexpected success"),
+    }
 }

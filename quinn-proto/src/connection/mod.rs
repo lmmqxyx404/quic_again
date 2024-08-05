@@ -78,7 +78,7 @@ use packet_builder::PacketBuilder;
 mod datagrams;
 
 use datagrams::DatagramState;
-pub use datagrams::Datagrams;
+pub use datagrams::{Datagrams, SendDatagramError};
 
 /// 11
 mod pacing;
