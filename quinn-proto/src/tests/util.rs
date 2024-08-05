@@ -344,6 +344,9 @@ impl Pair {
     pub(super) fn server_datagrams(&mut self, ch: ConnectionHandle) -> Datagrams<'_> {
         self.server_conn_mut(ch).datagrams()
     }
+    pub(super) fn client_recv(&mut self, ch: ConnectionHandle, s: StreamId) -> RecvStream<'_> {
+        self.client_conn_mut(ch).recv_stream(s)
+    }
 }
 
 impl Default for Pair {

@@ -182,7 +182,8 @@ impl TransportParameters {
             max_datagram_frame_size: config
                 .datagram_receive_buffer_size
                 .map(|x| (x.min(u16::MAX.into()) as u16).into()),
-
+            // used for `tests::repeated_request_response`
+            initial_max_stream_data_bidi_local: config.stream_receive_window,
             ..Self::default()
         }
     }
