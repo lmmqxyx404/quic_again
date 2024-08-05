@@ -552,6 +552,14 @@ impl Datagram {
             0
         } + self.data.len()
     }
+    pub(crate) fn encode(&self, length: bool, out: &mut Vec<u8>) {
+        out.write(Type(*DATAGRAM_TYS.start() | u64::from(length))); // 1 byte
+        if length {
+            // Safe to unwrap because we check length sanity before queueing datagrams
+            out.write(VarInt::from_u64(self.data.len() as u64).unwrap()); // <= 8 bytes
+        }
+        out.extend_from_slice(&self.data);
+    }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]

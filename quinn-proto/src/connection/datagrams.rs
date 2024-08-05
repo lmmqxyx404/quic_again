@@ -2,6 +2,7 @@ use std::collections::VecDeque;
 
 use bytes::Bytes;
 use thiserror::Error;
+use tracing::trace;
 
 use crate::frame::{Datagram, FrameStruct};
 
@@ -27,7 +28,18 @@ impl DatagramState {
             Some(x) => x,
             None => return false,
         };
-        todo!()
+
+        if buf.len() + datagram.size(true) > max_size {
+            // Future work: we could be more clever about cramming small datagrams into
+            // mostly-full packets when a larger one is queued first
+            self.outgoing.push_front(datagram);
+            return false;
+        }
+        trace!(len = datagram.data.len(), "DATAGRAM");
+
+        self.outgoing_total -= datagram.data.len();
+        datagram.encode(true, buf);
+        true
     }
 }
 
