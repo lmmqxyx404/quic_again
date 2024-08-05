@@ -171,13 +171,18 @@ impl TransportParameters {
             min_ack_delay: Some(
                 VarInt::from_u64(u64::try_from(TIMER_GRANULARITY.as_micros()).unwrap()).unwrap(),
             ),
-            // used for 
+            // used for `tests::cid_retirement`
             active_connection_id_limit: if cid_gen.cid_len() == 0 {
                 2 // i.e. default, i.e. unsent
             } else {
                 CidQueue::LEN as u32
             }
             .into(),
+            // used for `tests::datagram_send_recv`
+            max_datagram_frame_size: config
+                .datagram_receive_buffer_size
+                .map(|x| (x.min(u16::MAX.into()) as u16).into()),
+
             ..Self::default()
         }
     }

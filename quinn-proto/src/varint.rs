@@ -87,6 +87,12 @@ impl std::convert::TryFrom<u64> for VarInt {
         Self::from_u64(x)
     }
 }
+/// used for `max_datagram_frame_size`
+impl From<u16> for VarInt {
+    fn from(x: u16) -> Self {
+        Self(x.into())
+    }
+}
 /// used for `EndpointConfig:: fn new`
 impl From<u32> for VarInt {
     fn from(x: u32) -> Self {
