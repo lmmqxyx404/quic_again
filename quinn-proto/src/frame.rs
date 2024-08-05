@@ -225,6 +225,8 @@ impl Iter {
                 id: self.bytes.get()?,
                 offset: self.bytes.get_var()?,
             },
+            Type::MAX_DATA => Frame::MaxData(self.bytes.get()?),
+
             _ => {
                 #[cfg(test)]
                 {
@@ -327,6 +329,7 @@ pub(crate) enum Frame {
     PathResponse(u64),
     ImmediateAck,
     MaxStreamData { id: StreamId, offset: u64 },
+    MaxData(VarInt),
 }
 
 impl Frame {
@@ -366,6 +369,8 @@ impl Frame {
 
             ImmediateAck => Type::IMMEDIATE_ACK,
             MaxStreamData { .. } => Type::MAX_STREAM_DATA,
+
+            MaxData(_) => Type::MAX_DATA,
         }
     }
     /// 2.

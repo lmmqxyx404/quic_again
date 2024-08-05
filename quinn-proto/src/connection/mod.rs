@@ -1167,6 +1167,9 @@ impl Connection {
                 Frame::MaxStreamData { id, offset } => {
                     self.streams.received_max_stream_data(id, offset)?;
                 }
+                Frame::MaxData(bytes) => {
+                    self.streams.received_max_data(bytes);
+                }
             }
         }
 
