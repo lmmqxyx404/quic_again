@@ -1355,3 +1355,14 @@ fn stream_flow_control() {
         2000,
     );
 }
+
+#[test]
+fn conn_flow_control() {
+    test_flow_control(
+        TransportConfig {
+            receive_window: 2000u32.into(),
+            ..TransportConfig::default()
+        },
+        2000,
+    );
+}

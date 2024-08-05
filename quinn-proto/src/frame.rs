@@ -228,7 +228,10 @@ impl Iter {
             _ => {
                 #[cfg(test)]
                 {
-                    tracing::info!("ty is {}", ty);
+                    if ty.to_string() != "STREAM" {
+                        tracing::info!("ty is {}", ty);
+                        unimplemented!("current frame type is {}", ty.to_string());
+                    }
                 }
                 if let Some(s) = ty.stream() {
                     Frame::Stream(Stream {
@@ -519,6 +522,7 @@ frame_types! {
     MAX_STREAMS_BIDI = 0x12,
     MAX_STREAMS_UNI = 0x13,
     MAX_STREAM_DATA = 0x11,
+    MAX_DATA = 0x10,
 }
 
 const STREAM_TYS: RangeInclusive<u64> = RangeInclusive::new(0x08, 0x0f);

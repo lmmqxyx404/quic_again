@@ -236,7 +236,25 @@ impl StreamsState {
 
         // MAX_DATA
         if pending.max_data && buf.len() + 9 < max_size {
-            todo!()
+            pending.max_data = false;
+
+            // `local_max_data` can grow bigger than `VarInt`.
+            // For transmission inside QUIC frames we need to clamp it to the
+            // maximum allowed `VarInt` size.
+            let max = VarInt::try_from(self.local_max_data).unwrap_or(VarInt::MAX);
+
+            trace!(value = max.into_inner(), "MAX_DATA");
+            if max > self.sent_max_data {
+                // Record that a `MAX_DATA` announcing a certain window was sent. This will
+                // suppress enqueuing further `MAX_DATA` frames unless either the previous
+                // transmission was not acknowledged or the window further increased.
+                self.sent_max_data = max;
+            }
+
+            retransmits.get_or_create().max_data = true;
+            buf.write(frame::Type::MAX_DATA);
+            buf.write(max);
+            stats.max_data += 1;
         }
 
         // MAX_STREAM_DATA

@@ -81,6 +81,8 @@ pub struct FrameStats {
     pub max_streams_uni: u64,
     /// 18.
     pub max_stream_data: u64,
+    /// 19.
+    pub max_data: u64,
 }
 
 impl FrameStats {
