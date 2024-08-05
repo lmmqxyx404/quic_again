@@ -109,6 +109,7 @@ impl FrameStats {
                 }
             }
             Frame::PathChallenge(_) => self.path_challenge += 1,
+            Frame::PathResponse(_) => self.path_response += 1,
         }
     }
 }

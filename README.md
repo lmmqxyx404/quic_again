@@ -5,6 +5,11 @@ Learn the implementation of quic
 ## Frame
 RFC 12.4
 
+### `tests::migration`
+add 3 main Frame
+`Frame::PathResponse`
+`Frame::PATH_CHALLENGE`
+
 ## Packet
 RFC 12.1
 初始包

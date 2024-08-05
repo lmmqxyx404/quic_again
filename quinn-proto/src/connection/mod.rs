@@ -1024,7 +1024,10 @@ impl Connection {
 
             // Check whether this could be a probing packet
             match frame {
-                Frame::Padding | Frame::NewConnectionId(_) | Frame::PathChallenge(_) => {}
+                Frame::Padding
+                | Frame::PathChallenge(_)
+                | Frame::PathResponse(_)
+                | Frame::NewConnectionId(_) => {}
                 _ => {
                     is_probing_packet = false;
                 }
@@ -1139,6 +1142,20 @@ impl Connection {
                             true => self.immediate_ack(),
                             false => self.ping(),
                         }
+                    }
+                }
+                Frame::PathResponse(token) => {
+                    if self.path.challenge == Some(token) && remote == self.path.remote {
+                        trace!("new path validated");
+                        self.timers.stop(Timer::PathValidation);
+                        self.path.challenge = None;
+                        self.path.validated = true;
+                        if let Some((_, ref mut prev_path)) = self.prev_path {
+                            prev_path.challenge = None;
+                            prev_path.challenge_pending = false;
+                        }
+                    } else {
+                        debug!(token, "ignoring invalid PATH_RESPONSE");
                     }
                 }
             }
