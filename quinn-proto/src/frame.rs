@@ -515,6 +515,7 @@ frame_types! {
     APPLICATION_CLOSE = 0x1d,
     MAX_STREAMS_BIDI = 0x12,
     MAX_STREAMS_UNI = 0x13,
+    MAX_STREAM_DATA = 0x11,
 }
 
 const STREAM_TYS: RangeInclusive<u64> = RangeInclusive::new(0x08, 0x0f);

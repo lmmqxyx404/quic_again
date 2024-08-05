@@ -258,7 +258,11 @@ impl StreamsState {
             let (max, _) = rs.max_stream_data(self.stream_receive_window);
             rs.record_sent_max_stream_data(max);
 
-            todo!()
+            trace!(stream = %id, max = max, "MAX_STREAM_DATA");
+            buf.write(frame::Type::MAX_STREAM_DATA);
+            buf.write(id);
+            buf.write_var(max);
+            stats.max_stream_data += 1;
         }
 
         // MAX_STREAMS
