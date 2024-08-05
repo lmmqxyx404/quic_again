@@ -63,7 +63,7 @@ impl Recv {
     pub(super) fn is_receiving(&self) -> bool {
         matches!(self.state, RecvState::Recv { .. })
     }
-    /// Process a STREAM frame
+    /// 5. Process a STREAM frame
     ///
     /// Return value is `(number_of_new_bytes_ingested, stream_is_closed)`
     pub(super) fn ingest(
@@ -106,7 +106,7 @@ impl Recv {
 
         Ok((new_bytes, frame.fin && self.stopped))
     }
-
+    /// 6
     fn final_offset(&self) -> Option<u64> {
         match self.state {
             RecvState::Recv { size } => size,
@@ -114,7 +114,7 @@ impl Recv {
         }
     }
 
-    /// Compute the amount of flow control credit consumed, or return an error if more was consumed
+    /// 7. Compute the amount of flow control credit consumed, or return an error if more was consumed
     /// than issued
     fn credit_consumed_by(
         &self,
@@ -138,7 +138,7 @@ impl Recv {
 
         Ok(new_bytes)
     }
-    /// Returns the window that should be advertised in a `MAX_STREAM_DATA` frame
+    /// 8. Returns the window that should be advertised in a `MAX_STREAM_DATA` frame
     ///
     /// The method returns a tuple which consists of the window that should be
     /// announced, as well as a boolean parameter which indicates if a new
@@ -159,7 +159,7 @@ impl Recv {
         let transmit = self.can_send_flow_control() && diff >= (stream_receive_window / 8);
         (max_stream_data, ShouldTransmit(transmit))
     }
-    /// Returns `false` iff the reset was redundant
+    /// 9. Returns `false` iff the reset was redundant
     pub(super) fn reset(
         &mut self,
         error_code: VarInt,
@@ -193,6 +193,7 @@ impl Recv {
         self.assembler.clear();
         Ok(true)
     }
+    /// 10.
     pub(super) fn stop(&mut self) -> Result<(u64, ShouldTransmit), ClosedStream> {
         if self.stopped {
             return Err(ClosedStream { _private: () });
@@ -207,6 +208,16 @@ impl Recv {
         // data that the peer might still be trying to retransmit, in which case a STOP_SENDING is
         // still useful.
         Ok((read_credits, ShouldTransmit(self.is_receiving())))
+    }
+    /// 11. Records that a `MAX_STREAM_DATA` announcing a certain window was sent
+    ///
+    /// This will suppress enqueuing further `MAX_STREAM_DATA` frames unless
+    /// either the previous transmission was not acknowledged or the window
+    /// further increased.
+    pub(super) fn record_sent_max_stream_data(&mut self, sent_value: u64) {
+        if sent_value > self.sent_max_stream_data {
+            self.sent_max_stream_data = sent_value;
+        }
     }
 }
 

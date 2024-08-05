@@ -245,6 +245,19 @@ impl StreamsState {
                 Some(x) => *x,
                 None => break,
             };
+            pending.max_stream_data.remove(&id);
+            let rs = match self.recv.get_mut(&id).and_then(|s| s.as_mut()) {
+                Some(x) => x,
+                None => continue,
+            };
+            if !rs.can_send_flow_control() {
+                continue;
+            }
+            retransmits.get_or_create().max_stream_data.insert(id);
+
+            let (max, _) = rs.max_stream_data(self.stream_receive_window);
+            rs.record_sent_max_stream_data(max);
+
             todo!()
         }
 

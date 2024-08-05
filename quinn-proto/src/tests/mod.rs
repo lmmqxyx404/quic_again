@@ -1245,3 +1245,113 @@ fn migration() {
         1
     );
 }
+
+fn test_flow_control(config: TransportConfig, window_size: usize) {
+    let _guard = subscribe();
+    let mut pair = Pair::new(
+        Default::default(),
+        ServerConfig {
+            transport: Arc::new(config),
+            ..server_config()
+        },
+    );
+    let (client_ch, server_ch) = pair.connect();
+    let msg = vec![0xAB; window_size + 10];
+
+    // Stream reset before read
+    let s = pair.client_streams(client_ch).open(Dir::Uni).unwrap();
+    info!("writing");
+    assert_eq!(pair.client_send(client_ch, s).write(&msg), Ok(window_size));
+    assert_eq!(
+        pair.client_send(client_ch, s).write(&msg[window_size..]),
+        Err(WriteError::Blocked)
+    );
+    pair.drive();
+    info!("resetting");
+    pair.client_send(client_ch, s).reset(VarInt(42)).unwrap();
+    pair.drive();
+
+    let mut recv = pair.server_recv(server_ch, s);
+    let mut chunks = recv.read(true).unwrap();
+    assert_eq!(
+        chunks.next(usize::MAX).err(),
+        Some(ReadError::Reset(VarInt(42)))
+    );
+    let _ = chunks.finalize();
+
+    // Happy path
+    info!("writing");
+    let s = pair.client_streams(client_ch).open(Dir::Uni).unwrap();
+    assert_eq!(pair.client_send(client_ch, s).write(&msg), Ok(window_size));
+    assert_eq!(
+        pair.client_send(client_ch, s).write(&msg[window_size..]),
+        Err(WriteError::Blocked)
+    );
+
+    pair.drive();
+    let mut cursor = 0;
+    let mut recv = pair.server_recv(server_ch, s);
+    let mut chunks = recv.read(true).unwrap();
+    loop {
+        match chunks.next(usize::MAX) {
+            Ok(Some(chunk)) => {
+                cursor += chunk.bytes.len();
+            }
+            Ok(None) => {
+                panic!("end of stream");
+            }
+            Err(ReadError::Blocked) => {
+                break;
+            }
+            Err(e) => {
+                panic!("{}", e);
+            }
+        }
+    }
+    let _ = chunks.finalize();
+
+    info!("finished reading");
+    assert_eq!(cursor, window_size);
+    pair.drive();
+    info!("writing");
+    assert_eq!(pair.client_send(client_ch, s).write(&msg), Ok(window_size));
+    assert_eq!(
+        pair.client_send(client_ch, s).write(&msg[window_size..]),
+        Err(WriteError::Blocked)
+    );
+
+    pair.drive();
+    let mut cursor = 0;
+    let mut recv = pair.server_recv(server_ch, s);
+    let mut chunks = recv.read(true).unwrap();
+    loop {
+        match chunks.next(usize::MAX) {
+            Ok(Some(chunk)) => {
+                cursor += chunk.bytes.len();
+            }
+            Ok(None) => {
+                panic!("end of stream");
+            }
+            Err(ReadError::Blocked) => {
+                break;
+            }
+            Err(e) => {
+                panic!("{}", e);
+            }
+        }
+    }
+    assert_eq!(cursor, window_size);
+    let _ = chunks.finalize();
+    info!("finished reading");
+}
+
+#[test]
+fn stream_flow_control() {
+    test_flow_control(
+        TransportConfig {
+            stream_receive_window: 2000u32.into(),
+            ..TransportConfig::default()
+        },
+        2000,
+    );
+}
