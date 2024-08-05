@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 
-use crate::frame::Datagram;
+use crate::frame::{Datagram, FrameStruct};
 
 use super::Connection;
 
@@ -42,6 +42,18 @@ impl<'a> Datagrams<'a> {
     ///
     /// Not necessarily the maximum size of received datagrams.
     pub fn max_size(&self) -> Option<usize> {
-        todo!()
+        // We use the conservative overhead bound for any packet number, reducing the budget by at
+        // most 3 bytes, so that PN size fluctuations don't cause users sending maximum-size
+        // datagrams to suffer avoidable packet loss.
+        let max_size = self.conn.path.current_mtu() as usize
+            - self.conn.predict_1rtt_overhead(None)
+            - Datagram::SIZE_BOUND;
+        let limit = self
+            .conn
+            .peer_params
+            .max_datagram_frame_size?
+            .into_inner()
+            .saturating_sub(Datagram::SIZE_BOUND as u64);
+        Some(limit.min(max_size as u64) as usize)
     }
 }
