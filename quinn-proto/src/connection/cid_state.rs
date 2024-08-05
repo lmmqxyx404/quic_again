@@ -144,6 +144,11 @@ impl CidState {
         // If peer B doesn't check the cid limit here and send a new cid again, peer A will then face CONNECTION_ID_LIMIT_ERROR
         Ok(limit > self.active_seq.len() as u64)
     }
+    /// 8.
+    #[cfg(test)]
+    pub(crate) fn active_seq(&self) -> (u64, u64) {
+        todo!()
+    }
 }
 
 /// 2. Data structure that records when issued cids should be retired

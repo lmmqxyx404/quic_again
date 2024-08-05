@@ -3337,6 +3337,11 @@ impl Connection {
     pub(crate) fn immediate_ack(&mut self) {
         self.spaces[self.highest_space].immediate_ack_pending = true;
     }
+    /// 75.
+    #[cfg(test)]
+    pub(crate) fn active_local_cid_seq(&self) -> (u64, u64) {
+        self.local_cid_state.active_seq()
+    }
 }
 
 #[allow(unreachable_pub)] // fuzzing only
