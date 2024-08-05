@@ -1429,3 +1429,32 @@ fn implicit_open() {
     assert_eq!(pair.server_streams(server_ch).accept(Dir::Uni), Some(s2));
     assert_eq!(pair.server_streams(server_ch).accept(Dir::Uni), None);
 }
+
+#[test]
+fn zero_length_cid() {
+    let _guard = subscribe();
+    let cid_generator_factory: fn() -> Box<dyn ConnectionIdGenerator> =
+        || Box::new(RandomConnectionIdGenerator::new(0));
+    let mut pair = Pair::new(
+        Arc::new(EndpointConfig {
+            connection_id_generator_factory: Arc::new(cid_generator_factory),
+            ..EndpointConfig::default()
+        }),
+        server_config(),
+    );
+    let (client_ch, server_ch) = pair.connect();
+    // Ensure we can reconnect after a previous connection is cleaned up
+    info!("closing");
+    pair.client
+        .connections
+        .get_mut(&client_ch)
+        .unwrap()
+        .close(pair.time, VarInt(42), Bytes::new());
+    pair.drive();
+    pair.server
+        .connections
+        .get_mut(&server_ch)
+        .unwrap()
+        .close(pair.time, VarInt(42), Bytes::new());
+    pair.connect();
+}
