@@ -1476,6 +1476,10 @@ impl Connection {
                 Timer::Idle => {
                     self.kill(ConnectionError::TimedOut);
                 }
+                Timer::KeepAlive => {
+                    trace!("sending keep-alive");
+                    self.ping();
+                }
                 _ => {
                     unreachable!(" handle_timeout {:?}", timer)
                 }
