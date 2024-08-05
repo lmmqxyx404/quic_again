@@ -1480,6 +1480,18 @@ impl Connection {
                     trace!("sending keep-alive");
                     self.ping();
                 }
+                Timer::PushNewCid => {
+                    // Update `retire_prior_to` field in NEW_CONNECTION_ID frame
+                    let num_new_cid = self.local_cid_state.on_cid_timeout().into();
+                    if !self.state.is_closed() {
+                        trace!(
+                            "push a new cid to peer RETIRE_PRIOR_TO field {}",
+                            self.local_cid_state.retire_prior_to()
+                        );
+                        self.endpoint_events
+                            .push_back(EndpointEventInner::NeedIdentifiers(now, num_new_cid));
+                    }
+                }
                 _ => {
                     unreachable!(" handle_timeout {:?}", timer)
                 }

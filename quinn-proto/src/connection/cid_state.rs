@@ -159,6 +159,12 @@ impl CidState {
         }
         (min, max)
     }
+    /// 9. Update local CID state when previously issued CID is retired
+    ///
+    /// Return whether a new CID needs to be pushed that notifies remote peer to respond `RETIRE_CONNECTION_ID`
+    pub(crate) fn on_cid_timeout(&mut self) -> bool {
+        todo!()
+    }
 }
 
 /// 2. Data structure that records when issued cids should be retired
