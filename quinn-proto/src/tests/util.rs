@@ -331,6 +331,10 @@ impl Pair {
     pub(super) fn server_recv(&mut self, ch: ConnectionHandle, s: StreamId) -> RecvStream<'_> {
         self.server_conn_mut(ch).recv_stream(s)
     }
+    /// 17.
+    pub(super) fn server_send(&mut self, ch: ConnectionHandle, s: StreamId) -> SendStream<'_> {
+        self.server_conn_mut(ch).send_stream(s)
+    }
 }
 
 impl Default for Pair {
