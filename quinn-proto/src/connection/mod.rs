@@ -3539,6 +3539,8 @@ pub enum Event {
     HandshakeDataReady,
     /// 5. The connection was successfully established
     Connected,
+    /// 6. One or more application datagrams have been received
+    DatagramReceived,
 }
 
 /// 1. The maximum amount of datagrams that are sent in a single transmit

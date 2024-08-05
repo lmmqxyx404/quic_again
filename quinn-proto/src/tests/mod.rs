@@ -1746,6 +1746,11 @@ fn datagram_send_recv() {
     pair.client_datagrams(client_ch)
         .send(DATA.into(), true)
         .unwrap();
-
+    pair.drive();
+    assert_matches!(
+        pair.server_conn_mut(server_ch).poll(),
+        Some(Event::DatagramReceived)
+    );
+    // assert_eq!(pair.server_datagrams(server_ch).recv().unwrap(), DATA);
     todo!()
 }
