@@ -82,14 +82,18 @@ impl<'a> Datagrams<'a> {
             return Err(SendDatagramError::TooLarge);
         }
         if drop {
-            todo!()
+            while self.conn.datagrams.outgoing_total > self.conn.config.datagram_send_buffer_size {
+                todo!()
+            }
         } else if self.conn.datagrams.outgoing_total + data.len()
             > self.conn.config.datagram_send_buffer_size
         {
             self.conn.datagrams.send_blocked = true;
             return Err(SendDatagramError::Blocked(data));
         }
-        todo!()
+        self.conn.datagrams.outgoing_total += data.len();
+        self.conn.datagrams.outgoing.push_back(Datagram { data });
+        Ok(())
     }
 }
 
