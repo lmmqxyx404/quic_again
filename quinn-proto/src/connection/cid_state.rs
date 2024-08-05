@@ -23,7 +23,7 @@ pub(super) struct CidState {
     retire_seq: u64,
     /// cid length used to decode short packet
     cid_len: usize,
-    //// cid lifetime
+    /// cid lifetime
     cid_lifetime: Option<Duration>,
 }
 
@@ -163,7 +163,41 @@ impl CidState {
     ///
     /// Return whether a new CID needs to be pushed that notifies remote peer to respond `RETIRE_CONNECTION_ID`
     pub(crate) fn on_cid_timeout(&mut self) -> bool {
-        todo!()
+        // Whether the peer hasn't retired all the CIDs we asked it to yet
+        let unretired_ids_found =
+            (self.prev_retire_seq..self.retire_seq).any(|seq| self.active_seq.contains(&seq));
+
+        let current_retire_prior_to = self.retire_seq;
+        let next_retire_sequence = self
+            .retire_timestamp
+            .pop_front()
+            .map(|seq| seq.sequence + 1);
+
+        // According to RFC:
+        // Endpoints SHOULD NOT issue updates of the Retire Prior To field
+        // before receiving RETIRE_CONNECTION_ID frames that retire all
+        // connection IDs indicated by the previous Retire Prior To value.
+        // https://tools.ietf.org/html/draft-ietf-quic-transport-29#section-5.1.2
+        if !unretired_ids_found {
+            // All Cids are retired, `prev_retire_cid_seq` can be assigned to `retire_cid_seq`
+            self.prev_retire_seq = self.retire_seq;
+            // Advance `retire_seq` if next cid that needs to be retired exists
+            if let Some(next_retire_prior_to) = next_retire_sequence {
+                self.retire_seq = next_retire_prior_to;
+            }
+        }
+
+        // Check if retirement of all CIDs that reach their lifetime is still needed
+        // According to RFC:
+        // An endpoint MUST NOT
+        // provide more connection IDs than the peer's limit.  An endpoint MAY
+        // send connection IDs that temporarily exceed a peer's limit if the
+        // NEW_CONNECTION_ID frame also requires the retirement of any excess,
+        // by including a sufficiently large value in the Retire Prior To field.
+        //
+        // If yes (return true), a new CID must be pushed with updated `retire_prior_to` field to remote peer.
+        // If no (return false), it means CIDs that reach the end of lifetime have been retired already. Do not push a new CID in order to avoid violating above RFC.
+        (current_retire_prior_to..self.retire_seq).any(|seq| self.active_seq.contains(&seq))
     }
 }
 
