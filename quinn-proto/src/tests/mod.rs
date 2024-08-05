@@ -1733,3 +1733,14 @@ fn congested_tail_loss() {
     assert!(pair.client_conn_mut(client_ch).congestion_window() > TARGET);
     pair.client_send(client_ch, s).write(&[42; 1024]).unwrap();
 }
+
+#[test]
+fn datagram_send_recv() {
+    let _guard = subscribe();
+    let mut pair = Pair::default();
+    let (client_ch, server_ch) = pair.connect();
+    assert_matches!(pair.server_conn_mut(server_ch).poll(), None);
+    assert_matches!(pair.client_datagrams(client_ch).max_size(), Some(x) if x > 0);
+
+    todo!()
+}

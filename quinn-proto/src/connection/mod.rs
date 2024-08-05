@@ -76,9 +76,13 @@ mod packet_builder;
 use packet_builder::PacketBuilder;
 /// 12
 mod datagrams;
+
+use datagrams::DatagramState;
+pub use datagrams::Datagrams;
+
 /// 11
 mod pacing;
-use datagrams::DatagramState;
+
 /// 13
 mod assembler;
 pub use assembler::Chunk;
@@ -3382,6 +3386,10 @@ impl Connection {
     #[cfg(test)]
     pub(crate) fn active_rem_cid_seq(&self) -> u64 {
         self.rem_cids.active_seq()
+    }
+    /// 78.Control datagrams
+    pub fn datagrams(&mut self) -> Datagrams<'_> {
+        Datagrams { conn: self }
     }
 }
 

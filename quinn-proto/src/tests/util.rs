@@ -13,6 +13,7 @@ use std::{
 
 use assert_matches::assert_matches;
 use bytes::{Bytes, BytesMut};
+use connection::Datagrams;
 use lazy_static::lazy_static;
 use rustls::{
     client::WebPkiServerVerifier,
@@ -334,6 +335,10 @@ impl Pair {
     /// 17.
     pub(super) fn server_send(&mut self, ch: ConnectionHandle, s: StreamId) -> SendStream<'_> {
         self.server_conn_mut(ch).send_stream(s)
+    }
+    /// 18.
+    pub(super) fn client_datagrams(&mut self, ch: ConnectionHandle) -> Datagrams<'_> {
+        self.client_conn_mut(ch).datagrams()
     }
 }
 
