@@ -5,6 +5,25 @@ use crate::connection::RttEstimator;
 
 use super::{Controller, ControllerFactory, BASE_DATAGRAM_SIZE};
 
+/// CUBIC Constants.
+///
+/// These are recommended value in RFC8312.
+const BETA_CUBIC: f64 = 0.7;
+
+/// CUBIC State Variables.
+///
+/// We need to keep those variables across the connection.
+/// k, w_max are described in the RFC.
+#[derive(Debug, Default, Clone)]
+pub(super) struct State {
+    k: f64,
+
+    w_max: f64,
+
+    // Store cwnd increment during congestion avoidance.
+    cwnd_inc: u64,
+}
+
 /// The RFC8312 congestion controller, as widely used for TCP
 #[derive(Debug, Clone)]
 pub struct Cubic {
@@ -17,6 +36,8 @@ pub struct Cubic {
     recovery_start_time: Option<Instant>,
     /// 4.
     current_mtu: u64,
+    /// 5.
+    cubic_state: State,
 }
 
 impl Cubic {
@@ -27,6 +48,7 @@ impl Cubic {
             config,
             recovery_start_time: None,
             current_mtu: current_mtu as u64,
+            cubic_state: Default::default(),
         }
     }
     /// 2.
@@ -68,6 +90,24 @@ impl Controller for Cubic {
         is_persistent_congestion: bool,
         _lost_bytes: u64,
     ) {
+        if self
+            .recovery_start_time
+            .map(|recovery_start_time| sent <= recovery_start_time)
+            .unwrap_or(false)
+        {
+            return;
+        }
+
+        self.recovery_start_time = Some(now);
+
+        // Fast convergence
+        #[allow(clippy::branches_sharing_code)]
+        // https://github.com/rust-lang/rust-clippy/issues/7198
+        if (self.window as f64) < self.cubic_state.w_max {
+            self.cubic_state.w_max = self.window as f64 * (1.0 + BETA_CUBIC) / 2.0;
+        } else {
+            self.cubic_state.w_max = self.window as f64;
+        }
         todo!()
     }
 
