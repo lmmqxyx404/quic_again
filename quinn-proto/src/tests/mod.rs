@@ -2089,6 +2089,36 @@ fn handshake_anti_deadlock_probe() {
     );
 }
 
+/// Ensures that the server can respond with 3 initial packets during the handshake
+/// before the anti-amplification limit kicks in when MTUs are similar.
+#[test]
+fn server_can_send_3_inital_packets() {
+    let _guard = subscribe();
+
+    let (cert, key) = big_cert_and_key();
+    let server = server_config_with_cert(cert.clone(), key);
+    let client = client_config_with_certs(vec![cert]);
+    let mut pair = Pair::new(Default::default(), server);
+
+    let client_ch = pair.begin_connect(client);
+    // Client sends initial
+    pair.drive_client();
+    // Server sends first flight, gets blocked on anti-amplification
+    pair.drive_server();
+    // Server should have queued 3 packets at this time
+    assert_eq!(pair.client.inbound.len(), 3);
+
+    pair.drive();
+    assert_matches!(
+        pair.client_conn_mut(client_ch).poll(),
+        Some(Event::HandshakeDataReady)
+    );
+    assert_matches!(
+        pair.client_conn_mut(client_ch).poll(),
+        Some(Event::Connected { .. })
+    );
+}
+
 /// Generate a big fat certificate that can't fit inside the initial anti-amplification limit
 fn big_cert_and_key() -> (CertificateDer<'static>, PrivateKeyDer<'static>) {
     let cert = rcgen::generate_simple_self_signed(
