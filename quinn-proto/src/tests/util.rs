@@ -585,6 +585,10 @@ impl TestEndpoint {
     pub(super) fn finish_delay(&mut self) {
         self.outbound.extend(self.delayed.drain(..));
     }
+    /// 12.
+    pub(super) fn assert_no_accept(&self) {
+        assert!(self.accepted.is_none(), "server did unexpectedly connect")
+    }
 }
 
 impl ::std::ops::Deref for TestEndpoint {

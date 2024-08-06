@@ -2182,3 +2182,18 @@ fn loss_probe_requests_immediate_ack() {
         2
     );
 }
+
+#[test]
+/// This is mostly a sanity check to ensure our testing code is correctly dropping packets above the
+/// pmtu
+fn connect_too_low_mtu() {
+    let _guard = subscribe();
+    let mut pair = Pair::default();
+
+    // The maximum payload size is lower than 1200, so no packages will get through!
+    pair.mtu = 1000;
+
+    pair.begin_connect(client_config());
+    pair.drive();
+    pair.server.assert_no_accept();
+}
