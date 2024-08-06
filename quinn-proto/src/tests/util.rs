@@ -670,3 +670,17 @@ pub(super) fn server_crypto_with_alpn(alpn: Vec<Vec<u8>>) -> QuicServerConfig {
 pub(super) fn client_crypto_with_alpn(protocols: Vec<Vec<u8>>) -> QuicClientConfig {
     client_crypto_inner(None, Some(protocols))
 }
+
+pub(super) fn server_config_with_cert(
+    cert: CertificateDer<'static>,
+    key: PrivateKeyDer<'static>,
+) -> ServerConfig {
+    ServerConfig::with_crypto(Arc::new(server_crypto_with_cert(cert, key)))
+}
+
+pub(super) fn server_crypto_with_cert(
+    cert: CertificateDer<'static>,
+    key: PrivateKeyDer<'static>,
+) -> QuicServerConfig {
+    server_crypto_inner(Some((cert, key)), None)
+}

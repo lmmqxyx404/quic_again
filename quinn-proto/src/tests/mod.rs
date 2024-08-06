@@ -26,7 +26,7 @@ use hex_literal::hex;
 use rand::RngCore;
 use ring::hmac;
 use rustls::{
-    pki_types::{PrivateKeyDer, PrivatePkcs8KeyDer},
+    pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer},
     server::WebPkiClientVerifier,
     AlertDescription, RootCertStore,
 };
@@ -2056,4 +2056,51 @@ fn repeated_request_response() {
         assert_matches!(chunks.next(usize::MAX), Ok(None));
         let _ = chunks.finalize();
     }
+}
+
+/// Ensures that the client sends an anti-deadlock probe after an incomplete server's first flight
+#[test]
+fn handshake_anti_deadlock_probe() {
+    let _guard = subscribe();
+
+    let (cert, key) = big_cert_and_key();
+    let server = server_config_with_cert(cert.clone(), key);
+    let client = client_config_with_certs(vec![cert]);
+    let mut pair = Pair::new(Default::default(), server);
+
+    let client_ch = pair.begin_connect(client);
+    // Client sends initial
+    pair.drive_client();
+    // Server sends first flight, gets blocked on anti-amplification
+    pair.drive_server();
+    // Client acks...
+    pair.drive_client();
+    // ...but it's lost, so the server doesn't get anti-amplification credit from it
+    pair.server.inbound.clear();
+    // Client sends an anti-deadlock probe, and the handshake completes as usual.
+    pair.drive();
+    assert_matches!(
+        pair.client_conn_mut(client_ch).poll(),
+        Some(Event::HandshakeDataReady)
+    );
+    assert_matches!(
+        pair.client_conn_mut(client_ch).poll(),
+        Some(Event::Connected { .. })
+    );
+}
+
+/// Generate a big fat certificate that can't fit inside the initial anti-amplification limit
+fn big_cert_and_key() -> (CertificateDer<'static>, PrivateKeyDer<'static>) {
+    let cert = rcgen::generate_simple_self_signed(
+        Some("localhost".into())
+            .into_iter()
+            .chain((0..1000).map(|x| format!("foo_{x}")))
+            .collect::<Vec<_>>(),
+    )
+    .unwrap();
+
+    (
+        cert.cert.into(),
+        PrivateKeyDer::Pkcs8(cert.key_pair.serialize_der().into()),
+    )
 }
