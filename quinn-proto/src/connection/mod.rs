@@ -3106,7 +3106,10 @@ impl Connection {
 
         // Handle a lost MTU probe
         if let Some(packet) = lost_mtu_probe {
-            todo!()
+            let info = self.spaces[SpaceId::Data].take(packet).unwrap(); // safe: lost_mtu_probe is omitted from lost_packets, and therefore must not have been removed yet
+            self.remove_in_flight(packet, &info);
+            self.path.mtud.on_probe_lost();
+            self.stats.path.lost_plpmtud_probes += 1;
         }
     }
     /// 52. Process a new ECN block from an in-order ACK

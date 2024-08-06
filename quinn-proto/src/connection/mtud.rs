@@ -119,6 +119,12 @@ impl MtuDiscovery {
     pub(crate) fn on_non_probe_lost(&mut self, pn: u64, len: u16) {
         self.black_hole_detector.on_non_probe_lost(pn, len);
     }
+    /// 10. Notifies the [`MtuDiscovery`] that the in-flight MTU probe was lost
+    pub(crate) fn on_probe_lost(&mut self) {
+        if let Some(state) = &mut self.state {
+            state.on_probe_lost();
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -279,6 +285,14 @@ impl EnabledMtuDiscovery {
                 Some(state.last_probed_mtu)
             }
             _ => None,
+        }
+    }
+    /// 4. Called when the in-flight MTU probe was lost
+    fn on_probe_lost(&mut self) {
+        // We might no longer be searching, e.g. if a black hole was detected
+        if let Phase::Searching(state) = &mut self.phase {
+            state.in_flight_probe = None;
+            state.lost_probe_count += 1;
         }
     }
 }

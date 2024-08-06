@@ -151,4 +151,7 @@ pub struct PathStats {
     pub rtt: Duration,
     /// 7. Current congestion window of the connection
     pub cwnd: u64,
+    /// 8. The amount of PLPMTUD probe packets lost on this path (ignored by `lost_packets` and
+    /// `lost_bytes`)
+    pub lost_plpmtud_probes: u64,
 }
