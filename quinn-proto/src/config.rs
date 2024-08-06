@@ -298,6 +298,8 @@ pub struct MtuDiscoveryConfig {
     pub(crate) interval: Duration,
     /// 3.
     pub(crate) minimum_change: u16,
+    /// 4.
+    pub(crate) black_hole_cooldown: Duration,
 }
 
 impl Default for MtuDiscoveryConfig {
@@ -306,6 +308,7 @@ impl Default for MtuDiscoveryConfig {
             upper_bound: 1452,
             interval: Duration::from_secs(600),
             minimum_change: 20,
+            black_hole_cooldown: Duration::from_secs(60),
         }
     }
 }
@@ -413,7 +416,6 @@ impl Default for TransportConfig {
             persistent_congestion_threshold: 3,
             datagram_receive_buffer_size: Some(STREAM_RWND as usize),
             datagram_send_buffer_size: 1024 * 1024,
-
         }
     }
 }

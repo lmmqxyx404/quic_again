@@ -125,6 +125,23 @@ impl MtuDiscovery {
             state.on_probe_lost();
         }
     }
+    /// 11. Returns true if a black hole was detected
+    ///
+    /// Calling this function will close the previous loss burst. If a black hole is detected, the
+    /// current MTU will be reset to `min_mtu`.
+    pub(crate) fn black_hole_detected(&mut self, now: Instant) -> bool {
+        if !self.black_hole_detector.black_hole_detected() {
+            return false;
+        }
+
+        self.current_mtu = self.black_hole_detector.min_mtu;
+
+        if let Some(state) = &mut self.state {
+            state.on_black_hole_detected(now);
+        }
+
+        true
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -295,6 +312,12 @@ impl EnabledMtuDiscovery {
             state.lost_probe_count += 1;
         }
     }
+    /// Called when a black hole is detected
+    fn on_black_hole_detected(&mut self, now: Instant) {
+        // Stop searching, if applicable, and reset the timer
+        let next_mtud_activation = now + self.config.black_hole_cooldown;
+        self.phase = Phase::Complete(next_mtud_activation);
+    }
 }
 
 // Corresponds to the RFC's `MAX_PROBES` constant (see
@@ -405,6 +428,17 @@ impl BlackHoleDetector {
         }
 
         todo!()
+    }
+    fn black_hole_detected(&mut self) -> bool {
+        self.finish_loss_burst();
+
+        if self.suspicious_loss_bursts.len() <= BLACK_HOLE_THRESHOLD {
+            return false;
+        }
+
+        self.suspicious_loss_bursts.clear();
+
+        true
     }
 }
 

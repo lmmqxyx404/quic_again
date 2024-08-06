@@ -3010,7 +3010,7 @@ impl Connection {
     /// 51
     fn detect_lost_packets(&mut self, now: Instant, pn_space: SpaceId, due_to_ack: bool) {
         let mut lost_packets = Vec::<u64>::new();
-        let mut lost_mtu_probe: Option<u64> = None;
+        let mut lost_mtu_probe = None;
         let in_flight_mtu_probe = self.path.mtud.in_flight_mtu_probe();
         let rtt = self.path.rtt.conservative();
         let loss_delay = cmp::max(rtt.mul_f32(self.config.time_threshold), TIMER_GRANULARITY);
@@ -3027,7 +3027,7 @@ impl Connection {
         let congestion_period =
             self.pto(SpaceId::Data) * self.config.persistent_congestion_threshold;
         let mut persistent_congestion_start: Option<Instant> = None;
-        let mut prev_packet: Option<u64> = None;
+        let mut prev_packet = None;
         let mut in_persistent_congestion = false;
 
         let space = &mut self.spaces[pn_space];
@@ -3101,6 +3101,30 @@ impl Connection {
                 }
                 self.spaces[pn_space].pending |= info.retransmits;
                 self.path.mtud.on_non_probe_lost(packet, info.size);
+            }
+
+            if self.path.mtud.black_hole_detected(now) {
+                todo!()
+                /* self.stats.path.black_holes_detected += 1;
+                self.path
+                    .congestion
+                    .on_mtu_update(self.path.mtud.current_mtu());
+                if let Some(max_datagram_size) = self.datagrams().max_size() {
+                    self.datagrams.drop_oversized(max_datagram_size);
+                } */
+            }
+
+            // Don't apply congestion penalty for lost ack-only packets
+            let lost_ack_eliciting = old_bytes_in_flight != self.path.in_flight.bytes;
+
+            if lost_ack_eliciting {
+                self.stats.path.congestion_events += 1;
+                self.path.congestion.on_congestion_event(
+                    now,
+                    largest_lost_sent,
+                    in_persistent_congestion,
+                    size_of_lost_packets,
+                );
             }
         }
 

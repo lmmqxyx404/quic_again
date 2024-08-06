@@ -2236,3 +2236,60 @@ fn connect_detects_mtu() {
         assert_eq!(pair.server_conn_mut(server_ch).path_mtu(), expected_mtu);
     }
 }
+
+#[test]
+fn migrate_detects_new_mtu_and_respects_original_peer_max_udp_payload_size() {
+    let _guard = subscribe();
+
+    let client_max_udp_payload_size: u16 = 1400;
+
+    // Set up a client with a max payload size of 1400 (and use the defaults for the server)
+    let server_endpoint_config = EndpointConfig::default();
+    let server = Endpoint::new(
+        Arc::new(server_endpoint_config),
+        Some(Arc::new(server_config())),
+        true,
+        None,
+    );
+    let client_endpoint_config = EndpointConfig {
+        max_udp_payload_size: VarInt::from(client_max_udp_payload_size),
+        ..EndpointConfig::default()
+    };
+    let client = Endpoint::new(Arc::new(client_endpoint_config), None, true, None);
+    let mut pair = Pair::new_from_endpoint(client, server);
+    pair.mtu = 1300;
+
+    // Connect
+    let (client_ch, server_ch) = pair.connect();
+    pair.drive();
+
+    // Sanity check: MTUD ran to completion (the numbers differ because binary search stops when
+    // changes are smaller than 20, otherwise both endpoints would converge at the same MTU of 1300)
+    assert_eq!(pair.client_conn_mut(client_ch).path_mtu(), 1293);
+    assert_eq!(pair.server_conn_mut(server_ch).path_mtu(), 1300);
+
+    // Migrate client to a different port (and simulate a higher path MTU)
+    pair.mtu = 1500;
+    pair.client.addr = SocketAddr::new(
+        Ipv4Addr::new(127, 0, 0, 1).into(),
+        CLIENT_PORTS.lock().unwrap().next().unwrap(),
+    );
+    pair.client_conn_mut(client_ch).ping();
+    pair.drive();
+
+    // Sanity check: the server saw that the client address was updated
+    assert_eq!(
+        pair.server_conn_mut(server_ch).remote_address(),
+        pair.client.addr
+    );
+
+    // MTU detection has successfully run after migrating
+    assert_eq!(
+        pair.server_conn_mut(server_ch).path_mtu(),
+        client_max_udp_payload_size
+    );
+
+    // Sanity check: the client keeps the old MTU, because migration is triggered by incoming
+    // packets from a different address
+    assert_eq!(pair.client_conn_mut(client_ch).path_mtu(), 1293);
+}
