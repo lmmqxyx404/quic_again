@@ -3399,6 +3399,11 @@ impl Connection {
     pub fn datagrams(&mut self) -> Datagrams<'_> {
         Datagrams { conn: self }
     }
+    /// 79.Returns the detected maximum udp payload size for the current path
+    #[cfg(test)]
+    pub(crate) fn path_mtu(&self) -> u16 {
+        self.path.current_mtu()
+    }
 }
 
 #[allow(unreachable_pub)] // fuzzing only
