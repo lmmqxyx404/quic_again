@@ -1,4 +1,5 @@
 use std::{
+    mem,
     net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
     sync::Arc,
     time::{Duration, Instant},
@@ -2153,5 +2154,31 @@ fn malformed_token_len() {
         None,
         hex!("8900 0000 0101 0000 1b1b 841b 0000 0000 3f00")[..].into(),
         &mut buf,
+    );
+}
+
+#[test]
+fn loss_probe_requests_immediate_ack() {
+    let _guard = subscribe();
+    let mut pair = Pair::default();
+    let (client_ch, _) = pair.connect();
+    pair.drive();
+
+    let stats_after_connect = pair.client_conn_mut(client_ch).stats();
+
+    // Lose a ping
+    let default_mtu = mem::replace(&mut pair.mtu, 0);
+    pair.client_conn_mut(client_ch).ping();
+    pair.drive_client();
+    pair.mtu = default_mtu;
+
+    // Drive the connection further so a loss probe is sent
+    pair.drive();
+
+    // Assert that two IMMEDIATE_ACKs were sent (two loss probes)
+    let stats_after_recovery = pair.client_conn_mut(client_ch).stats();
+    assert_eq!(
+        stats_after_recovery.frame_tx.immediate_ack - stats_after_connect.frame_tx.immediate_ack,
+        2
     );
 }
