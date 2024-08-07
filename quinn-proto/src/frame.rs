@@ -226,7 +226,12 @@ impl Iter {
                 offset: self.bytes.get_var()?,
             },
             Type::MAX_DATA => Frame::MaxData(self.bytes.get()?),
-
+            Type::ACK_FREQUENCY => Frame::AckFrequency(AckFrequency {
+                sequence: self.bytes.get()?,
+                ack_eliciting_threshold: self.bytes.get()?,
+                request_max_ack_delay: self.bytes.get()?,
+                reordering_threshold: self.bytes.get()?,
+            }),
             _ => {
                 #[cfg(test)]
                 {
@@ -336,6 +341,7 @@ pub(crate) enum Frame {
     ImmediateAck,
     MaxStreamData { id: StreamId, offset: u64 },
     MaxData(VarInt),
+    AckFrequency(AckFrequency),
 }
 
 impl Frame {
@@ -377,6 +383,7 @@ impl Frame {
             MaxStreamData { .. } => Type::MAX_STREAM_DATA,
 
             MaxData(_) => Type::MAX_DATA,
+            AckFrequency(_) => Type::ACK_FREQUENCY,
         }
     }
     /// 2.

@@ -1,6 +1,11 @@
 use std::time::Duration;
 
-use crate::{config::AckFrequencyConfig, transport_parameters::TransportParameters, VarInt};
+use crate::{
+    config::AckFrequencyConfig, frame::AckFrequency, transport_parameters::TransportParameters,
+    TransportError, VarInt,
+};
+
+use super::spaces::PendingAcks;
 
 /// State associated to ACK frequency
 pub(super) struct AckFrequencyState {
@@ -12,6 +17,8 @@ pub(super) struct AckFrequencyState {
     pub(super) max_ack_delay: Duration,
     /// 4.
     next_outgoing_sequence_number: VarInt,
+    // 5.Receiving ACK_FREQUENCY frames
+    // last_ack_frequency_frame: Option<u64>,
 }
 
 impl AckFrequencyState {
@@ -23,6 +30,7 @@ impl AckFrequencyState {
             max_ack_delay: default_max_ack_delay,
 
             next_outgoing_sequence_number: VarInt(0),
+            // last_ack_frequency_frame: None,
         }
     }
 
@@ -95,6 +103,20 @@ impl AckFrequencyState {
             }
             _ => {}
         }
+    }
+    /// Notifies the [`AckFrequencyState`] that an ACK_FREQUENCY frame was received
+    ///
+    /// Updates the endpoint's params according to the payload of the ACK_FREQUENCY frame, or
+    /// returns an error in case the requested `max_ack_delay` is invalid.
+    ///
+    /// Returns `true` if the frame was processed and `false` if it was ignored because of being
+    /// stale.
+    pub(super) fn ack_frequency_received(
+        &mut self,
+        frame: &AckFrequency,
+        pending_acks: &mut PendingAcks,
+    ) -> Result<bool, TransportError> {
+        todo!()
     }
 }
 

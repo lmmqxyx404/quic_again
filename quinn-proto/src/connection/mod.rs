@@ -1204,6 +1204,27 @@ impl Connection {
                 Frame::MaxData(bytes) => {
                     self.streams.received_max_data(bytes);
                 }
+                Frame::AckFrequency(ack_frequency) => {
+                    // This frame can only be sent in the Data space
+                    let space = &mut self.spaces[SpaceId::Data];
+
+                    if !self
+                        .ack_frequency
+                        .ack_frequency_received(&ack_frequency, &mut space.pending_acks)?
+                    {
+                        // The AckFrequency frame is stale (we have already received a more recent one)
+                        continue;
+                    }
+
+                    // Our `max_ack_delay` has been updated, so we may need to adjust its associated
+                    // timeout
+                    if let Some(timeout) = space
+                        .pending_acks
+                        .max_ack_delay_timeout(self.ack_frequency.max_ack_delay)
+                    {
+                        self.timers.set(Timer::MaxAckDelay, timeout);
+                    }
+                }
             }
         }
 

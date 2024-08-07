@@ -777,6 +777,11 @@ impl PendingAcks {
     pub(super) fn on_max_ack_delay_timeout(&mut self) {
         self.immediate_ack_required = self.ack_eliciting_since_last_ack_sent > 0;
     }
+    /// 13
+    pub(super) fn max_ack_delay_timeout(&self, max_ack_delay: Duration) -> Option<Instant> {
+        self.earliest_ack_eliciting_since_last_ack_sent
+            .map(|earliest_unacked| earliest_unacked + max_ack_delay)
+    }
 }
 
 /// A variant of `Retransmits` which only allocates storage when required

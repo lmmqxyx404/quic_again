@@ -118,6 +118,7 @@ impl FrameStats {
 
             Frame::MaxStreamData { .. } => self.max_stream_data += 1,
             Frame::MaxData(_) => self.max_data += 1,
+            Frame::AckFrequency(_) => self.ack_frequency += 1,
         }
     }
 }
