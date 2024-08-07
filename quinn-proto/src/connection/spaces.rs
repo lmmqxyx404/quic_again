@@ -668,9 +668,9 @@ impl PendingAcks {
         // occasional redundant retransmits.
         // todo
         self.immediate_ack_required = false;
-        // self.ack_eliciting_since_last_ack_sent = 0;
+        self.ack_eliciting_since_last_ack_sent = 0;
         self.non_ack_eliciting_since_last_ack_sent = 0;
-        // self.earliest_ack_eliciting_since_last_ack_sent = None;
+        self.earliest_ack_eliciting_since_last_ack_sent = None;
         // self.largest_acked = self.largest_ack_eliciting_packet;
     }
     /// 5. Queue an ACK if a significant number of non-ACK-eliciting packets have not yet been
