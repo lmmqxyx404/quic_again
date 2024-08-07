@@ -2379,6 +2379,21 @@ fn blackhole_after_mtu_change_repairs_itself() {
     assert_eq!(client_stats.path.black_holes_detected, 1);
 }
 
+#[test]
+fn mtud_probes_include_immediate_ack() {
+    let _guard = subscribe();
+    let mut pair = Pair::default();
+    let (client_ch, _) = pair.connect();
+    pair.drive();
+
+    let stats = pair.client_conn_mut(client_ch).stats();
+    assert_eq!(stats.path.sent_plpmtud_probes, 4);
+
+    // Each probe contains a ping and an immediate ack
+    assert_eq!(stats.frame_tx.ping, 4);
+    assert_eq!(stats.frame_tx.immediate_ack, 4);
+}
+
 fn stream_chunks(mut recv: RecvStream) -> Vec<u8> {
     let mut buf = Vec::new();
 
