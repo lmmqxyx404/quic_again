@@ -55,7 +55,11 @@ impl AckFrequencyState {
     }
     /// 4.Returns the next sequence number for an ACK_FREQUENCY frame
     pub(super) fn next_sequence_number(&mut self) -> VarInt {
-        todo!()
+        assert!(self.next_outgoing_sequence_number <= VarInt::MAX);
+
+        let seq = self.next_outgoing_sequence_number;
+        self.next_outgoing_sequence_number.0 += 1;
+        seq
     }
     /// 5. Returns the `max_ack_delay` that should be requested of the peer when sending an
     /// ACK_FREQUENCY frame
