@@ -252,3 +252,54 @@ stack backtrace:
              at /rustc/129f3b9964af4d4a709d1383930ade12dfe7c081/library/core/src/ops/function.rs:250:5
 note: Some details are omitted, run with `RUST_BACKTRACE=full` for a verbose backtrace.
 ```
+
+# Frame::AckFrequency
+```
+thread 'tests::ack_frequency_ack_delayed_from_first_of_flight' panicked at quinn-proto/src/connection/spaces.rs:772:17:
+not yet implemented
+stack backtrace:
+   0: rust_begin_unwind
+             at /rustc/129f3b9964af4d4a709d1383930ade12dfe7c081/library/std/src/panicking.rs:652:5
+   1: core::panicking::panic_fmt
+             at /rustc/129f3b9964af4d4a709d1383930ade12dfe7c081/library/core/src/panicking.rs:72:14
+   2: core::panicking::panic
+             at /rustc/129f3b9964af4d4a709d1383930ade12dfe7c081/library/core/src/panicking.rs:146:5
+   3: scratch_quinn_proto::connection::spaces::PendingAcks::is_out_of_order
+             at ./src/connection/spaces.rs:772:17
+   4: scratch_quinn_proto::connection::spaces::PendingAcks::packet_received
+             at ./src/connection/spaces.rs:746:13
+   5: scratch_quinn_proto::connection::Connection::process_payload
+             at ./src/connection/mod.rs:1232:12
+   6: scratch_quinn_proto::connection::Connection::process_decrypted_packet
+             at ./src/connection/mod.rs:741:38
+   7: scratch_quinn_proto::connection::Connection::handle_packet
+             at ./src/connection/mod.rs:624:21
+   8: scratch_quinn_proto::connection::Connection::handle_decode
+             at ./src/connection/mod.rs:460:13
+   9: scratch_quinn_proto::connection::Connection::handle_coalesced
+             at ./src/connection/mod.rs:482:21
+  10: scratch_quinn_proto::connection::Connection::handle_event
+             at ./src/connection/mod.rs:419:21
+  11: scratch_quinn_proto::tests::util::TestEndpoint::drive_outgoing
+             at ./src/tests/util.rs:537:25
+  12: scratch_quinn_proto::tests::util::TestEndpoint::drive
+             at ./src/tests/util.rs:464:9
+  13: scratch_quinn_proto::tests::util::Pair::drive_server
+             at ./src/tests/util.rs:291:9
+  14: scratch_quinn_proto::tests::util::Pair::step
+             at ./src/tests/util.rs:211:9
+  15: scratch_quinn_proto::tests::util::Pair::drive
+             at ./src/tests/util.rs:206:15
+  16: scratch_quinn_proto::tests::util::Pair::connect_with
+             at ./src/tests/util.rs:185:9
+  17: scratch_quinn_proto::tests::setup_ack_frequency_test
+             at ./src/tests/mod.rs:2634:34
+  18: scratch_quinn_proto::tests::ack_frequency_ack_delayed_from_first_of_flight
+             at ./src/tests/mod.rs:2652:44
+  19: scratch_quinn_proto::tests::ack_frequency_ack_delayed_from_first_of_flight::{{closure}}
+             at ./src/tests/mod.rs:2650:52
+  20: core::ops::function::FnOnce::call_once
+             at /rustc/129f3b9964af4d4a709d1383930ade12dfe7c081/library/core/src/ops/function.rs:250:5
+  21: core::ops::function::FnOnce::call_once
+             at /rustc/129f3b9964af4d4a709d1383930ade12dfe7c081/library/core/src/ops/function.rs:250:5
+```

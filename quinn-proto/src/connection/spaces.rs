@@ -617,6 +617,8 @@ pub(super) struct PendingAcks {
     /// 9. The earliest ack-eliciting packet since the last ACK was sent, used to calculate the moment
     /// upon which `max_ack_delay` elapses
     earliest_ack_eliciting_since_last_ack_sent: Option<Instant>,
+    /// 10. The largest acknowledged packet number sent in an ACK frame
+    largest_acked: Option<u64>,
 }
 
 impl PendingAcks {
@@ -636,6 +638,8 @@ impl PendingAcks {
             reordering_threshold: 1,
 
             earliest_ack_eliciting_since_last_ack_sent: None,
+
+            largest_acked: None,
         }
     }
     /// 2. Whether any ACK frames can be sent
@@ -769,6 +773,13 @@ impl PendingAcks {
                     || dedup.missing_in_interval(prev_largest_ack_eliciting, packet_number)
             }
             _ => {
+                // From acknowledgement frequency draft, section 6.1: send an ACK immediately if
+                // doing so would cause the sender to detect a new packet loss
+                let Some((largest_acked, largest_unacked)) =
+                    self.largest_acked.zip(self.largest_ack_eliciting_packet)
+                else {
+                    return false;
+                };
                 todo!()
             }
         }
