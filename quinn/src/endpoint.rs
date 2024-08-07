@@ -63,7 +63,33 @@ impl Endpoint {
     ) -> io::Result<Self> {
         let addr = socket.local_addr()?;
         let allow_mtud = !socket.may_fragment();
-
+        let rc = EndpointRef::new(
+            socket,
+            proto::Endpoint::new(
+                Arc::new(config),
+                server_config.map(Arc::new),
+                allow_mtud,
+                None,
+            ),
+            addr.is_ipv6(),
+            runtime.clone(),
+        );
         todo!()
     }
 }
+
+#[derive(Debug)]
+pub(crate) struct EndpointRef(Arc<EndpointInner>);
+
+impl EndpointRef {
+    pub(crate) fn new(
+        socket: Arc<dyn AsyncUdpSocket>,
+        inner: proto::Endpoint,
+        ipv6: bool,
+        runtime: Arc<dyn Runtime>,
+    ) -> Self {
+        todo!()
+    }
+}
+#[derive(Debug)]
+pub(crate) struct EndpointInner {}
