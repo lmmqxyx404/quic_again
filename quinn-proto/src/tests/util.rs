@@ -361,6 +361,14 @@ impl Pair {
 
         true
     }
+    /// 22.
+    pub(super) fn default_with_deterministic_pns() -> Self {
+        let mut cfg = server_config();
+        let mut transport = TransportConfig::default();
+        transport.deterministic_packet_numbers(true);
+        cfg.transport = Arc::new(transport);
+        Self::new(Default::default(), cfg)
+    }
 }
 
 impl Default for Pair {
@@ -701,4 +709,12 @@ pub(super) fn server_crypto_with_cert(
     key: PrivateKeyDer<'static>,
 ) -> QuicServerConfig {
     server_crypto_inner(Some((cert, key)), None)
+}
+
+pub(super) fn client_config_with_deterministic_pns() -> ClientConfig {
+    let mut cfg = ClientConfig::new(Arc::new(client_crypto()));
+    let mut transport = TransportConfig::default();
+    transport.deterministic_packet_numbers(true);
+    cfg.transport = Arc::new(transport);
+    cfg
 }

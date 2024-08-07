@@ -2437,6 +2437,43 @@ fn packet_splitting_not_necessary_after_higher_mtu_discovered() {
     assert_eq!(pair.server.inbound.len(), 1);
 }
 
+#[test]
+fn single_ack_eliciting_packet_triggers_ack_after_delay() {
+    let _guard = subscribe();
+    let mut pair = Pair::default_with_deterministic_pns();
+    let (client_ch, _) = pair.connect_with(client_config_with_deterministic_pns());
+    pair.drive();
+
+    let stats_after_connect = pair.client_conn_mut(client_ch).stats();
+
+    let start = pair.time;
+    pair.client_conn_mut(client_ch).ping();
+    pair.drive_client(); // Send ping
+    pair.drive_server(); // Process ping
+    pair.drive_client(); // Give the client a chance to process an ack, so our assertion can fail
+
+    // Sanity check: the time hasn't advanced in the meantime)
+    assert_eq!(pair.time, start);
+
+    let stats_after_ping = pair.client_conn_mut(client_ch).stats();
+    assert_eq!(
+        stats_after_ping.frame_tx.ping - stats_after_connect.frame_tx.ping,
+        1
+    );
+    assert_eq!(
+        stats_after_ping.frame_rx.acks - stats_after_connect.frame_rx.acks,
+        0
+    );
+
+    pair.client.capture_inbound_packets = true;
+    pair.drive();
+    let stats_after_drive = pair.client_conn_mut(client_ch).stats();
+    assert_eq!(
+        stats_after_drive.frame_rx.acks - stats_after_ping.frame_rx.acks,
+        1
+    );
+}
+
 fn stream_chunks(mut recv: RecvStream) -> Vec<u8> {
     let mut buf = Vec::new();
 

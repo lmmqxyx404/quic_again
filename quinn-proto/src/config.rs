@@ -404,6 +404,16 @@ impl TransportConfig {
         self.max_idle_timeout = value.map(|t| t.0);
         self
     }
+
+    /// Whether to force every packet number to be used
+    ///
+    /// By default, packet numbers are occasionally skipped to ensure peers aren't ACKing packets
+    /// before they see them.
+    #[cfg(test)]
+    pub(crate) fn deterministic_packet_numbers(&mut self, enabled: bool) -> &mut Self {
+        self.deterministic_packet_numbers = enabled;
+        self
+    }
 }
 
 impl Default for TransportConfig {
