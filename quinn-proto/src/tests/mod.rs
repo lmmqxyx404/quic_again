@@ -2579,6 +2579,44 @@ fn out_of_order_ack_eliciting_packet_triggers_ack() {
     );
 }
 
+#[test]
+fn single_ack_eliciting_packet_with_ce_bit_triggers_immediate_ack() {
+    let _guard = subscribe();
+    let mut pair = Pair::default_with_deterministic_pns();
+    let (client_ch, _) = pair.connect_with(client_config_with_deterministic_pns());
+    pair.drive();
+
+    let stats_after_connect = pair.client_conn_mut(client_ch).stats();
+
+    let start = pair.time;
+
+    pair.client_conn_mut(client_ch).ping();
+
+    pair.congestion_experienced = true;
+    pair.drive_client(); // Send ping
+    pair.congestion_experienced = false;
+
+    pair.drive_server(); // Process ping, send ACK in response to congestion
+    pair.drive_client(); // Process ACK
+
+    // Sanity check: the time hasn't advanced in the meantime)
+    assert_eq!(pair.time, start);
+
+    let stats_after_ping = pair.client_conn_mut(client_ch).stats();
+    assert_eq!(
+        stats_after_ping.frame_tx.ping - stats_after_connect.frame_tx.ping,
+        1
+    );
+    assert_eq!(
+        stats_after_ping.frame_rx.acks - stats_after_connect.frame_rx.acks,
+        1
+    );
+    assert_eq!(
+        stats_after_ping.path.congestion_events - stats_after_connect.path.congestion_events,
+        1
+    );
+}
+
 fn stream_chunks(mut recv: RecvStream) -> Vec<u8> {
     let mut buf = Vec::new();
 
