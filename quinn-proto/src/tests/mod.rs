@@ -2339,3 +2339,55 @@ fn connect_runs_mtud_again_after_600_seconds() {
     assert_eq!(pair.client_conn_mut(client_ch).path_mtu(), 1452);
     assert_eq!(pair.server_conn_mut(server_ch).path_mtu(), 1452);
 }
+
+#[test]
+fn blackhole_after_mtu_change_repairs_itself() {
+    let _guard = subscribe();
+    let mut pair = Pair::default();
+    pair.mtu = 1500;
+    let (client_ch, server_ch) = pair.connect();
+    pair.drive();
+
+    // Sanity check
+    assert_eq!(pair.client_conn_mut(client_ch).path_mtu(), 1452);
+    assert_eq!(pair.server_conn_mut(server_ch).path_mtu(), 1452);
+
+    // Back to the base MTU
+    pair.mtu = 1200;
+
+    // The payload will be sent in a single packet, because the detected MTU was 1444, but it will
+    // be dropped because the link no longer supports that packet size!
+    let payload = vec![42; 1300];
+    let s = pair.client_streams(client_ch).open(Dir::Uni).unwrap();
+    pair.client_send(client_ch, s).write(&payload).unwrap();
+    let out_of_bounds = pair.drive_bounded();
+
+    if out_of_bounds {
+        panic!("Connections never reached an idle state");
+    }
+
+    let recv = pair.server_recv(server_ch, s);
+    let buf = stream_chunks(recv);
+
+    // The whole packet arrived in the end
+    assert_eq!(buf.len(), 1300);
+
+    // Sanity checks (black hole detected after 3 lost packets)
+    let client_stats = pair.client_conn_mut(client_ch).stats();
+    assert!(client_stats.path.lost_packets >= 3);
+    assert!(client_stats.path.congestion_events >= 3);
+    assert_eq!(client_stats.path.black_holes_detected, 1);
+}
+
+fn stream_chunks(mut recv: RecvStream) -> Vec<u8> {
+    let mut buf = Vec::new();
+
+    let mut chunks = recv.read(true).unwrap();
+    while let Ok(Some(chunk)) = chunks.next(usize::MAX) {
+        buf.extend(chunk.bytes);
+    }
+
+    let _ = chunks.finalize();
+
+    buf
+}

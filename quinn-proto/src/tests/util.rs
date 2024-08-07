@@ -344,8 +344,22 @@ impl Pair {
     pub(super) fn server_datagrams(&mut self, ch: ConnectionHandle) -> Datagrams<'_> {
         self.server_conn_mut(ch).datagrams()
     }
+    /// 20
     pub(super) fn client_recv(&mut self, ch: ConnectionHandle, s: StreamId) -> RecvStream<'_> {
         self.client_conn_mut(ch).recv_stream(s)
+    }
+    /// 21. Advance time until both connections are idle, or after 100 steps have been executed
+    ///
+    /// Returns true if the amount of steps exceeds the bounds, because the connections never became
+    /// idle
+    pub(super) fn drive_bounded(&mut self) -> bool {
+        for _ in 0..100 {
+            if !self.step() {
+                return false;
+            }
+        }
+
+        true
     }
 }
 
