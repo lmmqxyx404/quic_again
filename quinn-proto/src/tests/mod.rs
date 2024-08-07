@@ -2474,6 +2474,25 @@ fn single_ack_eliciting_packet_triggers_ack_after_delay() {
     );
 }
 
+#[test]
+fn immediate_ack_triggers_ack() {
+    let _guard = subscribe();
+    let mut pair = Pair::default_with_deterministic_pns();
+    let (client_ch, _) = pair.connect_with(client_config_with_deterministic_pns());
+    pair.drive();
+
+    let acks_after_connect = pair.client_conn_mut(client_ch).stats().frame_rx.acks;
+
+    pair.client_conn_mut(client_ch).immediate_ack();
+    pair.drive_client(); // Send immediate ack
+    pair.drive_server(); // Process immediate ack
+    pair.drive_client(); // Give the client a chance to process the ack
+
+    let acks_after_ping = pair.client_conn_mut(client_ch).stats().frame_rx.acks;
+
+    assert_eq!(acks_after_ping - acks_after_connect, 1);
+}
+
 fn stream_chunks(mut recv: RecvStream) -> Vec<u8> {
     let mut buf = Vec::new();
 
