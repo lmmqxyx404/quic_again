@@ -39,4 +39,8 @@ pub trait AsyncUdpSocket: Send + Sync + Debug + 'static {
     fn may_fragment(&self) -> bool {
         true
     }
+    /// 3. Maximum number of datagrams that might be described by a single [`RecvMeta`]
+    fn max_receive_segments(&self) -> usize {
+        1
+    }
 }

@@ -27,4 +27,9 @@ impl AsyncUdpSocket for UdpSocket {
         todo!()
         // self.inner.may_fragment()
     }
+
+    fn max_receive_segments(&self) -> usize {
+        todo!()
+        // self.inner.gro_segments()
+    }
 }

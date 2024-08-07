@@ -1,6 +1,7 @@
-use proto::{EndpointConfig, ServerConfig};
+use proto::{ConnectionHandle, EndpointConfig, EndpointEvent, ServerConfig};
 use socket2::{Domain, Protocol, Socket, Type};
 use std::{io, net::SocketAddr, sync::Arc};
+use tokio::sync::mpsc;
 
 #[cfg(feature = "ring")]
 use crate::runtime::default_runtime;
@@ -88,8 +89,24 @@ impl EndpointRef {
         ipv6: bool,
         runtime: Arc<dyn Runtime>,
     ) -> Self {
+        let (sender, events) = mpsc::unbounded_channel();
+        let recv_state = RecvState::new(sender, socket.max_receive_segments(), &inner);
         todo!()
     }
 }
 #[derive(Debug)]
 pub(crate) struct EndpointInner {}
+
+/// State directly involved in handling incoming packets
+#[derive(Debug)]
+struct RecvState {}
+
+impl RecvState {
+    fn new(
+        sender: mpsc::UnboundedSender<(ConnectionHandle, EndpointEvent)>,
+        max_receive_segments: usize,
+        endpoint: &proto::Endpoint,
+    ) -> Self {
+        todo!()
+    }
+}
