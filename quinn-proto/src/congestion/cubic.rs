@@ -99,7 +99,12 @@ impl Controller for Cubic {
         {
             return;
         }
-        todo!()
+        if self.window < self.ssthresh {
+            // Slow start
+            self.window += bytes;
+        } else {
+            todo!()
+        }
     }
 
     fn on_congestion_event(
