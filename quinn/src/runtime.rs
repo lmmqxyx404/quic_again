@@ -32,4 +32,11 @@ pub fn default_runtime() -> Option<Arc<dyn Runtime>> {
 pub trait AsyncUdpSocket: Send + Sync + Debug + 'static {
     /// 1. Look up the local IP address and port used by this socket
     fn local_addr(&self) -> io::Result<SocketAddr>;
+    /// 2. Whether datagrams might get fragmented into multiple parts
+    ///
+    /// Sockets should prevent this for best performance. See e.g. the `IPV6_DONTFRAG` socket
+    /// option.
+    fn may_fragment(&self) -> bool {
+        true
+    }
 }
