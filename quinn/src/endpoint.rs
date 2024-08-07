@@ -1,6 +1,9 @@
 use socket2::{Domain, Protocol, Socket, Type};
 use std::{io, net::SocketAddr};
 
+#[cfg(feature = "ring")]
+use crate::runtime::default_runtime;
+
 /// A QUIC endpoint.
 ///
 /// An endpoint corresponds to a single UDP socket, may host many connections, and may act as both
@@ -37,6 +40,8 @@ impl Endpoint {
             }
         }
         socket.bind(&addr.into())?;
+        let runtime = default_runtime()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::Other, "no async runtime found"))?;
         todo!()
     }
 }
