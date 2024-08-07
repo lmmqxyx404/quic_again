@@ -69,7 +69,13 @@ impl AckFrequencyState {
         config: &AckFrequencyConfig,
         peer_params: &TransportParameters,
     ) -> Duration {
-        todo!()
+        // Use the peer's max_ack_delay if no custom max_ack_delay was provided in the config
+        let min_ack_delay =
+            Duration::from_micros(peer_params.min_ack_delay.map_or(0, |x| x.into()));
+        config
+            .max_ack_delay
+            .unwrap_or(self.peer_max_ack_delay)
+            .clamp(min_ack_delay, rtt.max(MIN_AUTOMATIC_ACK_DELAY))
     }
     /// 6. Notifies the [`AckFrequencyState`] that a packet containing an ACK_FREQUENCY frame was sent
     pub(super) fn ack_frequency_sent(&mut self, pn: u64, requested_max_ack_delay: Duration) {
@@ -87,3 +93,8 @@ impl AckFrequencyState {
         }
     }
 }
+
+/// Minimum value to request the peer set max ACK delay to when the peer supports the ACK frequency
+/// extension and an explicit max ACK delay is not configured.
+// Keep in sync with `AckFrequencyConfig::max_ack_delay` documentation
+const MIN_AUTOMATIC_ACK_DELAY: Duration = Duration::from_millis(25);
