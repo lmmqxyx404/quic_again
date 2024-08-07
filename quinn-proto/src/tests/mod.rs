@@ -22,6 +22,7 @@ use bytes::Bytes;
 use config::{ClientConfig, ServerConfig, TransportConfig};
 use connection::SendDatagramError;
 use crypto::rustls::QuicServerConfig;
+use endpoint::ConnectionHandle;
 use frame::{ConnectionClose, Datagram, Frame, FrameStruct};
 use hex_literal::hex;
 use rand::RngCore;
@@ -2615,6 +2616,12 @@ fn single_ack_eliciting_packet_with_ce_bit_triggers_immediate_ack() {
         stats_after_ping.path.congestion_events - stats_after_connect.path.congestion_events,
         1
     );
+}
+
+fn setup_ack_frequency_test(max_ack_delay: Duration) -> (Pair, ConnectionHandle, ConnectionHandle) {
+    let mut client_config = client_config_with_deterministic_pns();
+    let mut ack_freq_config = AckFrequencyConfig::default();
+    todo!()
 }
 
 fn stream_chunks(mut recv: RecvStream) -> Vec<u8> {

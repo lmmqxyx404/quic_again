@@ -474,8 +474,19 @@ pub struct AckFrequencyConfig {
     pub(crate) ack_eliciting_threshold: VarInt,
     /// 2
     pub(crate) reordering_threshold: VarInt,
+    /// 3.
+    pub(crate) max_ack_delay: Option<Duration>,
 }
 
+impl Default for AckFrequencyConfig {
+    fn default() -> Self {
+        Self {
+            ack_eliciting_threshold: VarInt(1),
+            max_ack_delay: None,
+            reordering_threshold: VarInt(2),
+        }
+    }
+}
 /// Maximum duration of inactivity to accept before timing out the connection.
 ///
 /// This wraps an underlying [`VarInt`], representing the duration in milliseconds. Values can be
