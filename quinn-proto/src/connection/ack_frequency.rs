@@ -51,7 +51,12 @@ impl AckFrequencyState {
             // Always send at startup
             return true;
         }
-        todo!()
+        let current = self
+            .in_flight_ack_frequency_frame
+            .map_or(self.peer_max_ack_delay, |(_, pending)| pending);
+        let desired = self.candidate_max_ack_delay(rtt, config, peer_params);
+        let error = (desired.as_secs_f32() / current.as_secs_f32()) - 1.0;
+        error.abs() > MAX_RTT_ERROR
     }
     /// 4.Returns the next sequence number for an ACK_FREQUENCY frame
     pub(super) fn next_sequence_number(&mut self) -> VarInt {
@@ -92,6 +97,11 @@ impl AckFrequencyState {
         }
     }
 }
+
+/// Maximum proportion difference between the most recently requested max ACK delay and the
+/// currently desired one before a new request is sent, when the peer supports the ACK frequency
+/// extension and an explicit max ACK delay is not configured.
+const MAX_RTT_ERROR: f32 = 0.2;
 
 /// Minimum value to request the peer set max ACK delay to when the peer supports the ACK frequency
 /// extension and an explicit max ACK delay is not configured.
