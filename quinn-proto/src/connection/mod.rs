@@ -30,35 +30,43 @@ use crate::{
     VarInt, MIN_INITIAL_SIZE, TIMER_GRANULARITY,
 };
 use bytes::{Bytes, BytesMut};
+use rand::{rngs::StdRng, Rng, SeedableRng};
+use thiserror::Error;
+use tracing::{debug, error, trace, trace_span, warn};
 
 /// 1.
 mod paths;
-use packet_crypto::{PrevCrypto, ZeroRttCrypto};
 pub use paths::RttEstimator;
 use paths::{PathData, PathResponses};
 
 /// 2.
 mod stats;
-use rand::{rngs::StdRng, Rng, SeedableRng};
-pub use stats::ConnectionStats;
+pub use stats::{ConnectionStats, FrameStats, PathStats, UdpStats};
+
 /// 3.
 mod cid_state;
 use cid_state::CidState;
 /// 4.
 mod spaces;
-use spaces::{
-    PacketNumberFilter, PacketSpace, Retransmits, SendableFrames, SentPacket, ThinRetransmits,
-};
+#[cfg(fuzzing)]
+pub use spaces::Retransmits;
+#[cfg(not(fuzzing))]
+use spaces::Retransmits;
+use spaces::{PacketNumberFilter, PacketSpace, SendableFrames, SentPacket, ThinRetransmits};
+
 /// 5.
 mod timer;
-use thiserror::Error;
+
 use timer::{Timer, TimerTable};
-use tracing::{debug, error, trace, trace_span, warn};
+
 /// 7.
 mod ack_frequency;
+use ack_frequency::AckFrequencyState;
+
 /// 6.
 mod packet_crypto;
-use ack_frequency::AckFrequencyState;
+use packet_crypto::{PrevCrypto, ZeroRttCrypto};
+
 /// 8.
 mod streams;
 #[cfg(fuzzing)]
@@ -66,7 +74,8 @@ pub use streams::StreamsState;
 #[cfg(not(fuzzing))]
 use streams::StreamsState;
 pub use streams::{
-    FinishError, ReadError, RecvStream, SendStream, StreamEvent, Streams, WriteError,
+    BytesSource, Chunks, ClosedStream, FinishError, ReadError, ReadableError, RecvStream,
+    SendStream, StreamEvent, Streams, WriteError, Written,
 };
 /// 9
 mod mtud;

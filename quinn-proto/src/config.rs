@@ -11,8 +11,8 @@ use crate::{
     congestion,
     crypto::{self, HandshakeTokenKey, HmacKey},
     shared::ConnectionId,
-    ConnectionIdGenerator, RandomConnectionIdGenerator, VarInt, DEFAULT_SUPPORTED_VERSIONS,
-    INITIAL_MTU, MAX_CID_SIZE,
+    ConnectionIdGenerator, RandomConnectionIdGenerator, VarInt, VarIntBoundsExceeded,
+    DEFAULT_SUPPORTED_VERSIONS, INITIAL_MTU, MAX_CID_SIZE,
 };
 
 /// Global configuration for the endpoint, affecting all connections
@@ -388,7 +388,7 @@ impl TransportConfig {
     ///
     /// ```
     /// # use std::{convert::TryInto, time::Duration};
-    /// # use quinn_proto::{TransportConfig, VarInt, VarIntBoundsExceeded};
+    /// # use scratch_quinn_proto::{TransportConfig, VarInt, VarIntBoundsExceeded};
     /// # fn main() -> Result<(), VarIntBoundsExceeded> {
     /// let mut config = TransportConfig::default();
     ///
@@ -473,7 +473,7 @@ pub struct AckFrequencyConfig {
 ///
 /// ```
 /// # use std::{convert::TryFrom, time::Duration};
-/// # use quinn_proto::{IdleTimeout, VarIntBoundsExceeded, VarInt};
+/// # use scratch_quinn_proto::{IdleTimeout, VarIntBoundsExceeded, VarInt};
 /// # fn main() -> Result<(), VarIntBoundsExceeded> {
 /// // A `VarInt`-encoded value in milliseconds
 /// let timeout = IdleTimeout::from(VarInt::from_u32(10_000));
@@ -485,3 +485,19 @@ pub struct AckFrequencyConfig {
 /// ```
 #[derive(Default, Copy, Clone, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct IdleTimeout(VarInt);
+
+/// set for `Doc-tests`
+impl From<VarInt> for IdleTimeout {
+    fn from(inner: VarInt) -> Self {
+        Self(inner)
+    }
+}
+/// set for `Doc-tests`
+impl std::convert::TryFrom<Duration> for IdleTimeout {
+    type Error = VarIntBoundsExceeded;
+
+    fn try_from(timeout: Duration) -> Result<Self, Self::Error> {
+        let inner = VarInt::try_from(timeout.as_millis())?;
+        Ok(Self(inner))
+    }
+}

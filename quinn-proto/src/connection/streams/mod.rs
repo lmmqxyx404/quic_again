@@ -1,17 +1,20 @@
-mod state;
 use std::collections::{hash_map, BinaryHeap};
 
-use send::{ByteSlice, SendState};
-#[allow(unreachable_pub)] // fuzzing only
-pub use state::StreamsState;
 use state::{get_or_insert_recv, get_or_insert_send};
 use thiserror::Error;
 use tracing::trace;
 
+/// 1
+mod state;
+#[allow(unreachable_pub)] // fuzzing only
+pub use state::StreamsState;
+
 use crate::{frame, Dir, StreamId, VarInt};
 /// 2
 mod send;
+pub(crate) use send::ByteSlice;
 pub use send::{BytesSource, FinishError, WriteError, Written};
+use send::{Send, SendState};
 
 /// 3
 mod recv;

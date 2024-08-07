@@ -26,8 +26,19 @@ pub use crate::endpoint::Endpoint;
 
 /// 7.config
 mod config;
+pub use config::{
+    AckFrequencyConfig, ClientConfig, EndpointConfig, IdleTimeout, MtuDiscoveryConfig,
+    ServerConfig, TransportConfig,
+};
 /// 9
 mod connection;
+pub use crate::connection::{
+    BytesSource, Chunk, Chunks, ClosedStream, Connection, ConnectionError, ConnectionStats,
+    Datagrams, Event, FinishError, FrameStats, PathStats, ReadError, ReadableError, RecvStream,
+    RttEstimator, SendDatagramError, SendStream, StreamEvent, Streams, UdpStats, WriteError,
+    Written,
+};
+
 /// 8
 pub mod crypto;
 
@@ -65,9 +76,9 @@ const INITIAL_MTU: u16 = 1200;
 const MAX_UDP_PAYLOAD: u16 = 65527;
 /// 6.
 const MIN_INITIAL_SIZE: u16 = 1200;
-/// 7.Maximum number of streams that can be uniquely identified by a stream ID
+/// 7. Maximum number of streams that can be uniquely identified by a stream ID
 const MAX_STREAM_COUNT: u64 = 1 << 60;
-/// The maximum number of CIDs we bother to issue per connection
+/// 8. The maximum number of CIDs we bother to issue per connection
 const LOC_CID_COUNT: u64 = 8;
 
 /// Whether an endpoint was the initiator of a connection

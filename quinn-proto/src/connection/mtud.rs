@@ -257,7 +257,12 @@ impl EnabledMtuDiscovery {
             if now < *next_mtud_activation {
                 return None;
             }
-            todo!()
+            // Start a new search (we have reached the next activation time)
+            self.phase = Phase::Searching(SearchState::new(
+                current_mtu,
+                self.peer_max_udp_payload_size,
+                &self.config,
+            ));
         }
 
         if let Phase::Searching(state) = &mut self.phase {
