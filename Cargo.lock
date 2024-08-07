@@ -329,6 +329,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "scratch-quinn"
+version = "0.1.0"
+
+[[package]]
 name = "scratch-quinn-proto"
 version = "0.1.0"
 dependencies = [
