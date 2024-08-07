@@ -6,9 +6,20 @@ edition = "2021"
 [package.metadata.docs.rs]
 all-features = true
 
+[features]
+default = ["ring"]
+# Enables `Endpoint::client` and `Endpoint::server` conveniences
+ring = ["proto/ring"]
+
 [dependencies]
 tracing = { workspace = true }
+proto = { package = "scratch-quinn-proto", path = "../quinn-proto", version = "*", default-features = false }
 
 [dev-dependencies]
 tracing-subscriber = { workspace = true }
-tokio = { workspace = true, features = ["rt", "rt-multi-thread", "time", "macros"] }
+tokio = { workspace = true, features = [
+  "rt",
+  "rt-multi-thread",
+  "time",
+  "macros",
+] }

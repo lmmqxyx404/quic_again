@@ -408,6 +408,7 @@ dependencies = [
 name = "scratch-quinn"
 version = "0.1.0"
 dependencies = [
+ "scratch-quinn-proto",
  "tokio",
  "tracing",
  "tracing-subscriber",

@@ -1,13 +1,22 @@
 use core::str;
-use std::io;
+use std::{
+    io,
+    net::{IpAddr, Ipv4Addr, SocketAddr},
+};
 
 use tokio::runtime::{Builder, Runtime};
 use tracing_subscriber::EnvFilter;
+
+use crate::endpoint::Endpoint;
 
 #[test]
 fn handshake_timeout() {
     let _guard = subscribe();
     let runtime = rt_threaded();
+    let client = {
+        let _guard = runtime.enter();
+        Endpoint::client(SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0)).unwrap()
+    };
     todo!()
 }
 
