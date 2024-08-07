@@ -1,5 +1,10 @@
 use std::{fmt::Debug, sync::Arc};
 
+#[cfg(feature = "runtime-tokio")]
+mod tokio;
+#[cfg(feature = "runtime-tokio")]
+pub use self::tokio::TokioRuntime;
+
 /// Abstracts I/O and timer operations for runtime independence
 pub trait Runtime: Send + Sync + Debug + 'static {}
 
@@ -14,8 +19,7 @@ pub fn default_runtime() -> Option<Arc<dyn Runtime>> {
     #[cfg(feature = "runtime-tokio")]
     {
         if ::tokio::runtime::Handle::try_current().is_ok() {
-            todo!()
-            // return Some(Arc::new(TokioRuntime));
+            return Some(Arc::new(TokioRuntime));
         }
     }
     todo!()
