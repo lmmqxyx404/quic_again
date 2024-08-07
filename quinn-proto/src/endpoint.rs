@@ -923,6 +923,20 @@ impl Endpoint {
         let incoming_buffer = self.incoming_buffers.remove(incoming.incoming_idx);
         self.all_incoming_buffers_total_bytes -= incoming_buffer.total_bytes;
     }
+    /// 19. Reject this incoming connection attempt
+    pub fn refuse(&mut self, incoming: Incoming, buf: &mut Vec<u8>) -> Transmit {
+        self.clean_up_incoming(&incoming);
+        incoming.improper_drop_warner.dismiss();
+
+        self.initial_close(
+            incoming.packet.header.version,
+            incoming.addresses,
+            &incoming.crypto,
+            &incoming.packet.header.src_cid,
+            TransportError::CONNECTION_REFUSED(""),
+            buf,
+        )
+    }
 }
 
 /// 2. Internal identifier for a `Connection` currently associated with an endpoint

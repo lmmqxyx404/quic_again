@@ -416,6 +416,8 @@ pub(super) enum IncomingConnectionBehavior {
     Validate,
     /// 3.
     Wait,
+    /// 4.
+    RejectAll,
 }
 
 impl TestEndpoint {
@@ -497,8 +499,8 @@ impl TestEndpoint {
                             IncomingConnectionBehavior::Wait => {
                                 self.waiting_incoming.push(incoming);
                             }
-                            _ => {
-                                todo!()
+                            IncomingConnectionBehavior::RejectAll => {
+                                self.reject(incoming);
                             }
                         }
                     }
@@ -610,6 +612,13 @@ impl TestEndpoint {
     /// 12.
     pub(super) fn assert_no_accept(&self) {
         assert!(self.accepted.is_none(), "server did unexpectedly connect")
+    }
+    /// 13.
+    pub(super) fn reject(&mut self, incoming: Incoming) {
+        let mut buf = Vec::new();
+        let transmit = self.endpoint.refuse(incoming, &mut buf);
+        let size = transmit.size;
+        self.outbound.extend(split_transmit(transmit, &buf[..size]));
     }
 }
 
