@@ -22,7 +22,7 @@ use bytes::Bytes;
 use config::{ClientConfig, ServerConfig, TransportConfig};
 use connection::SendDatagramError;
 use crypto::rustls::QuicServerConfig;
-use frame::{ConnectionClose, Datagram, FrameStruct};
+use frame::{ConnectionClose, Datagram, Frame, FrameStruct};
 use hex_literal::hex;
 use rand::RngCore;
 use ring::hmac;
@@ -32,6 +32,7 @@ use rustls::{
     AlertDescription, RootCertStore,
 };
 use tracing::info;
+use transport_parameters::TransportParameters;
 use util::*;
 
 #[test]
@@ -2472,6 +2473,33 @@ fn single_ack_eliciting_packet_triggers_ack_after_delay() {
         stats_after_drive.frame_rx.acks - stats_after_ping.frame_rx.acks,
         1
     );
+    // The time is start + max_ack_delay
+    let default_max_ack_delay_ms = TransportParameters::default().max_ack_delay.into_inner();
+    assert_eq!(
+        pair.time,
+        start + Duration::from_millis(default_max_ack_delay_ms)
+    );
+
+    // The ACK delay is properly calculated
+    assert_eq!(pair.client.captured_packets.len(), 1);
+    let mut frames = frame::Iter::new(pair.client.captured_packets.remove(0).into())
+        .unwrap()
+        .collect::<Result<Vec<_>, _>>()
+        .unwrap();
+    assert_eq!(frames.len(), 1);
+    if let Frame::Ack(ack) = frames.remove(0) {
+        let ack_delay_exp = TransportParameters::default().ack_delay_exponent;
+        let delay = ack.delay << ack_delay_exp.into_inner();
+        assert_eq!(delay, default_max_ack_delay_ms * 1_000);
+    } else {
+        panic!("Expected ACK frame");
+    }
+
+    // Sanity check: no loss probe was sent, because the delayed ACK was received on time
+    assert_eq!(
+        stats_after_drive.frame_tx.ping - stats_after_connect.frame_tx.ping,
+        1
+    );
 }
 
 #[test]
@@ -2491,6 +2519,64 @@ fn immediate_ack_triggers_ack() {
     let acks_after_ping = pair.client_conn_mut(client_ch).stats().frame_rx.acks;
 
     assert_eq!(acks_after_ping - acks_after_connect, 1);
+}
+
+#[test]
+fn out_of_order_ack_eliciting_packet_triggers_ack() {
+    let _guard = subscribe();
+    let mut pair = Pair::default_with_deterministic_pns();
+    let (client_ch, server_ch) = pair.connect_with(client_config_with_deterministic_pns());
+    pair.drive();
+
+    let default_mtu = pair.mtu;
+
+    let client_stats_after_connect = pair.client_conn_mut(client_ch).stats();
+    let server_stats_after_connect = pair.server_conn_mut(server_ch).stats();
+
+    // Send a packet that won't arrive right away (it will be dropped and be re-sent later)
+    pair.mtu = 0;
+    pair.client_conn_mut(client_ch).ping();
+    pair.drive_client();
+
+    // Sanity check (ping sent, no ACK received)
+    let client_stats_after_first_ping = pair.client_conn_mut(client_ch).stats();
+    assert_eq!(
+        client_stats_after_first_ping.frame_tx.ping - client_stats_after_connect.frame_tx.ping,
+        1
+    );
+    assert_eq!(
+        client_stats_after_first_ping.frame_rx.acks - client_stats_after_connect.frame_rx.acks,
+        0
+    );
+
+    // Restore the default MTU and send another ping, which will arrive earlier than the dropped one
+    pair.mtu = default_mtu;
+    pair.client_conn_mut(client_ch).ping();
+    pair.drive_client();
+    pair.drive_server();
+    pair.drive_client();
+
+    // Client sanity check (ping sent, one ACK received)
+    let client_stats_after_second_ping = pair.client_conn_mut(client_ch).stats();
+    assert_eq!(
+        client_stats_after_second_ping.frame_tx.ping - client_stats_after_connect.frame_tx.ping,
+        2
+    );
+    assert_eq!(
+        client_stats_after_second_ping.frame_rx.acks - client_stats_after_connect.frame_rx.acks,
+        1
+    );
+
+    // Server checks (single ping received, ACK sent)
+    let server_stats_after_second_ping = pair.server_conn_mut(server_ch).stats();
+    assert_eq!(
+        server_stats_after_second_ping.frame_rx.ping - server_stats_after_connect.frame_rx.ping,
+        1
+    );
+    assert_eq!(
+        server_stats_after_second_ping.frame_tx.acks - server_stats_after_connect.frame_tx.acks,
+        1
+    );
 }
 
 fn stream_chunks(mut recv: RecvStream) -> Vec<u8> {
