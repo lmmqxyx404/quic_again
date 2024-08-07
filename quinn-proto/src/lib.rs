@@ -11,7 +11,6 @@ use std::net::{IpAddr, SocketAddr};
 use std::time::Duration;
 use std::{fmt, ops};
 
-use shared::EcnCodepoint;
 pub use varint::{VarInt, VarIntBoundsExceeded};
 
 // 4. generate connection id
@@ -19,10 +18,13 @@ mod cid_generator;
 pub use crate::cid_generator::{ConnectionIdGenerator, RandomConnectionIdGenerator};
 // 5
 mod shared;
+pub use crate::shared::{ConnectionEvent, ConnectionId, EcnCodepoint, EndpointEvent};
 
 /// 6. endpoint
 mod endpoint;
-pub use crate::endpoint::Endpoint;
+pub use crate::endpoint::{
+    AcceptError, ConnectError, ConnectionHandle, DatagramEvent, Endpoint, Incoming, RetryError,
+};
 
 /// 7.config
 mod config;
