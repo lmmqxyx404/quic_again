@@ -79,8 +79,7 @@ impl AckFrequencyState {
     }
     /// 6. Notifies the [`AckFrequencyState`] that a packet containing an ACK_FREQUENCY frame was sent
     pub(super) fn ack_frequency_sent(&mut self, pn: u64, requested_max_ack_delay: Duration) {
-        todo!()
-        // self.in_flight_ack_frequency_frame = Some((pn, requested_max_ack_delay));
+        self.in_flight_ack_frequency_frame = Some((pn, requested_max_ack_delay));
     }
     /// 7. Notifies the [`AckFrequencyState`] that a packet has been ACKed
     pub(super) fn on_acked(&mut self, pn: u64) {
