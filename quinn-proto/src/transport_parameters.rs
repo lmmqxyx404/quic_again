@@ -184,6 +184,9 @@ impl TransportParameters {
                 .map(|x| (x.min(u16::MAX.into()) as u16).into()),
             // used for `tests::repeated_request_response`
             initial_max_stream_data_bidi_local: config.stream_receive_window,
+            // used for `migrate_detects_new_mtu_and_respects_original_peer_max_udp_payload_size`
+            max_udp_payload_size: endpoint_config.max_udp_payload_size,
+
             ..Self::default()
         }
     }

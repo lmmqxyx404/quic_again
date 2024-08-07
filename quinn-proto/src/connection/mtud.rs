@@ -36,6 +36,14 @@ impl MtuDiscovery {
             Some(EnabledMtuDiscovery::new(config)),
         );
 
+        // We might be migrating an existing connection to a new path, in which case the transport
+        // parameters have already been transmitted, and we already know the value of
+        // `peer_max_udp_payload_size`
+        // used for `migrate_detects_new_mtu_and_respects_original_peer_max_udp_payload_size`
+        if let Some(peer_max_udp_payload_size) = peer_max_udp_payload_size {
+            mtud.on_peer_max_udp_payload_size_received(peer_max_udp_payload_size);
+        }
+
         mtud
     }
 
@@ -427,6 +435,23 @@ impl BlackHoleDetector {
             return;
         }
 
+        // A suspicious loss burst more recent than `largest_post_loss_packet` invalidates it. This
+        // makes `acked_mtu` a conservative approximation. Ideally we'd update `safe_mtu` and
+        // `largest_post_loss_packet` to describe the largest acknowledged packet sent later than
+        // this burst, but that would require tracking the size of an unpredictable number of
+        // recently acknowledged packets, and erring on the side of false positives is safe.
+        if burst.latest_non_probe > self.largest_post_loss_packet {
+            self.acked_mtu = self.min_mtu;
+        }
+
+        let burst = LossBurst {
+            smallest_packet_size: burst.smallest_packet_size,
+        };
+
+        if self.suspicious_loss_bursts.len() <= BLACK_HOLE_THRESHOLD {
+            self.suspicious_loss_bursts.push(burst);
+            return;
+        }
         todo!()
     }
     fn black_hole_detected(&mut self) -> bool {
