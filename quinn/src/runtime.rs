@@ -1,4 +1,4 @@
-use std::{fmt::Debug, sync::Arc};
+use std::{fmt::Debug, io, sync::Arc};
 
 #[cfg(feature = "runtime-tokio")]
 mod tokio;
@@ -6,7 +6,10 @@ mod tokio;
 pub use self::tokio::TokioRuntime;
 
 /// Abstracts I/O and timer operations for runtime independence
-pub trait Runtime: Send + Sync + Debug + 'static {}
+pub trait Runtime: Send + Sync + Debug + 'static {
+    /// 1. Convert `t` into the socket type used by this runtime
+    fn wrap_udp_socket(&self, t: std::net::UdpSocket) -> io::Result<Arc<dyn AsyncUdpSocket>>;
+}
 
 /// Automatically select an appropriate runtime from those enabled at compile time
 ///
@@ -24,3 +27,6 @@ pub fn default_runtime() -> Option<Arc<dyn Runtime>> {
     }
     todo!()
 }
+
+/// Abstract implementation of a UDP socket for runtime independence
+pub trait AsyncUdpSocket: Send + Sync + Debug + 'static {}

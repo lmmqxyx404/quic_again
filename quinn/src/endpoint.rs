@@ -1,8 +1,10 @@
+use proto::{EndpointConfig, ServerConfig};
 use socket2::{Domain, Protocol, Socket, Type};
-use std::{io, net::SocketAddr};
+use std::{io, net::SocketAddr, sync::Arc};
 
 #[cfg(feature = "ring")]
 use crate::runtime::default_runtime;
+use crate::runtime::{AsyncUdpSocket, Runtime};
 
 /// A QUIC endpoint.
 ///
@@ -42,6 +44,23 @@ impl Endpoint {
         socket.bind(&addr.into())?;
         let runtime = default_runtime()
             .ok_or_else(|| io::Error::new(io::ErrorKind::Other, "no async runtime found"))?;
+        Self::new_with_abstract_socket(
+            EndpointConfig::default(),
+            None,
+            runtime.wrap_udp_socket(socket.into())?,
+            runtime,
+        )
+    }
+    /// Construct an endpoint with arbitrary configuration and pre-constructed abstract socket
+    ///
+    /// Useful when `socket` has additional state (e.g. sidechannels) attached for which shared
+    /// ownership is needed.
+    pub fn new_with_abstract_socket(
+        config: EndpointConfig,
+        server_config: Option<ServerConfig>,
+        socket: Arc<dyn AsyncUdpSocket>,
+        runtime: Arc<dyn Runtime>,
+    ) -> io::Result<Self> {
         todo!()
     }
 }
