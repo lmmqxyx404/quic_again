@@ -2293,3 +2293,49 @@ fn migrate_detects_new_mtu_and_respects_original_peer_max_udp_payload_size() {
     // packets from a different address
     assert_eq!(pair.client_conn_mut(client_ch).path_mtu(), 1293);
 }
+
+#[test]
+fn connect_runs_mtud_again_after_600_seconds() {
+    let _guard = subscribe();
+    let mut server_config = server_config();
+    let mut client_config = client_config();
+
+    // Note: we use an infinite idle timeout to ensure we can wait 600 seconds without the
+    // connection closing
+    Arc::get_mut(&mut server_config.transport)
+        .unwrap()
+        .max_idle_timeout(None);
+    Arc::get_mut(&mut client_config.transport)
+        .unwrap()
+        .max_idle_timeout(None);
+
+    let mut pair = Pair::new(Default::default(), server_config);
+    pair.mtu = 1400;
+    let (client_ch, server_ch) = pair.connect_with(client_config);
+    pair.drive();
+
+    // Sanity check: the mtu has been discovered
+    let client_conn = pair.client_conn_mut(client_ch);
+    assert_eq!(client_conn.path_mtu(), 1389);
+    assert_eq!(client_conn.stats().path.sent_plpmtud_probes, 5);
+    assert_eq!(client_conn.stats().path.lost_plpmtud_probes, 3);
+    let server_conn = pair.server_conn_mut(server_ch);
+    assert_eq!(server_conn.path_mtu(), 1389);
+    assert_eq!(server_conn.stats().path.sent_plpmtud_probes, 5);
+    assert_eq!(server_conn.stats().path.lost_plpmtud_probes, 3);
+
+    // Sanity check: the mtu does not change after the fact, even though the link now supports a
+    // higher udp payload size
+    pair.mtu = 1500;
+    pair.drive();
+    assert_eq!(pair.client_conn_mut(client_ch).path_mtu(), 1389);
+    assert_eq!(pair.server_conn_mut(server_ch).path_mtu(), 1389);
+
+    // The MTU changes after 600 seconds, because now MTUD runs for the second time
+    pair.time += Duration::from_secs(600);
+    pair.drive();
+    assert!(!pair.client_conn_mut(client_ch).is_closed());
+    assert!(!pair.server_conn_mut(client_ch).is_closed());
+    assert_eq!(pair.client_conn_mut(client_ch).path_mtu(), 1452);
+    assert_eq!(pair.server_conn_mut(server_ch).path_mtu(), 1452);
+}

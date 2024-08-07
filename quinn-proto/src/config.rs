@@ -377,6 +377,33 @@ impl TransportConfig {
     pub(crate) fn get_initial_mtu(&self) -> u16 {
         self.initial_mtu.max(self.min_mtu)
     }
+
+    /// Maximum duration of inactivity to accept before timing out the connection.
+    ///
+    /// The true idle timeout is the minimum of this and the peer's own max idle timeout. `None`
+    /// represents an infinite timeout.
+    ///
+    /// **WARNING**: If a peer or its network path malfunctions or acts maliciously, an infinite
+    /// idle timeout can result in permanently hung futures!
+    ///
+    /// ```
+    /// # use std::{convert::TryInto, time::Duration};
+    /// # use quinn_proto::{TransportConfig, VarInt, VarIntBoundsExceeded};
+    /// # fn main() -> Result<(), VarIntBoundsExceeded> {
+    /// let mut config = TransportConfig::default();
+    ///
+    /// // Set the idle timeout as `VarInt`-encoded milliseconds
+    /// config.max_idle_timeout(Some(VarInt::from_u32(10_000).into()));
+    ///
+    /// // Set the idle timeout as a `Duration`
+    /// config.max_idle_timeout(Some(Duration::from_secs(10).try_into()?));
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn max_idle_timeout(&mut self, value: Option<IdleTimeout>) -> &mut Self {
+        self.max_idle_timeout = value.map(|t| t.0);
+        self
+    }
 }
 
 impl Default for TransportConfig {
@@ -438,3 +465,23 @@ pub struct AckFrequencyConfig {
     /// 2
     pub(crate) reordering_threshold: VarInt,
 }
+
+/// Maximum duration of inactivity to accept before timing out the connection.
+///
+/// This wraps an underlying [`VarInt`], representing the duration in milliseconds. Values can be
+/// constructed by converting directly from `VarInt`, or using `TryFrom<Duration>`.
+///
+/// ```
+/// # use std::{convert::TryFrom, time::Duration};
+/// # use quinn_proto::{IdleTimeout, VarIntBoundsExceeded, VarInt};
+/// # fn main() -> Result<(), VarIntBoundsExceeded> {
+/// // A `VarInt`-encoded value in milliseconds
+/// let timeout = IdleTimeout::from(VarInt::from_u32(10_000));
+///
+/// // Try to convert a `Duration` into a `VarInt`-encoded timeout
+/// let timeout = IdleTimeout::try_from(Duration::from_secs(10))?;
+/// # Ok(())
+/// # }
+/// ```
+#[derive(Default, Copy, Clone, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct IdleTimeout(VarInt);
