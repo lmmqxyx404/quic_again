@@ -414,6 +414,23 @@ impl TransportConfig {
         self.deterministic_packet_numbers = enabled;
         self
     }
+    /// Specifies the ACK frequency config (see [`AckFrequencyConfig`] for details)
+    ///
+    /// The provided configuration will be ignored if the peer does not support the acknowledgement
+    /// frequency QUIC extension.
+    ///
+    /// Defaults to `None`, which disables controlling the peer's acknowledgement frequency. Even
+    /// if set to `None`, the local side still supports the acknowledgement frequency QUIC
+    /// extension and may use it in other ways.
+    pub fn ack_frequency_config(&mut self, value: Option<AckFrequencyConfig>) -> &mut Self {
+        todo!()
+    }
+    /// Specifies the MTU discovery config (see [`MtuDiscoveryConfig`] for details).
+    ///
+    /// Enabled by default.
+    pub fn mtu_discovery_config(&mut self, value: Option<MtuDiscoveryConfig>) -> &mut Self {
+        todo!()
+    }
 }
 
 impl Default for TransportConfig {
@@ -477,7 +494,34 @@ pub struct AckFrequencyConfig {
     /// 3.
     pub(crate) max_ack_delay: Option<Duration>,
 }
-
+impl AckFrequencyConfig {
+    /// The ack-eliciting threshold we will request the peer to use
+    ///
+    /// This threshold represents the number of ack-eliciting packets an endpoint may receive
+    /// without immediately sending an ACK.
+    ///
+    /// The remote peer should send at least one ACK frame when more than this number of
+    /// ack-eliciting packets have been received. A value of 0 results in a receiver immediately
+    /// acknowledging every ack-eliciting packet.
+    ///
+    /// Defaults to 1, which sends ACK frames for every other ack-eliciting packet.
+    pub fn ack_eliciting_threshold(&mut self, value: VarInt) -> &mut Self {
+        todo!()
+    }
+    /// The `max_ack_delay` we will request the peer to use
+    ///
+    /// This parameter represents the maximum amount of time that an endpoint waits before sending
+    /// an ACK when the ack-eliciting threshold hasn't been reached.
+    ///
+    /// The effective `max_ack_delay` will be clamped to be at least the peer's `min_ack_delay`
+    /// transport parameter, and at most the greater of the current path RTT or 25ms.
+    ///
+    /// Defaults to `None`, in which case the peer's original `max_ack_delay` will be used, as
+    /// obtained from its transport parameters.
+    pub fn max_ack_delay(&mut self, value: Option<Duration>) -> &mut Self {
+        todo!()
+    }
+}
 impl Default for AckFrequencyConfig {
     fn default() -> Self {
         Self {
