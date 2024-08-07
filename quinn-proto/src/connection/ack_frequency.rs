@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use crate::{
     config::AckFrequencyConfig, frame::AckFrequency, transport_parameters::TransportParameters,
-    TransportError, VarInt,
+    TransportError, VarInt, TIMER_GRANULARITY,
 };
 
 use super::spaces::PendingAcks;
@@ -17,8 +17,8 @@ pub(super) struct AckFrequencyState {
     pub(super) max_ack_delay: Duration,
     /// 4.
     next_outgoing_sequence_number: VarInt,
-    // 5.Receiving ACK_FREQUENCY frames
-    // last_ack_frequency_frame: Option<u64>,
+    /// 5.Receiving ACK_FREQUENCY frames
+    last_ack_frequency_frame: Option<u64>,
 }
 
 impl AckFrequencyState {
@@ -30,7 +30,7 @@ impl AckFrequencyState {
             max_ack_delay: default_max_ack_delay,
 
             next_outgoing_sequence_number: VarInt(0),
-            // last_ack_frequency_frame: None,
+            last_ack_frequency_frame: None,
         }
     }
 
@@ -104,7 +104,7 @@ impl AckFrequencyState {
             _ => {}
         }
     }
-    /// Notifies the [`AckFrequencyState`] that an ACK_FREQUENCY frame was received
+    /// 8. Notifies the [`AckFrequencyState`] that an ACK_FREQUENCY frame was received
     ///
     /// Updates the endpoint's params according to the payload of the ACK_FREQUENCY frame, or
     /// returns an error in case the requested `max_ack_delay` is invalid.
@@ -116,7 +116,30 @@ impl AckFrequencyState {
         frame: &AckFrequency,
         pending_acks: &mut PendingAcks,
     ) -> Result<bool, TransportError> {
-        todo!()
+        if self
+            .last_ack_frequency_frame
+            .map_or(false, |highest_sequence_nr| {
+                frame.sequence.into_inner() <= highest_sequence_nr
+            })
+        {
+            return Ok(false);
+        }
+
+        self.last_ack_frequency_frame = Some(frame.sequence.into_inner());
+
+        // Update max_ack_delay
+        let max_ack_delay = Duration::from_micros(frame.request_max_ack_delay.into_inner());
+        if max_ack_delay < TIMER_GRANULARITY {
+            return Err(TransportError::PROTOCOL_VIOLATION(
+                "Requested Max Ack Delay in ACK_FREQUENCY frame is less than min_ack_delay",
+            ));
+        }
+        self.max_ack_delay = max_ack_delay;
+
+        // Update the rest of the params
+        pending_acks.set_ack_frequency_params(frame);
+
+        Ok(true)
     }
 }
 

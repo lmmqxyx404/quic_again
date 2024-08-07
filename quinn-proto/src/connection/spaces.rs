@@ -782,6 +782,11 @@ impl PendingAcks {
         self.earliest_ack_eliciting_since_last_ack_sent
             .map(|earliest_unacked| earliest_unacked + max_ack_delay)
     }
+    /// 14.
+    pub(super) fn set_ack_frequency_params(&mut self, frame: &frame::AckFrequency) {
+        self.ack_eliciting_threshold = frame.ack_eliciting_threshold.into_inner();
+        self.reordering_threshold = frame.reordering_threshold.into_inner();
+    }
 }
 
 /// A variant of `Retransmits` which only allocates storage when required
