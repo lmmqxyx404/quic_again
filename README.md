@@ -63,6 +63,11 @@ TransportParameters
 
 ## `pub(super) struct Recv` vital
 
+## `Connection::mod`
+Err
+detect_lost
+search todo
+
 # dev skills
 ## 1. about transport_error::Error
 实现 `Display` 是为了实现 `std::error::Error`

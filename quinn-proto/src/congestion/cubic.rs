@@ -1,3 +1,4 @@
+use std::cmp;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -9,6 +10,8 @@ use super::{Controller, ControllerFactory, BASE_DATAGRAM_SIZE};
 ///
 /// These are recommended value in RFC8312.
 const BETA_CUBIC: f64 = 0.7;
+
+const C: f64 = 0.4;
 
 /// CUBIC State Variables.
 ///
@@ -38,8 +41,23 @@ pub struct Cubic {
     current_mtu: u64,
     /// 5.
     cubic_state: State,
+    /// 6. Slow start threshold in bytes. When the congestion window is below ssthresh, the mode is
+    /// slow start and the window grows by the number of bytes acknowledged.
+    ssthresh: u64,
 }
 
+/// CUBIC Functions.
+///
+/// Note that these calculations are based on a count of cwnd as bytes,
+/// not packets.
+/// Unit of t (duration) and RTT are based on seconds (f64).
+impl State {
+    // K = cbrt(w_max * (1 - beta_cubic) / C) (Eq. 2)
+    fn cubic_k(&self, max_datagram_size: u64) -> f64 {
+        let w_max = self.w_max / max_datagram_size as f64;
+        (w_max * (1.0 - BETA_CUBIC) / C).cbrt()
+    }
+}
 impl Cubic {
     /// 1. Construct a state using the given `config` and current time `now`
     pub fn new(config: Arc<CubicConfig>, _now: Instant, current_mtu: u16) -> Self {
@@ -49,6 +67,7 @@ impl Cubic {
             recovery_start_time: None,
             current_mtu: current_mtu as u64,
             cubic_state: Default::default(),
+            ssthresh: u64::MAX,
         }
     }
     /// 2.
@@ -108,7 +127,17 @@ impl Controller for Cubic {
         } else {
             self.cubic_state.w_max = self.window as f64;
         }
-        todo!()
+
+        self.ssthresh = cmp::max(
+            (self.cubic_state.w_max * BETA_CUBIC) as u64,
+            self.minimum_window(),
+        );
+        self.window = self.ssthresh;
+        self.cubic_state.k = self.cubic_state.cubic_k(self.current_mtu);
+
+        if is_persistent_congestion {
+            todo!()
+        }
     }
 
     fn on_mtu_update(&mut self, new_mtu: u16) {
