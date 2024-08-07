@@ -10,6 +10,8 @@ pub(super) struct AckFrequencyState {
     in_flight_ack_frequency_frame: Option<(u64, Duration)>,
     /// 3.
     pub(super) max_ack_delay: Duration,
+    /// 4.
+    next_outgoing_sequence_number: VarInt,
 }
 
 impl AckFrequencyState {
@@ -19,6 +21,8 @@ impl AckFrequencyState {
             peer_max_ack_delay: default_max_ack_delay,
             in_flight_ack_frequency_frame: None,
             max_ack_delay: default_max_ack_delay,
+
+            next_outgoing_sequence_number: VarInt(0),
         }
     }
 
@@ -43,6 +47,10 @@ impl AckFrequencyState {
         config: &AckFrequencyConfig,
         peer_params: &TransportParameters,
     ) -> bool {
+        if self.next_outgoing_sequence_number.0 == 0 {
+            // Always send at startup
+            return true;
+        }
         todo!()
     }
     /// 4.Returns the next sequence number for an ACK_FREQUENCY frame

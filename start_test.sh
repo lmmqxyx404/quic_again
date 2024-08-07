@@ -4,5 +4,5 @@ clear
 # RUST_BACKTRACE=1 
 # RUSTFLAGS="-Awarnings" 
 # cargo watch -x "test tests::server_stateless_reset"
-RUST_BACKTRACE=1  RUSTFLAGS="-Awarnings"  cargo watch -x "test -p scratch-quinn-proto tests::single_ack_eliciting_packet_triggers_ack_after_delay"
+RUST_BACKTRACE=1  RUSTFLAGS="-Awarnings"  cargo watch -x "test -p scratch-quinn-proto tests::ack_frequency_ack_delayed_from_first_of_flight"
 # tests::server_stateless_reset
