@@ -1,4 +1,4 @@
-use std::{fmt::Debug, io, sync::Arc};
+use std::{fmt::Debug, io, net::SocketAddr, sync::Arc};
 
 #[cfg(feature = "runtime-tokio")]
 mod tokio;
@@ -29,4 +29,7 @@ pub fn default_runtime() -> Option<Arc<dyn Runtime>> {
 }
 
 /// Abstract implementation of a UDP socket for runtime independence
-pub trait AsyncUdpSocket: Send + Sync + Debug + 'static {}
+pub trait AsyncUdpSocket: Send + Sync + Debug + 'static {
+    /// 1. Look up the local IP address and port used by this socket
+    fn local_addr(&self) -> io::Result<SocketAddr>;
+}

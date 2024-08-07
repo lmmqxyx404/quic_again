@@ -61,6 +61,8 @@ impl Endpoint {
         socket: Arc<dyn AsyncUdpSocket>,
         runtime: Arc<dyn Runtime>,
     ) -> io::Result<Self> {
+        let addr = socket.local_addr()?;
+        // let allow_mtud = !socket.may_fragment();
         todo!()
     }
 }
