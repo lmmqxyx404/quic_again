@@ -1,12 +1,13 @@
 use core::str;
 use std::io;
 
+use tokio::runtime::{Builder, Runtime};
 use tracing_subscriber::EnvFilter;
 
 #[test]
 fn handshake_timeout() {
     let _guard = subscribe();
-    // let runtime = rt_threaded();
+    let runtime = rt_threaded();
     todo!()
 }
 
@@ -33,3 +34,6 @@ impl std::io::Write for TestWriter {
     }
 }
 
+fn rt_threaded() -> Runtime {
+    Builder::new_multi_thread().enable_all().build().unwrap()
+}

@@ -11,6 +11,8 @@ tracing = { version = "0.1.10", default-features = false, features = ["std"] }
 tracing-subscriber = { version = "0.3.0", default-features = false, features = ["env-filter", "fmt", "ansi", "time", "local-time"] }
 tinyvec = { version = "1.1", features = ["alloc"] }
 
+tokio = { version = "1.28.1", features = ["sync"] }
+
 [profile.bench]
 debug = true
 
