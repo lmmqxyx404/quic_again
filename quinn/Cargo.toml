@@ -7,15 +7,17 @@ edition = "2021"
 all-features = true
 
 [features]
-default = ["ring"]
+default = ["ring", "runtime-tokio"]
 # Enables `Endpoint::client` and `Endpoint::server` conveniences
 ring = ["proto/ring"]
+runtime-tokio = ["tokio/time", "tokio/rt", "tokio/net"]
 
 [dependencies]
 tracing = { workspace = true }
 proto = { package = "scratch-quinn-proto", path = "../quinn-proto", version = "*", default-features = false }
 # used for `Endpoint::client`
 socket2 = { workspace = true }
+tokio = { workspace = true }
 
 [dev-dependencies]
 tracing-subscriber = { workspace = true }

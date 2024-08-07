@@ -11,5 +11,12 @@ pub trait Runtime: Send + Sync + Debug + 'static {}
 /// Otherwise, `None` is returned.
 #[allow(clippy::needless_return)] // Be sure we return the right thing
 pub fn default_runtime() -> Option<Arc<dyn Runtime>> {
+    #[cfg(feature = "runtime-tokio")]
+    {
+        if ::tokio::runtime::Handle::try_current().is_ok() {
+            todo!()
+            // return Some(Arc::new(TokioRuntime));
+        }
+    }
     todo!()
 }
