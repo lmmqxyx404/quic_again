@@ -14,6 +14,8 @@ ring = ["proto/ring"]
 [dependencies]
 tracing = { workspace = true }
 proto = { package = "scratch-quinn-proto", path = "../quinn-proto", version = "*", default-features = false }
+# used for `Endpoint::client`
+socket2 = { workspace = true }
 
 [dev-dependencies]
 tracing-subscriber = { workspace = true }
