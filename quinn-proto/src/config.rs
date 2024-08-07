@@ -423,13 +423,15 @@ impl TransportConfig {
     /// if set to `None`, the local side still supports the acknowledgement frequency QUIC
     /// extension and may use it in other ways.
     pub fn ack_frequency_config(&mut self, value: Option<AckFrequencyConfig>) -> &mut Self {
-        todo!()
+        self.ack_frequency_config = value;
+        self
     }
     /// Specifies the MTU discovery config (see [`MtuDiscoveryConfig`] for details).
     ///
     /// Enabled by default.
     pub fn mtu_discovery_config(&mut self, value: Option<MtuDiscoveryConfig>) -> &mut Self {
-        todo!()
+        self.mtu_discovery_config = value;
+        self
     }
 }
 
@@ -506,7 +508,8 @@ impl AckFrequencyConfig {
     ///
     /// Defaults to 1, which sends ACK frames for every other ack-eliciting packet.
     pub fn ack_eliciting_threshold(&mut self, value: VarInt) -> &mut Self {
-        todo!()
+        self.ack_eliciting_threshold = value;
+        self
     }
     /// The `max_ack_delay` we will request the peer to use
     ///
@@ -519,7 +522,8 @@ impl AckFrequencyConfig {
     /// Defaults to `None`, in which case the peer's original `max_ack_delay` will be used, as
     /// obtained from its transport parameters.
     pub fn max_ack_delay(&mut self, value: Option<Duration>) -> &mut Self {
-        todo!()
+        self.max_ack_delay = value;
+        self
     }
 }
 impl Default for AckFrequencyConfig {

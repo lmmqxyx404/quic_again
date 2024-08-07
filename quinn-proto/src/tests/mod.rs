@@ -2645,6 +2645,64 @@ fn setup_ack_frequency_test(max_ack_delay: Duration) -> (Pair, ConnectionHandle,
     (pair, client_ch, server_ch)
 }
 
+/// Verify that max ACK delay is counted from the first ACK-eliciting packet
+#[test]
+fn ack_frequency_ack_delayed_from_first_of_flight() {
+    let _guard = subscribe();
+    let (mut pair, client_ch, server_ch) = setup_ack_frequency_test(Duration::from_millis(30));
+
+    // The client sends the following frames:
+    //
+    // * 0 ms: ping
+    // * 5 ms: ping x2
+    pair.client_conn_mut(client_ch).ping();
+    pair.drive_client();
+
+    pair.time += Duration::from_millis(5);
+    for _ in 0..2 {
+        pair.client_conn_mut(client_ch).ping();
+        pair.drive_client();
+    }
+
+    pair.time += Duration::from_millis(5);
+    // Server: receive the first ping and send no ACK
+    let server_stats_before = pair.server_conn_mut(server_ch).stats();
+    pair.drive_server();
+    let server_stats_after = pair.server_conn_mut(server_ch).stats();
+    assert_eq!(
+        server_stats_after.frame_rx.ping - server_stats_before.frame_rx.ping,
+        1
+    );
+    assert_eq!(
+        server_stats_after.frame_tx.acks - server_stats_before.frame_tx.acks,
+        0
+    );
+
+    // Server: receive the second and third pings and send no ACK
+    pair.time += Duration::from_millis(10);
+    let server_stats_before = pair.server_conn_mut(server_ch).stats();
+    pair.drive_server();
+    let server_stats_after = pair.server_conn_mut(server_ch).stats();
+    assert_eq!(
+        server_stats_after.frame_rx.ping - server_stats_before.frame_rx.ping,
+        2
+    );
+    assert_eq!(
+        server_stats_after.frame_tx.acks - server_stats_before.frame_tx.acks,
+        0
+    );
+
+    // Server: Send an ACK after ACK delay expires
+    pair.time += Duration::from_millis(20);
+    let server_stats_before = pair.server_conn_mut(server_ch).stats();
+    pair.drive_server();
+    let server_stats_after = pair.server_conn_mut(server_ch).stats();
+    assert_eq!(
+        server_stats_after.frame_tx.acks - server_stats_before.frame_tx.acks,
+        1
+    );
+}
+
 fn stream_chunks(mut recv: RecvStream) -> Vec<u8> {
     let mut buf = Vec::new();
 
