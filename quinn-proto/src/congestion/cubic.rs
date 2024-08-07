@@ -135,6 +135,9 @@ impl Controller for Cubic {
         self.window = self.ssthresh;
         self.cubic_state.k = self.cubic_state.cubic_k(self.current_mtu);
 
+        // todo
+        // self.cubic_state.cwnd_inc = (self.cubic_state.cwnd_inc as f64 * BETA_CUBIC) as u64;
+
         if is_persistent_congestion {
             todo!()
         }

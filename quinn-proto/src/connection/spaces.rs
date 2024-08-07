@@ -670,12 +670,12 @@ impl PendingAcks {
         // new packet, which is suboptimal, because we already received them. Our assumption here is
         // that simplicity results in code that is more performant, even in the presence of
         // occasional redundant retransmits.
-        // todo
+        // todo:finished
         self.immediate_ack_required = false;
         self.ack_eliciting_since_last_ack_sent = 0;
         self.non_ack_eliciting_since_last_ack_sent = 0;
         self.earliest_ack_eliciting_since_last_ack_sent = None;
-        // self.largest_acked = self.largest_ack_eliciting_packet;
+        self.largest_acked = self.largest_ack_eliciting_packet;
     }
     /// 5. Queue an ACK if a significant number of non-ACK-eliciting packets have not yet been
     /// acknowledged
@@ -780,7 +780,18 @@ impl PendingAcks {
                 else {
                     return false;
                 };
-                todo!()
+                if self.reordering_threshold > largest_acked {
+                    return false;
+                }
+                // The largest packet number that could be declared lost without a new ACK being
+                // sent
+                let largest_reported = largest_acked - self.reordering_threshold + 1;
+                let Some(smallest_missing_unreported) =
+                    dedup.smallest_missing_in_interval(largest_reported, largest_unacked)
+                else {
+                    return false;
+                };
+                largest_unacked - smallest_missing_unreported >= self.reordering_threshold
             }
         }
     }

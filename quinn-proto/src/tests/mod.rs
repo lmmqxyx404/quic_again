@@ -2845,6 +2845,58 @@ fn ack_frequency_ack_sent_after_reordered_packets_below_threshold() {
     );
 }
 
+#[test]
+fn ack_frequency_ack_sent_after_reordered_packets_above_threshold() {
+    let _guard = subscribe();
+    let max_ack_delay = Duration::from_millis(30);
+    let (mut pair, client_ch, server_ch) = setup_ack_frequency_test(max_ack_delay);
+
+    // Send a ping
+    pair.client_conn_mut(client_ch).ping();
+    pair.drive_client();
+
+    // Send and lose two ack-eliciting packets
+    pair.time += Duration::from_millis(5);
+    pair.mtu = 0;
+    for _ in 0..2 {
+        pair.client_conn_mut(client_ch).ping();
+        pair.drive_client();
+    }
+
+    // Restore the default MTU and send another ping, which will arrive earlier than the dropped ones
+    pair.mtu = DEFAULT_MTU;
+    pair.client_conn_mut(client_ch).ping();
+    pair.drive_client();
+
+    // Server: receive first ping, send no ACK
+    pair.time += Duration::from_millis(5);
+    let server_stats_before = pair.server_conn_mut(server_ch).stats();
+    pair.drive_server();
+    let server_stats_after = pair.server_conn_mut(server_ch).stats();
+    assert_eq!(
+        server_stats_after.frame_rx.ping - server_stats_before.frame_rx.ping,
+        1
+    );
+    assert_eq!(
+        server_stats_after.frame_tx.acks - server_stats_before.frame_tx.acks,
+        0
+    );
+
+    // Server: receive remaining ping, send ACK
+    pair.time += Duration::from_millis(5);
+    let server_stats_before = pair.server_conn_mut(server_ch).stats();
+    pair.drive_server();
+    let server_stats_after = pair.server_conn_mut(server_ch).stats();
+    assert_eq!(
+        server_stats_after.frame_rx.ping - server_stats_before.frame_rx.ping,
+        1
+    );
+    assert_eq!(
+        server_stats_after.frame_tx.acks - server_stats_before.frame_tx.acks,
+        1
+    );
+}
+
 fn stream_chunks(mut recv: RecvStream) -> Vec<u8> {
     let mut buf = Vec::new();
 
