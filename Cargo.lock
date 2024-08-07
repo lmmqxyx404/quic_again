@@ -331,6 +331,10 @@ dependencies = [
 [[package]]
 name = "scratch-quinn"
 version = "0.1.0"
+dependencies = [
+ "tracing",
+ "tracing-subscriber",
+]
 
 [[package]]
 name = "scratch-quinn-proto"

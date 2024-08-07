@@ -7,3 +7,7 @@ edition = "2021"
 all-features = true
 
 [dependencies]
+tracing = { workspace = true }
+
+[dev-dependencies]
+tracing-subscriber = { workspace = true }
