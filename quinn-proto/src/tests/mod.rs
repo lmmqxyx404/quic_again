@@ -90,8 +90,7 @@ fn version_negotiate_client() {
         .connect(Instant::now(), client_config(), server_addr, "localhost")
         .unwrap();
     let now = Instant::now();
-    let mut buf: Vec<u8> = Vec::with_capacity(client.config().get_max_udp_payload_size() as usize);
-
+    let mut buf = Vec::with_capacity(client.config().get_max_udp_payload_size() as usize);
     let opt_event = client.handle(
         now,
         server_addr,
@@ -133,7 +132,7 @@ fn lifecycle() {
         VarInt(42),
         REASON.into(),
     );
-    // note, 主动更新状态
+
     pair.drive();
     assert_matches!(pair.server_conn_mut(server_ch).poll(),
     Some(Event::ConnectionLost { reason: ConnectionError::ApplicationClosed(
@@ -152,6 +151,7 @@ fn draft_version_compat() {
 
     let mut client_config = client_config();
     client_config.version(0xff00_0020);
+
     let mut pair = Pair::default();
     let (client_ch, server_ch) = pair.connect_with(client_config);
 
@@ -183,7 +183,17 @@ fn stateless_retry() {
     let _guard = subscribe();
     let mut pair = Pair::default();
     pair.server.incoming_connection_behavior = IncomingConnectionBehavior::Validate;
-    pair.connect();
+    let (client_ch, _server_ch) = pair.connect();
+    pair.client
+        .connections
+        .get_mut(&client_ch)
+        .unwrap()
+        .close(pair.time, VarInt(42), Bytes::new());
+    pair.drive();
+    assert_eq!(pair.client.known_connections(), 0);
+    assert_eq!(pair.client.known_cids(), 0);
+    assert_eq!(pair.server.known_connections(), 0);
+    assert_eq!(pair.server.known_cids(), 0);
 }
 
 #[test]
@@ -204,7 +214,6 @@ fn server_stateless_reset() {
     pair.drive(); // Flush any post-handshake frames
     pair.server.endpoint =
         Endpoint::new(endpoint_config, Some(Arc::new(server_config())), true, None);
-
     // Force the server to generate the smallest possible stateless reset
     pair.client.connections.get_mut(&client_ch).unwrap().ping();
     info!("resetting");
@@ -329,6 +338,7 @@ fn finish_stream_simple() {
     assert_eq!(pair.client_streams(client_ch).send_streams(), 1);
     pair.client_send(client_ch, s).finish().unwrap();
     pair.drive();
+
     assert_matches!(
         pair.client_conn_mut(client_ch).poll(),
         Some(Event::Stream(StreamEvent::Finished { id })) if id == s
@@ -347,12 +357,10 @@ fn finish_stream_simple() {
 
     let mut recv = pair.server_recv(server_ch, s);
     let mut chunks = recv.read(false).unwrap();
-
     assert_matches!(
         chunks.next(usize::MAX),
         Ok(Some(chunk)) if chunk.offset == 0 && chunk.bytes == MSG
     );
-
     assert_matches!(chunks.next(usize::MAX), Ok(None));
     let _ = chunks.finalize();
 }
@@ -372,13 +380,12 @@ fn reset_stream() {
     info!("resetting stream");
     const ERROR: VarInt = VarInt(42);
     pair.client_send(client_ch, s).reset(ERROR).unwrap();
-
     pair.drive();
+
     assert_matches!(
         pair.server_conn_mut(server_ch).poll(),
         Some(Event::Stream(StreamEvent::Opened { dir: Dir::Uni }))
     );
-
     assert_matches!(pair.server_streams(server_ch).accept(Dir::Uni), Some(stream) if stream == s);
     let mut recv = pair.server_recv(server_ch, s);
     let mut chunks = recv.read(false).unwrap();
@@ -413,7 +420,6 @@ fn stop_stream() {
         pair.client_send(client_ch, s).write(b"foo"),
         Err(WriteError::Stopped(ERROR))
     );
-
     assert_matches!(
         pair.client_send(client_ch, s).finish(),
         Err(FinishError::Stopped(ERROR))
@@ -2474,6 +2480,7 @@ fn single_ack_eliciting_packet_triggers_ack_after_delay() {
         stats_after_drive.frame_rx.acks - stats_after_ping.frame_rx.acks,
         1
     );
+
     // The time is start + max_ack_delay
     let default_max_ack_delay_ms = TransportParameters::default().max_ack_delay.into_inner();
     assert_eq!(
