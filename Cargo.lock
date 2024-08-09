@@ -447,6 +447,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "scratch-quinn-udp"
+version = "0.1.0"
+
+[[package]]
 name = "serde"
 version = "1.0.203"
 source = "registry+https://github.com/rust-lang/crates.io-index"
