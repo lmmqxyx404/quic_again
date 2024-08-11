@@ -1,6 +1,6 @@
 use std::{io, mem};
 
-use crate::UdpSockRef;
+use crate::{cmsg, UdpSockRef};
 
 /// Tokio-compatible UDP socket with some useful specializations.
 ///
@@ -31,6 +31,10 @@ impl UdpSocketState {
                     + cmsg_platform_space
         );
 
+        assert!(
+            mem::align_of::<libc::cmsghdr>() <= mem::align_of::<cmsg::Aligned<[u8; 0]>>(),
+            "control message buffers will be misaligned"
+        );
         todo!()
     }
 }

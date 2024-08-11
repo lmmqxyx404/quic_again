@@ -5,6 +5,9 @@ use std::os::unix::io::AsFd;
 #[path = "unix.rs"]
 mod imp;
 
+#[cfg(any(unix, windows))]
+mod cmsg;
+
 pub use imp::UdpSocketState;
 
 /// A borrowed UDP socket
