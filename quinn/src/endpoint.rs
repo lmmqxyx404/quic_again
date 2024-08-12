@@ -6,6 +6,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 use tokio::sync::mpsc;
+use tracing::{Instrument, Span};
 use udp::BATCH_SIZE;
 
 #[cfg(feature = "ring")]
@@ -81,7 +82,7 @@ impl Endpoint {
             runtime.clone(),
         );
         let driver = EndpointDriver(rc.clone());
-
+        runtime.spawn(Box::pin(async { todo!() }.instrument(Span::current())));
         todo!()
     }
 }

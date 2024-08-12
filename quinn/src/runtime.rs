@@ -1,4 +1,4 @@
-use std::{fmt::Debug, io, net::SocketAddr, sync::Arc};
+use std::{fmt::Debug, future::Future, io, net::SocketAddr, pin::Pin, sync::Arc};
 
 #[cfg(feature = "runtime-tokio")]
 mod tokio;
@@ -9,6 +9,8 @@ pub use self::tokio::TokioRuntime;
 pub trait Runtime: Send + Sync + Debug + 'static {
     /// 1. Convert `t` into the socket type used by this runtime
     fn wrap_udp_socket(&self, t: std::net::UdpSocket) -> io::Result<Arc<dyn AsyncUdpSocket>>;
+    /// 2. Drive `future` to completion in the background
+    fn spawn(&self, future: Pin<Box<dyn Future<Output = ()> + Send>>);
 }
 
 /// Automatically select an appropriate runtime from those enabled at compile time
