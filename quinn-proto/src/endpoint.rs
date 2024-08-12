@@ -974,6 +974,11 @@ pub enum ConnectError {
     /// Indicates that a necessary component of the endpoint has been dropped or otherwise disabled.
     #[error("endpoint stopping")]
     EndpointStopping,
+    /// 4. The remote [`SocketAddr`] supplied was malformed
+    ///
+    /// Examples include attempting to connect to port 0, or using an inappropriate address family.
+    #[error("invalid remote address: {0}")]
+    InvalidRemoteAddress(SocketAddr),
 }
 
 /// 4. connection meta data

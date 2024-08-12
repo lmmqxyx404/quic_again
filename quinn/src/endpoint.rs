@@ -120,6 +120,9 @@ impl Endpoint {
         if endpoint.driver_lost || endpoint.recv_state.connections.close.is_some() {
             return Err(ConnectError::EndpointStopping);
         }
+        if addr.is_ipv6() && !endpoint.ipv6 {
+            return Err(ConnectError::InvalidRemoteAddress(addr));
+        }
         todo!()
     }
 }
@@ -147,6 +150,7 @@ impl EndpointRef {
                 runtime,
                 driver_lost: false,
                 recv_state,
+                ipv6,
             }),
         }))
     }
@@ -210,6 +214,8 @@ pub(crate) struct State {
     driver_lost: bool,
     /// 5.
     recv_state: RecvState,
+    /// 6. support or not
+    ipv6: bool,
 }
 
 #[derive(Debug)]
