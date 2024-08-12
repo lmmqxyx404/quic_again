@@ -419,6 +419,7 @@ dependencies = [
 name = "scratch-quinn"
 version = "0.1.0"
 dependencies = [
+ "bytes",
  "rcgen",
  "rustls",
  "scratch-quinn-proto",

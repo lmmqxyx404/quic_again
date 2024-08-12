@@ -969,6 +969,11 @@ pub enum ConnectError {
     /// 2. The given server name was malformed
     #[error("invalid server name: {0}")]
     InvalidServerName(String),
+    /// 3. The endpoint can no longer create new connections
+    ///
+    /// Indicates that a necessary component of the endpoint has been dropped or otherwise disabled.
+    #[error("endpoint stopping")]
+    EndpointStopping,
 }
 
 /// 4. connection meta data

@@ -1,5 +1,7 @@
+use bytes::Bytes;
 use proto::{
     ClientConfig, ConnectError, ConnectionHandle, EndpointConfig, EndpointEvent, ServerConfig,
+    VarInt,
 };
 use socket2::{Domain, Protocol, Socket, Type};
 use std::{
@@ -115,6 +117,9 @@ impl Endpoint {
         server_name: &str,
     ) -> Result<Connecting, ConnectError> {
         let mut endpoint = self.inner.state.lock().unwrap();
+        if endpoint.driver_lost || endpoint.recv_state.connections.close.is_some() {
+            return Err(ConnectError::EndpointStopping);
+        }
         todo!()
     }
 }
@@ -140,6 +145,8 @@ impl EndpointRef {
                 ref_count: 0,
                 driver: None,
                 runtime,
+                driver_lost: false,
+                recv_state,
             }),
         }))
     }
@@ -169,7 +176,9 @@ impl std::ops::Deref for EndpointRef {
 
 /// State directly involved in handling incoming packets
 #[derive(Debug)]
-struct RecvState {}
+struct RecvState {
+    connections: ConnectionSet,
+}
 
 impl RecvState {
     fn new(
@@ -183,7 +192,9 @@ impl RecvState {
                 * max_receive_segments
                 * BATCH_SIZE
         ];
-        Self {}
+        Self {
+            connections: ConnectionSet { close: None },
+        }
     }
 }
 
@@ -195,6 +206,10 @@ pub(crate) struct State {
     driver: Option<Waker>,
     /// 3.
     runtime: Arc<dyn Runtime>,
+    /// 4.
+    driver_lost: bool,
+    /// 5.
+    recv_state: RecvState,
 }
 
 #[derive(Debug)]
@@ -246,4 +261,10 @@ impl Future for EndpointDriver {
 
         todo!()
     }
+}
+
+#[derive(Debug)]
+struct ConnectionSet {
+    /// 1. Set if the endpoint has been manually closed
+    close: Option<(VarInt, Bytes)>,
 }

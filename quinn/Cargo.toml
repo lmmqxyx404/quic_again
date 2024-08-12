@@ -26,6 +26,7 @@ udp = { package = "scratch-quinn-udp", path = "../quinn-udp", version = "*", def
 ] }
 # 
 rustls = { workspace = true, optional = true }
+bytes = { workspace = true }
 
 [dev-dependencies]
 tracing-subscriber = { workspace = true }
