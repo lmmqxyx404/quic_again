@@ -1,6 +1,10 @@
 use proto::{ConnectionHandle, EndpointConfig, EndpointEvent, ServerConfig};
 use socket2::{Domain, Protocol, Socket, Type};
-use std::{io, net::SocketAddr, sync::Arc};
+use std::{
+    io,
+    net::SocketAddr,
+    sync::{Arc, Mutex},
+};
 use tokio::sync::mpsc;
 use udp::BATCH_SIZE;
 
@@ -92,11 +96,16 @@ impl EndpointRef {
     ) -> Self {
         let (sender, events) = mpsc::unbounded_channel();
         let recv_state = RecvState::new(sender, socket.max_receive_segments(), &inner);
-        todo!()
+        Self(Arc::new(EndpointInner {
+            state: Mutex::new(State { ref_count: 0 }),
+        }))
     }
 }
+
 #[derive(Debug)]
-pub(crate) struct EndpointInner {}
+pub(crate) struct EndpointInner {
+    pub(crate) state: Mutex<State>,
+}
 
 /// State directly involved in handling incoming packets
 #[derive(Debug)]
@@ -116,4 +125,10 @@ impl RecvState {
         ];
         Self {}
     }
+}
+
+#[derive(Debug)]
+pub(crate) struct State {
+    /// 1. Number of live handles that can be used to initiate or handle I/O; excludes the driver
+    ref_count: usize,
 }
