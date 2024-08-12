@@ -1,9 +1,12 @@
 use proto::{ConnectionHandle, EndpointConfig, EndpointEvent, ServerConfig};
 use socket2::{Domain, Protocol, Socket, Type};
 use std::{
+    future::Future,
     io,
     net::SocketAddr,
+    pin::Pin,
     sync::{Arc, Mutex},
+    task::{Context, Poll},
 };
 use tokio::sync::mpsc;
 use tracing::{Instrument, Span};
@@ -82,7 +85,14 @@ impl Endpoint {
             runtime.clone(),
         );
         let driver = EndpointDriver(rc.clone());
-        runtime.spawn(Box::pin(async { todo!() }.instrument(Span::current())));
+        runtime.spawn(Box::pin(
+            async {
+                if let Err(e) = driver.await {
+                    tracing::error!("I/O error: {}", e);
+                }
+            }
+            .instrument(Span::current()),
+        ));
         todo!()
     }
 }
@@ -156,3 +166,14 @@ pub(crate) struct State {
 #[must_use = "endpoint drivers must be spawned for I/O to occur"]
 #[derive(Debug)]
 pub(crate) struct EndpointDriver(pub(crate) EndpointRef);
+
+impl Future for EndpointDriver {
+    type Output = Result<(), io::Error>;
+
+    #[allow(unused_mut)] // MSRV
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Self::Output> {
+        // let mut endpoint = self.0.state.lock().unwrap();
+
+        todo!()
+    }
+}
