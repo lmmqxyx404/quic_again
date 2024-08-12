@@ -127,6 +127,13 @@ pub(crate) struct EndpointInner {
     pub(crate) state: Mutex<State>,
 }
 
+impl std::ops::Deref for EndpointRef {
+    type Target = EndpointInner;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 /// State directly involved in handling incoming packets
 #[derive(Debug)]
 struct RecvState {}
@@ -172,7 +179,7 @@ impl Future for EndpointDriver {
 
     #[allow(unused_mut)] // MSRV
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Self::Output> {
-        // let mut endpoint = self.0.state.lock().unwrap();
+        let mut endpoint = self.0.state.lock().unwrap();
 
         todo!()
     }
