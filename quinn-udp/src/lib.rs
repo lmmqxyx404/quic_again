@@ -32,3 +32,6 @@ where
         Self(socket.into())
     }
 }
+
+/// Number of UDP packets to send/receive at a time
+pub const BATCH_SIZE: usize = imp::BATCH_SIZE;

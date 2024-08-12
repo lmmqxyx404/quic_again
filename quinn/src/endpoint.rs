@@ -2,6 +2,7 @@ use proto::{ConnectionHandle, EndpointConfig, EndpointEvent, ServerConfig};
 use socket2::{Domain, Protocol, Socket, Type};
 use std::{io, net::SocketAddr, sync::Arc};
 use tokio::sync::mpsc;
+use udp::BATCH_SIZE;
 
 #[cfg(feature = "ring")]
 use crate::runtime::default_runtime;
@@ -107,6 +108,12 @@ impl RecvState {
         max_receive_segments: usize,
         endpoint: &proto::Endpoint,
     ) -> Self {
-        todo!()
+        let recv_buf = vec![
+            0;
+            endpoint.config().get_max_udp_payload_size().min(64 * 1024) as usize
+                * max_receive_segments
+                * BATCH_SIZE
+        ];
+        Self {}
     }
 }

@@ -216,3 +216,9 @@ mod gro {
         }
     }
 }
+
+
+#[cfg(not(any(target_os = "macos", target_os = "ios")))]
+/// Chosen somewhat arbitrarily; might benefit from additional tuning.
+/// todo: add the macos condition.
+pub(crate) const BATCH_SIZE: usize = 32;
