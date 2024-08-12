@@ -17,6 +17,9 @@ fn handshake_timeout() {
         let _guard = runtime.enter();
         Endpoint::client(SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0)).unwrap()
     };
+
+    // Avoid NoRootAnchors error
+    let cert = rcgen::generate_simple_self_signed(vec!["localhost".into()]).unwrap();
     todo!()
 }
 

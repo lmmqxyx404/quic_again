@@ -31,3 +31,4 @@ tokio = { workspace = true, features = [
   "time",
   "macros",
 ] }
+rcgen = { workspace = true }

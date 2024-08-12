@@ -94,7 +94,7 @@ impl Endpoint {
             }
             .instrument(Span::current()),
         ));
-        todo!()
+        Ok(Self {})
     }
 }
 
