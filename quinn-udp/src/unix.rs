@@ -9,7 +9,10 @@ use crate::{cmsg, UdpSockRef};
 /// Unlike a standard tokio UDP socket, this allows ECN bits to be read and written on some
 /// platforms.
 #[derive(Debug)]
-pub struct UdpSocketState {}
+pub struct UdpSocketState {
+    /// 1.
+    may_fragment: bool,
+}
 
 impl UdpSocketState {
     pub fn new(sock: UdpSockRef<'_>) -> io::Result<Self> {
@@ -113,7 +116,14 @@ impl UdpSocketState {
         }
 
         let now = Instant::now();
-        Ok(Self {})
+        Ok(Self { may_fragment })
+    }
+    /// 2. Whether transmitted datagrams might get fragmented by the IP layer
+    ///
+    /// Returns `false` on targets which employ e.g. the `IPV6_DONTFRAG` socket option.
+    #[inline]
+    pub fn may_fragment(&self) -> bool {
+        self.may_fragment
     }
 }
 

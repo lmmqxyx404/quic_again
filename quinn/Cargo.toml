@@ -18,7 +18,11 @@ proto = { package = "scratch-quinn-proto", path = "../quinn-proto", version = "*
 # used for `Endpoint::client`
 socket2 = { workspace = true }
 tokio = { workspace = true }
-
+# 重命名引入的包
+udp = { package = "scratch-quinn-udp", path = "../quinn-udp", version = "*", default-features = false, features = [
+  "tracing",
+] }
+# 
 [dev-dependencies]
 tracing-subscriber = { workspace = true }
 tokio = { workspace = true, features = [

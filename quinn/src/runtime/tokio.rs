@@ -9,6 +9,7 @@ pub struct TokioRuntime;
 impl Runtime for TokioRuntime {
     fn wrap_udp_socket(&self, sock: std::net::UdpSocket) -> io::Result<Arc<dyn AsyncUdpSocket>> {
         Ok(Arc::new(UdpSocket {
+            inner: udp::UdpSocketState::new((&sock).into())?,
             io: tokio::net::UdpSocket::from_std(sock)?,
         }))
     }
@@ -17,6 +18,7 @@ impl Runtime for TokioRuntime {
 #[derive(Debug)]
 struct UdpSocket {
     io: tokio::net::UdpSocket,
+    inner: udp::UdpSocketState,
 }
 
 impl AsyncUdpSocket for UdpSocket {
@@ -24,8 +26,7 @@ impl AsyncUdpSocket for UdpSocket {
         self.io.local_addr()
     }
     fn may_fragment(&self) -> bool {
-        todo!()
-        // self.inner.may_fragment()
+        self.inner.may_fragment()
     }
 
     fn max_receive_segments(&self) -> usize {
