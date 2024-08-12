@@ -4,6 +4,10 @@ version = "0.1.0"
 edition = "2021"
 workspace = ".."
 
+[features]
+default = ["tracing"]
+
 [dependencies]
 socket2 = { workspace = true }
 libc = "0.2.113"
+tracing = { workspace = true, optional = true }

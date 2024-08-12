@@ -420,7 +420,6 @@ name = "scratch-quinn"
 version = "0.1.0"
 dependencies = [
  "scratch-quinn-proto",
- "scratch-quinn-udp",
  "socket2",
  "tokio",
  "tracing",
@@ -453,6 +452,7 @@ version = "0.1.0"
 dependencies = [
  "libc",
  "socket2",
+ "tracing",
 ]
 
 [[package]]

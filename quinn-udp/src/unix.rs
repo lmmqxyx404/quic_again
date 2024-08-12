@@ -1,4 +1,6 @@
-use std::{io, mem};
+use std::{io, mem, os::fd::AsRawFd};
+
+use tracing::debug;
 
 use crate::{cmsg, UdpSockRef};
 
@@ -35,8 +37,35 @@ impl UdpSocketState {
             mem::align_of::<libc::cmsghdr>() <= mem::align_of::<cmsg::Aligned<[u8; 0]>>(),
             "control message buffers will be misaligned"
         );
+
+        io.set_nonblocking(true)?;
+
+        let addr = io.local_addr()?;
+        let is_ipv4 = addr.family() == libc::AF_INET as libc::sa_family_t;
+
+        // mac and ios do not support IP_RECVTOS on dual-stack sockets :(
+        // older macos versions also don't have the flag and will error out if we don't ignore it
+        #[cfg(not(any(target_os = "openbsd", target_os = "netbsd")))]
+        if is_ipv4 || !io.only_v6()? {
+            if let Err(_err) =
+                set_socket_option(&*io, libc::IPPROTO_IP, libc::IP_RECVTOS, OPTION_ON)
+            {
+                debug!("Ignoring error setting IP_RECVTOS on socket: {_err:?}");
+            }
+        }
         todo!()
     }
 }
 
 const CMSG_LEN: usize = 88;
+
+fn set_socket_option(
+    socket: &impl AsRawFd,
+    level: libc::c_int,
+    name: libc::c_int,
+    value: libc::c_int,
+) -> io::Result<()> {
+    todo!()
+}
+
+const OPTION_ON: libc::c_int = 1;
