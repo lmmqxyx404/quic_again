@@ -227,10 +227,14 @@ impl ClientConfig {
             version: 1,
         }
     }
-
-    /// Set the QUIC version to use
+    /// 2. Set the QUIC version to use
     pub fn version(&mut self, version: u32) -> &mut Self {
         self.version = version;
+        self
+    }
+    /// 3. Set a custom [`TransportConfig`]
+    pub fn transport_config(&mut self, transport: Arc<TransportConfig>) -> &mut Self {
+        self.transport = transport;
         self
     }
 }
@@ -443,6 +447,11 @@ impl TransportConfig {
     /// Enabled by default.
     pub fn mtu_discovery_config(&mut self, value: Option<MtuDiscoveryConfig>) -> &mut Self {
         self.mtu_discovery_config = value;
+        self
+    }
+    /// The RTT used before an RTT sample is taken
+    pub fn initial_rtt(&mut self, value: Duration) -> &mut Self {
+        self.initial_rtt = value;
         self
     }
 }
