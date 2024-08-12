@@ -1,4 +1,4 @@
-use std::{future::Future, io, pin::Pin, sync::Arc};
+use std::{future::Future, io, pin::Pin, sync::Arc, time::Instant};
 
 use super::{AsyncUdpSocket, Runtime};
 
@@ -16,6 +16,10 @@ impl Runtime for TokioRuntime {
 
     fn spawn(&self, future: Pin<Box<dyn Future<Output = ()> + Send>>) {
         tokio::spawn(future);
+    }
+
+    fn now(&self) -> Instant {
+        tokio::time::Instant::now().into_std()
     }
 }
 

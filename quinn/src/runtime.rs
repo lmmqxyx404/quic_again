@@ -1,4 +1,4 @@
-use std::{fmt::Debug, future::Future, io, net::SocketAddr, pin::Pin, sync::Arc};
+use std::{fmt::Debug, future::Future, io, net::SocketAddr, pin::Pin, sync::Arc, time::Instant};
 
 #[cfg(feature = "runtime-tokio")]
 mod tokio;
@@ -11,6 +11,12 @@ pub trait Runtime: Send + Sync + Debug + 'static {
     fn wrap_udp_socket(&self, t: std::net::UdpSocket) -> io::Result<Arc<dyn AsyncUdpSocket>>;
     /// 2. Drive `future` to completion in the background
     fn spawn(&self, future: Pin<Box<dyn Future<Output = ()> + Send>>);
+    /// 3. Look up the current time
+    ///
+    /// Allows simulating the flow of time for testing.
+    fn now(&self) -> Instant {
+        Instant::now()
+    }
 }
 
 /// Automatically select an appropriate runtime from those enabled at compile time

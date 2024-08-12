@@ -6,7 +6,7 @@ use std::{
     net::SocketAddr,
     pin::Pin,
     sync::{Arc, Mutex},
-    task::{Context, Poll},
+    task::{Context, Poll, Waker},
 };
 use tokio::sync::mpsc;
 use tracing::{Instrument, Span};
@@ -110,7 +110,11 @@ impl EndpointRef {
         let (sender, events) = mpsc::unbounded_channel();
         let recv_state = RecvState::new(sender, socket.max_receive_segments(), &inner);
         Self(Arc::new(EndpointInner {
-            state: Mutex::new(State { ref_count: 0 }),
+            state: Mutex::new(State {
+                ref_count: 0,
+                driver: None,
+                runtime,
+            }),
         }))
     }
 }
@@ -158,6 +162,10 @@ impl RecvState {
 pub(crate) struct State {
     /// 1. Number of live handles that can be used to initiate or handle I/O; excludes the driver
     ref_count: usize,
+    /// 2.
+    driver: Option<Waker>,
+    /// 3.
+    runtime: Arc<dyn Runtime>,
 }
 
 /// A future that drives IO on an endpoint
@@ -180,6 +188,12 @@ impl Future for EndpointDriver {
     #[allow(unused_mut)] // MSRV
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Self::Output> {
         let mut endpoint = self.0.state.lock().unwrap();
+        if endpoint.driver.is_none() {
+            endpoint.driver = Some(cx.waker().clone());
+        }
+
+        let now = endpoint.runtime.now();
+        let mut keep_going = false;
 
         todo!()
     }
