@@ -7,8 +7,9 @@ use std::{
     pin::Pin,
     sync::{Arc, Mutex},
     task::{Context, Poll, Waker},
+    time::Instant,
 };
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, Notify};
 use tracing::{Instrument, Span};
 use udp::BATCH_SIZE;
 
@@ -110,6 +111,10 @@ impl EndpointRef {
         let (sender, events) = mpsc::unbounded_channel();
         let recv_state = RecvState::new(sender, socket.max_receive_segments(), &inner);
         Self(Arc::new(EndpointInner {
+            shared: Shared {
+                incoming: Notify::new(),
+                idle: Notify::new(),
+            },
             state: Mutex::new(State {
                 ref_count: 0,
                 driver: None,
@@ -128,7 +133,10 @@ impl Clone for EndpointRef {
 
 #[derive(Debug)]
 pub(crate) struct EndpointInner {
+    /// 1
     pub(crate) state: Mutex<State>,
+    /// 2.
+    pub(crate) shared: Shared,
 }
 
 impl std::ops::Deref for EndpointRef {
@@ -168,6 +176,23 @@ pub(crate) struct State {
     runtime: Arc<dyn Runtime>,
 }
 
+#[derive(Debug)]
+pub(crate) struct Shared {
+    incoming: Notify,
+    idle: Notify,
+}
+
+impl State {
+    /// 1.
+    fn drive_recv(&mut self, cx: &mut Context, now: Instant) -> Result<bool, io::Error> {
+        todo!()
+    }
+    /// 2.
+    fn handle_events(&mut self, cx: &mut Context, shared: &Shared) -> bool {
+        todo!()
+    }
+}
+
 /// A future that drives IO on an endpoint
 ///
 /// This task functions as the switch point between the UDP socket object and the
@@ -194,6 +219,9 @@ impl Future for EndpointDriver {
 
         let now = endpoint.runtime.now();
         let mut keep_going = false;
+
+        keep_going |= endpoint.drive_recv(cx, now)?;
+        keep_going |= endpoint.handle_events(cx, &self.0.shared);
 
         todo!()
     }
