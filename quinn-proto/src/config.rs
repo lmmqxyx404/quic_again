@@ -5,6 +5,7 @@ use std::{
 };
 
 use rand::RngCore;
+use rustls::client::WebPkiServerVerifier;
 
 use crate::{
     cid_generator::HashedConnectionIdGenerator,
@@ -234,6 +235,17 @@ impl ClientConfig {
     }
 }
 
+#[cfg(feature = "rustls")]
+impl ClientConfig {
+    /// Create a client configuration that trusts specified trust anchors
+    pub fn with_root_certificates(
+        roots: Arc<rustls::RootCertStore>,
+    ) -> Result<Self, rustls::client::VerifierBuilderError> {
+        Ok(Self::new(Arc::new(crypto::rustls::QuicClientConfig::new(
+            WebPkiServerVerifier::builder(roots).build()?,
+        ))))
+    }
+}
 /// Parameters governing MTU discovery.
 ///
 /// # The why of MTU discovery

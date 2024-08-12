@@ -7,6 +7,7 @@ mod endpoint;
 /// 3.
 mod runtime;
 
-
 #[cfg(feature = "runtime-tokio")]
 pub use crate::runtime::TokioRuntime;
+
+pub use proto::ClientConfig;

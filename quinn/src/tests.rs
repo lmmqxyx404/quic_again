@@ -2,6 +2,7 @@ use core::str;
 use std::{
     io,
     net::{IpAddr, Ipv4Addr, SocketAddr},
+    sync::Arc,
 };
 
 use rustls::RootCertStore;
@@ -24,6 +25,7 @@ fn handshake_timeout() {
     let mut roots = RootCertStore::empty();
     roots.add(cert.cert.into()).unwrap();
 
+    let mut client_config = crate::ClientConfig::with_root_certificates(Arc::new(roots)).unwrap();
     todo!()
 }
 

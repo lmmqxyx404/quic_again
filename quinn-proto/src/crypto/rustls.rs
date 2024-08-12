@@ -81,6 +81,20 @@ impl QuicClientConfig {
         config.enable_early_data = true;
         config
     }
+
+    /// Initialize a sane QUIC-compatible TLS client configuration
+    ///
+    /// QUIC requires that TLS 1.3 be enabled. Advanced users can use any [`rustls::ClientConfig`] that
+    /// satisfies this requirement.
+    pub(crate) fn new(verifier: Arc<dyn ServerCertVerifier>) -> Self {
+        let inner = Self::inner(verifier);
+        Self {
+            // We're confident that the *ring* default provider contains TLS13_AES_128_GCM_SHA256
+            initial: initial_suite_from_provider(inner.crypto_provider())
+                .expect("no initial cipher suite found"),
+            inner: Arc::new(inner),
+        }
+    }
 }
 
 impl TryFrom<rustls::ClientConfig> for QuicClientConfig {

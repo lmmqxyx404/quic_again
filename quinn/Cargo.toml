@@ -12,7 +12,8 @@ default = ["ring", "runtime-tokio", "rustls"]
 # Enables `Endpoint::client` and `Endpoint::server` conveniences
 ring = ["proto/ring"]
 runtime-tokio = ["tokio/time", "tokio/rt", "tokio/net"]
-rustls = ["dep:rustls"]
+rustls = ["dep:rustls", "proto/rustls"]
+
 [dependencies]
 tracing = { workspace = true }
 proto = { package = "scratch-quinn-proto", path = "../quinn-proto", version = "*", default-features = false }
