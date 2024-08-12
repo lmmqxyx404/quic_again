@@ -1,6 +1,6 @@
-use std::{io, mem, os::fd::AsRawFd};
+use std::{io, mem, os::fd::AsRawFd, time::Instant};
 
-use tracing::debug;
+use super::log::debug;
 
 use crate::{cmsg, UdpSockRef};
 
@@ -53,7 +53,67 @@ impl UdpSocketState {
                 debug!("Ignoring error setting IP_RECVTOS on socket: {_err:?}");
             }
         }
-        todo!()
+
+        let mut may_fragment = false;
+        #[cfg(any(target_os = "linux", target_os = "android"))]
+        {
+            // opportunistically try to enable GRO. See gro::gro_segments().
+            #[cfg(target_os = "linux")]
+            let _ = set_socket_option(&*io, libc::SOL_UDP, libc::UDP_GRO, OPTION_ON);
+
+            // Forbid IPv4 fragmentation. Set even for IPv6 to account for IPv6 mapped IPv4 addresses.
+            // Set `may_fragment` to `true` if this option is not supported on the platform.
+            may_fragment |= !set_socket_option_supported(
+                &*io,
+                libc::IPPROTO_IP,
+                libc::IP_MTU_DISCOVER,
+                libc::IP_PMTUDISC_PROBE,
+            )?;
+
+            if is_ipv4 {
+                set_socket_option(&*io, libc::IPPROTO_IP, libc::IP_PKTINFO, OPTION_ON)?;
+            } else {
+                // Set `may_fragment` to `true` if this option is not supported on the platform.
+                may_fragment |= !set_socket_option_supported(
+                    &*io,
+                    libc::IPPROTO_IPV6,
+                    libc::IPV6_MTU_DISCOVER,
+                    libc::IP_PMTUDISC_PROBE,
+                )?;
+            }
+        }
+        #[cfg(any(target_os = "freebsd", target_os = "macos", target_os = "ios"))]
+        {
+            todo!()
+        }
+        #[cfg(any(
+            target_os = "freebsd",
+            target_os = "openbsd",
+            target_os = "netbsd",
+            target_os = "macos",
+            target_os = "ios"
+        ))]
+        // IP_RECVDSTADDR == IP_SENDSRCADDR on FreeBSD
+        // macOS uses only IP_RECVDSTADDR, no IP_SENDSRCADDR on macOS
+        // macOS also supports IP_PKTINFO
+        {
+            todo!()
+        }
+
+        // Options standardized in RFC 3542
+        if !is_ipv4 {
+            set_socket_option(&*io, libc::IPPROTO_IPV6, libc::IPV6_RECVPKTINFO, OPTION_ON)?;
+            set_socket_option(&*io, libc::IPPROTO_IPV6, libc::IPV6_RECVTCLASS, OPTION_ON)?;
+            // Linux's IP_PMTUDISC_PROBE allows us to operate under interface MTU rather than the
+            // kernel's path MTU guess, but actually disabling fragmentation requires this too. See
+            // __ip6_append_data in ip6_output.c.
+            // Set `may_fragment` to `true` if this option is not supported on the platform.
+            may_fragment |=
+                !set_socket_option_supported(&*io, libc::IPPROTO_IPV6, IPV6_DONTFRAG, OPTION_ON)?;
+        }
+
+        let now = Instant::now();
+        Ok(Self {})
     }
 }
 
@@ -69,3 +129,24 @@ fn set_socket_option(
 }
 
 const OPTION_ON: libc::c_int = 1;
+
+/// Returns whether the given socket option is supported on the current platform
+///
+/// Yields `Ok(true)` if the option was set successfully, `Ok(false)` if setting
+/// the option raised an `ENOPROTOOPT` error, and `Err` for any other error.
+fn set_socket_option_supported(
+    socket: &impl AsRawFd,
+    level: libc::c_int,
+    name: libc::c_int,
+    value: libc::c_int,
+) -> io::Result<bool> {
+    todo!()
+}
+
+// Defined in netinet6/in6.h on OpenBSD, this is not yet exported by the libc crate
+// directly.  See https://github.com/rust-lang/libc/issues/3704 for when we might be able to
+// rely on this from the libc crate.
+#[cfg(any(target_os = "openbsd", target_os = "netbsd"))]
+const IPV6_DONTFRAG: libc::c_int = 62;
+#[cfg(not(any(target_os = "openbsd", target_os = "netbsd")))]
+const IPV6_DONTFRAG: libc::c_int = libc::IPV6_DONTFRAG;

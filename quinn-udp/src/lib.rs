@@ -8,6 +8,12 @@ mod imp;
 #[cfg(any(unix, windows))]
 mod cmsg;
 
+#[allow(unused_imports, unused_macros)]
+mod log {
+    #[cfg(feature = "tracing")]
+    pub(crate) use tracing::{debug, error, info, trace, warn};
+}
+
 pub use imp::UdpSocketState;
 
 /// A borrowed UDP socket
