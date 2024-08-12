@@ -6,7 +6,7 @@ use std::{
 };
 
 use rustls::RootCertStore;
-use tokio::runtime::{Builder, Runtime};
+use tokio::{runtime::{Builder, Runtime}, time::Instant};
 use tracing_subscriber::EnvFilter;
 
 use crate::endpoint::Endpoint;
@@ -33,7 +33,24 @@ fn handshake_timeout() {
         .initial_rtt(Duration::from_millis(10));
     client_config.transport_config(Arc::new(transport_config));
 
-    todo!()
+    let start = Instant::now();
+    runtime.block_on(async move {
+        match client
+            .connect_with(
+                client_config,
+                SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 1),
+                "localhost",
+            )
+            .unwrap()
+            .await
+        {
+            Err(crate::ConnectionError::TimedOut) => {}
+            Err(e) => panic!("unexpected error: {e:?}"),
+            Ok(_) => panic!("unexpected success"),
+        }
+    });
+    let dt = start.elapsed();
+    assert!(dt > IDLE_TIMEOUT && dt < 2 * IDLE_TIMEOUT);
 }
 
 fn subscribe() -> tracing::subscriber::DefaultGuard {

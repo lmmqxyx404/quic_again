@@ -1,4 +1,4 @@
-use proto::{ConnectionHandle, EndpointConfig, EndpointEvent, ServerConfig};
+use proto::{ClientConfig, ConnectError, ConnectionHandle, EndpointConfig, EndpointEvent, ServerConfig};
 use socket2::{Domain, Protocol, Socket, Type};
 use std::{
     future::Future,
@@ -15,7 +15,7 @@ use udp::BATCH_SIZE;
 
 #[cfg(feature = "ring")]
 use crate::runtime::default_runtime;
-use crate::runtime::{AsyncUdpSocket, Runtime};
+use crate::{connection::Connecting, runtime::{AsyncUdpSocket, Runtime}};
 
 /// A QUIC endpoint.
 ///
@@ -95,6 +95,19 @@ impl Endpoint {
             .instrument(Span::current()),
         ));
         Ok(Self {})
+    }
+    /// Connect to a remote endpoint using a custom configuration.
+    ///
+    /// See [`connect()`] for details.
+    ///
+    /// [`connect()`]: Endpoint::connect
+    pub fn connect_with(
+        &self,
+        config: ClientConfig,
+        addr: SocketAddr,
+        server_name: &str,
+    ) -> Result<Connecting, ConnectError> {
+        todo!()
     }
 }
 
