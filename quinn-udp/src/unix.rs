@@ -153,7 +153,11 @@ fn set_socket_option_supported(
     name: libc::c_int,
     value: libc::c_int,
 ) -> io::Result<bool> {
-    todo!()
+    match set_socket_option(socket, level, name, value) {
+        Ok(()) => Ok(true),
+        Err(err) if err.raw_os_error() == Some(libc::ENOPROTOOPT) => Ok(false),
+        Err(err) => Err(err),
+    }
 }
 
 // Defined in netinet6/in6.h on OpenBSD, this is not yet exported by the libc crate
