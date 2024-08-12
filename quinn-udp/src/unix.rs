@@ -125,7 +125,20 @@ fn set_socket_option(
     name: libc::c_int,
     value: libc::c_int,
 ) -> io::Result<()> {
-    todo!()
+    let rc = unsafe {
+        libc::setsockopt(
+            socket.as_raw_fd(),
+            level,
+            name,
+            &value as *const _ as _,
+            mem::size_of_val(&value) as _,
+        )
+    };
+
+    match rc == 0 {
+        true => Ok(()),
+        false => Err(io::Error::last_os_error()),
+    }
 }
 
 const OPTION_ON: libc::c_int = 1;
