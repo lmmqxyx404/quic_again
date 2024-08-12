@@ -30,7 +30,6 @@ impl AsyncUdpSocket for UdpSocket {
     }
 
     fn max_receive_segments(&self) -> usize {
-        todo!()
-        // self.inner.gro_segments()
+        self.inner.gro_segments()
     }
 }

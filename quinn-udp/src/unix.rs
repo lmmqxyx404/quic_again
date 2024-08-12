@@ -12,6 +12,8 @@ use crate::{cmsg, UdpSockRef};
 pub struct UdpSocketState {
     /// 1.
     may_fragment: bool,
+    /// 2.
+    gro_segments: usize,
 }
 
 impl UdpSocketState {
@@ -116,7 +118,10 @@ impl UdpSocketState {
         }
 
         let now = Instant::now();
-        Ok(Self { may_fragment })
+        Ok(Self {
+            may_fragment,
+            gro_segments: gro::gro_segments(),
+        })
     }
     /// 2. Whether transmitted datagrams might get fragmented by the IP layer
     ///
@@ -124,6 +129,14 @@ impl UdpSocketState {
     #[inline]
     pub fn may_fragment(&self) -> bool {
         self.may_fragment
+    }
+    /// 3. The number of segments to read when GRO is enabled. Used as a factor to
+    /// compute the receive buffer size.
+    ///
+    /// Returns 1 if the platform doesn't support GRO.
+    #[inline]
+    pub fn gro_segments(&self) -> usize {
+        self.gro_segments
     }
 }
 
@@ -177,3 +190,29 @@ fn set_socket_option_supported(
 const IPV6_DONTFRAG: libc::c_int = 62;
 #[cfg(not(any(target_os = "openbsd", target_os = "netbsd")))]
 const IPV6_DONTFRAG: libc::c_int = libc::IPV6_DONTFRAG;
+
+#[cfg(target_os = "linux")]
+mod gro {
+    use super::*;
+
+    pub(crate) fn gro_segments() -> usize {
+        let socket = match std::net::UdpSocket::bind("[::]:0")
+            .or_else(|_| std::net::UdpSocket::bind("127.0.0.1:0"))
+        {
+            Ok(socket) => socket,
+            Err(_) => return 1,
+        };
+
+        // As defined in net/ipv4/udp_offload.c
+        // #define UDP_GRO_CNT_MAX 64
+        //
+        // NOTE: this MUST be set to UDP_GRO_CNT_MAX to ensure that the receive buffer size
+        // (get_max_udp_payload_size() * gro_segments()) is large enough to hold the largest GRO
+        // list the kernel might potentially produce. See
+        // https://github.com/quinn-rs/quinn/pull/1354.
+        match set_socket_option(&socket, libc::SOL_UDP, libc::UDP_GRO, OPTION_ON) {
+            Ok(()) => 64,
+            Err(_) => 1,
+        }
+    }
+}
