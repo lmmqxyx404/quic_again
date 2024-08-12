@@ -420,6 +420,7 @@ name = "scratch-quinn"
 version = "0.1.0"
 dependencies = [
  "rcgen",
+ "rustls",
  "scratch-quinn-proto",
  "scratch-quinn-udp",
  "socket2",

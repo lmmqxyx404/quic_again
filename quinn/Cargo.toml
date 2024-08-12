@@ -7,11 +7,12 @@ edition = "2021"
 all-features = true
 
 [features]
-default = ["ring", "runtime-tokio"]
+# todo: check the features
+default = ["ring", "runtime-tokio", "rustls"]
 # Enables `Endpoint::client` and `Endpoint::server` conveniences
 ring = ["proto/ring"]
 runtime-tokio = ["tokio/time", "tokio/rt", "tokio/net"]
-
+rustls = ["dep:rustls"]
 [dependencies]
 tracing = { workspace = true }
 proto = { package = "scratch-quinn-proto", path = "../quinn-proto", version = "*", default-features = false }
@@ -23,6 +24,8 @@ udp = { package = "scratch-quinn-udp", path = "../quinn-udp", version = "*", def
   "tracing",
 ] }
 # 
+rustls = { workspace = true, optional = true }
+
 [dev-dependencies]
 tracing-subscriber = { workspace = true }
 tokio = { workspace = true, features = [

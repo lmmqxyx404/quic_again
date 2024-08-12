@@ -4,6 +4,7 @@ use std::{
     net::{IpAddr, Ipv4Addr, SocketAddr},
 };
 
+use rustls::RootCertStore;
 use tokio::runtime::{Builder, Runtime};
 use tracing_subscriber::EnvFilter;
 
@@ -20,6 +21,9 @@ fn handshake_timeout() {
 
     // Avoid NoRootAnchors error
     let cert = rcgen::generate_simple_self_signed(vec!["localhost".into()]).unwrap();
+    let mut roots = RootCertStore::empty();
+    roots.add(cert.cert.into()).unwrap();
+
     todo!()
 }
 
