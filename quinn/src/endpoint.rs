@@ -80,6 +80,8 @@ impl Endpoint {
             addr.is_ipv6(),
             runtime.clone(),
         );
+        let driver = EndpointDriver(rc.clone());
+
         todo!()
     }
 }
@@ -99,6 +101,13 @@ impl EndpointRef {
         Self(Arc::new(EndpointInner {
             state: Mutex::new(State { ref_count: 0 }),
         }))
+    }
+}
+
+impl Clone for EndpointRef {
+    fn clone(&self) -> Self {
+        self.0.state.lock().unwrap().ref_count += 1;
+        Self(self.0.clone())
     }
 }
 
@@ -132,3 +141,17 @@ pub(crate) struct State {
     /// 1. Number of live handles that can be used to initiate or handle I/O; excludes the driver
     ref_count: usize,
 }
+
+/// A future that drives IO on an endpoint
+///
+/// This task functions as the switch point between the UDP socket object and the
+/// `Endpoint` responsible for routing datagrams to their owning `Connection`.
+/// In order to do so, it also facilitates the exchange of different types of events
+/// flowing between the `Endpoint` and the tasks managing `Connection`s. As such,
+/// running this task is necessary to keep the endpoint's connections running.
+///
+/// `EndpointDriver` futures terminate when all clones of the `Endpoint` have been dropped, or when
+/// an I/O error occurs.
+#[must_use = "endpoint drivers must be spawned for I/O to occur"]
+#[derive(Debug)]
+pub(crate) struct EndpointDriver(pub(crate) EndpointRef);
