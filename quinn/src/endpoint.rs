@@ -5,6 +5,7 @@ use proto::{
 };
 use socket2::{Domain, Protocol, Socket, Type};
 use std::{
+    collections::VecDeque,
     future::Future,
     io,
     net::SocketAddr,
@@ -163,6 +164,14 @@ impl Clone for EndpointRef {
     }
 }
 
+impl Drop for EndpointRef {
+    fn drop(&mut self) {
+        let endpoint = &mut *self.0.state.lock().unwrap();
+
+        todo!()
+    }
+}
+
 #[derive(Debug)]
 pub(crate) struct EndpointInner {
     /// 1
@@ -182,6 +191,7 @@ impl std::ops::Deref for EndpointRef {
 #[derive(Debug)]
 struct RecvState {
     connections: ConnectionSet,
+    incoming: VecDeque<proto::Incoming>,
 }
 
 impl RecvState {
@@ -198,6 +208,7 @@ impl RecvState {
         ];
         Self {
             connections: ConnectionSet { close: None },
+            incoming: VecDeque::new(),
         }
     }
 }
@@ -216,6 +227,14 @@ pub(crate) struct State {
     recv_state: RecvState,
     /// 6. support or not
     ipv6: bool,
+}
+
+impl Drop for State {
+    fn drop(&mut self) {
+        for incoming in self.recv_state.incoming.drain(..) {
+            todo!() // self.inner.ignore(incoming);
+        }
+    }
 }
 
 #[derive(Debug)]

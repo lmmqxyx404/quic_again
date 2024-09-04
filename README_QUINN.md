@@ -6,3 +6,7 @@
 
 ## 2. `connection.rs` 之中的 `Connection`
 这个模块中会自行定义一个`struct Connection`
+
+## `impl Drop for EndpointRef`
+When call `state.lock().unwrap();`, It may cause error.
+All you need to do is to impl other tokio task. So you could get the lock.
