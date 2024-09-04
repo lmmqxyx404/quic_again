@@ -15,4 +15,5 @@ All you need to do is to impl other tokio task. So you could get the lock.
 ### `endpoint::State::drive_recv`
 add `recv_limiter`
 
-* `State::drive_recv -> RecvState::poll_socket `
+* `State::drive_recv -> RecvState::poll_socket`
+* * first time : ended with Poll::Pending, Then drive_recv ended.

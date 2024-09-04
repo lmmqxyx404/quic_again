@@ -46,6 +46,21 @@ impl WorkLimiter {
             self.start_time = Some(now());
         }
     }
+
+    /// Finishes one work cycle
+    ///
+    /// For cycles where the exact duration is measured this will update the estimates
+    /// for the time per work item and the limit of allowed work items per cycle.
+    /// The estimate is updated using the same exponential averaging (smoothing)
+    /// mechanism which is used for determining QUIC path rtts: The last value is
+    /// weighted by 1/8, and the previous average by 7/8.
+    pub(crate) fn finish_cycle(&mut self, now: impl Fn() -> Instant) {
+        // If no work was done in the cycle drop the measurement, it won't be useful
+        if self.completed == 0 {
+            return;
+        }
+        todo!()
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

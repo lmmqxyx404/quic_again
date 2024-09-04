@@ -253,7 +253,10 @@ impl RecvState {
                     todo!()
                 }
                 Poll::Pending => {
-                    todo!()
+                    return Ok(PollProgress {
+                        received_connection_packet,
+                        keep_going: false,
+                    });
                 }
                 // Ignore ECONNRESET as it's undefined in QUIC and may be injected by an
                 // attacker
@@ -324,15 +327,15 @@ impl State {
         let poll_res =
             self.recv_state
                 .poll_socket(cx, &mut self.inner, &*self.socket, &*self.runtime, now);
-        todo!()
-        /*  self.recv_state.recv_limiter.finish_cycle(get_time);
+
+        self.recv_state.recv_limiter.finish_cycle(get_time);
         let poll_res = poll_res?;
         if poll_res.received_connection_packet {
             // Traffic has arrived on self.socket, therefore there is no need for the abandoned
             // one anymore. TODO: Account for multiple outgoing connections.
-            self.prev_socket = None;
+            todo!() // self.prev_socket = None;
         }
-        Ok(poll_res.keep_going) */
+        Ok(poll_res.keep_going)
     }
     /// 2.
     fn handle_events(&mut self, cx: &mut Context, shared: &Shared) -> bool {
