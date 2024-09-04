@@ -10,3 +10,7 @@
 ## `impl Drop for EndpointRef`
 When call `state.lock().unwrap();`, It may cause error.
 All you need to do is to impl other tokio task. So you could get the lock.
+
+## 3.`impl Endpoint::connect_with`
+### `endpoint::State::drive_recv`
+add `recv_limiter`

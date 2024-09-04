@@ -23,6 +23,7 @@ use crate::runtime::default_runtime;
 use crate::{
     connection::Connecting,
     runtime::{AsyncUdpSocket, Runtime},
+    work_limiter::WorkLimiter, RECV_TIME_BOUND,
 };
 
 /// A QUIC endpoint.
@@ -190,8 +191,12 @@ impl std::ops::Deref for EndpointRef {
 /// State directly involved in handling incoming packets
 #[derive(Debug)]
 struct RecvState {
+    /// 1
     connections: ConnectionSet,
+    /// 2
     incoming: VecDeque<proto::Incoming>,
+    /// 3
+    recv_limiter: WorkLimiter,
 }
 
 impl RecvState {
@@ -209,6 +214,7 @@ impl RecvState {
         Self {
             connections: ConnectionSet { close: None },
             incoming: VecDeque::new(),
+            recv_limiter: WorkLimiter::new(RECV_TIME_BOUND),
         }
     }
 }
@@ -246,6 +252,8 @@ pub(crate) struct Shared {
 impl State {
     /// 1.
     fn drive_recv(&mut self, cx: &mut Context, now: Instant) -> Result<bool, io::Error> {
+        let get_time = || self.runtime.now();
+        self.recv_state.recv_limiter.start_cycle(get_time);
         todo!()
     }
     /// 2.
