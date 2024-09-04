@@ -35,3 +35,24 @@ where
 
 /// Number of UDP packets to send/receive at a time
 pub const BATCH_SIZE: usize = imp::BATCH_SIZE;
+
+/// Metadata for a single buffer filled with bytes received from the network
+///
+/// This associated buffer can contain one or more datagrams, see [`stride`].
+///
+/// [`stride`]: RecvMeta::stride
+#[derive(Debug, Copy, Clone)]
+pub struct RecvMeta {}
+
+impl Default for RecvMeta {
+    /// Constructs a value with arbitrary fields, intended to be overwritten
+    fn default() -> Self {
+        Self {
+           /*  addr: SocketAddr::new(Ipv6Addr::UNSPECIFIED.into(), 0),
+            len: 0,
+            stride: 0,
+            ecn: None,
+            dst_ip: None, */
+        }
+    }
+}

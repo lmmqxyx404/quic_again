@@ -7,7 +7,7 @@ use socket2::{Domain, Protocol, Socket, Type};
 use std::{
     collections::VecDeque,
     future::Future,
-    io,
+    io::{self, IoSliceMut},
     net::SocketAddr,
     pin::Pin,
     sync::{Arc, Mutex},
@@ -16,7 +16,7 @@ use std::{
 };
 use tokio::sync::{mpsc, Notify};
 use tracing::{Instrument, Span};
-use udp::BATCH_SIZE;
+use udp::{RecvMeta, BATCH_SIZE};
 
 #[cfg(feature = "ring")]
 use crate::runtime::default_runtime;
@@ -201,6 +201,8 @@ struct RecvState {
     incoming: VecDeque<proto::Incoming>,
     /// 3
     recv_limiter: WorkLimiter,
+    /// 4.
+    recv_buf: Box<[u8]>,
 }
 
 impl RecvState {
@@ -219,6 +221,7 @@ impl RecvState {
             connections: ConnectionSet { close: None },
             incoming: VecDeque::new(),
             recv_limiter: WorkLimiter::new(RECV_TIME_BOUND),
+            recv_buf: recv_buf.into(),
         }
     }
 
@@ -230,6 +233,19 @@ impl RecvState {
         runtime: &dyn Runtime,
         now: Instant,
     ) -> Result<PollProgress, io::Error> {
+        let mut received_connection_packet = false;
+        let mut metas = [RecvMeta::default(); BATCH_SIZE];
+        let mut iovs: [IoSliceMut; BATCH_SIZE] = {
+            let mut bufs = self
+                .recv_buf
+                .chunks_mut(self.recv_buf.len() / BATCH_SIZE)
+                .map(IoSliceMut::new);
+
+            // expect() safe as self.recv_buf is chunked into BATCH_SIZE items
+            // and iovs will be of size BATCH_SIZE, thus from_fn is called
+            // exactly BATCH_SIZE times.
+            std::array::from_fn(|_| bufs.next().expect("BATCH_SIZE elements"))
+        };
         todo!()
     }
 }
