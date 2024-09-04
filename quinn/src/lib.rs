@@ -1,5 +1,13 @@
-
 use std::time::Duration;
+
+macro_rules! ready {
+    ($e:expr $(,)?) => {
+        match $e {
+            std::task::Poll::Ready(t) => t,
+            std::task::Poll::Pending => return std::task::Poll::Pending,
+        }
+    };
+}
 
 /// 1.
 #[cfg(test)]
@@ -13,7 +21,6 @@ mod endpoint;
 mod runtime;
 /// 5.
 mod work_limiter;
-
 
 #[cfg(feature = "runtime-tokio")]
 pub use crate::runtime::TokioRuntime;

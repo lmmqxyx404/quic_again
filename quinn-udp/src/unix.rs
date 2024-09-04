@@ -1,8 +1,15 @@
-use std::{io, mem, os::fd::AsRawFd, time::Instant};
+use std::{
+    io::{self, IoSliceMut},
+    mem,
+    os::fd::AsRawFd,
+    time::Instant,
+};
+
+use socket2::SockRef;
 
 use super::log::debug;
 
-use crate::{cmsg, UdpSockRef};
+use crate::{cmsg, RecvMeta, UdpSockRef};
 
 /// Tokio-compatible UDP socket with some useful specializations.
 ///
@@ -138,6 +145,15 @@ impl UdpSocketState {
     pub fn gro_segments(&self) -> usize {
         self.gro_segments
     }
+
+    pub fn recv(
+        &self,
+        socket: UdpSockRef<'_>,
+        bufs: &mut [IoSliceMut<'_>],
+        meta: &mut [RecvMeta],
+    ) -> io::Result<usize> {
+        recv(socket.0, bufs, meta)
+    }
 }
 
 const CMSG_LEN: usize = 88;
@@ -217,8 +233,12 @@ mod gro {
     }
 }
 
-
 #[cfg(not(any(target_os = "macos", target_os = "ios")))]
 /// Chosen somewhat arbitrarily; might benefit from additional tuning.
 /// todo: add the macos condition.
 pub(crate) const BATCH_SIZE: usize = 32;
+
+#[cfg(not(any(target_os = "macos", target_os = "ios", target_os = "openbsd")))]
+fn recv(io: SockRef<'_>, bufs: &mut [IoSliceMut<'_>], meta: &mut [RecvMeta]) -> io::Result<usize> {
+    todo!()
+}

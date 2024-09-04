@@ -246,7 +246,26 @@ impl RecvState {
             // exactly BATCH_SIZE times.
             std::array::from_fn(|_| bufs.next().expect("BATCH_SIZE elements"))
         };
-        todo!()
+
+        loop {
+            match socket.poll_recv(cx, &mut iovs, &mut metas) {
+                Poll::Ready(Ok(msgs)) => {
+                    todo!()
+                }
+                Poll::Pending => {
+                    todo!()
+                }
+                // Ignore ECONNRESET as it's undefined in QUIC and may be injected by an
+                // attacker
+                Poll::Ready(Err(ref e)) if e.kind() == io::ErrorKind::ConnectionReset => {
+                    todo!()
+                }
+                Poll::Ready(Err(e)) => {
+                    todo!() // return Err(e);
+                }
+            }
+            todo!()
+        }
     }
 }
 

@@ -1,7 +1,19 @@
-use std::{fmt::Debug, future::Future, io, net::SocketAddr, pin::Pin, sync::Arc, time::Instant};
+use std::{
+    fmt::Debug,
+    future::Future,
+    io::{self, IoSliceMut},
+    net::SocketAddr,
+    pin::Pin,
+    sync::Arc,
+    task::{Context, Poll},
+    time::Instant,
+};
+
+use udp::RecvMeta;
 
 #[cfg(feature = "runtime-tokio")]
 mod tokio;
+
 #[cfg(feature = "runtime-tokio")]
 pub use self::tokio::TokioRuntime;
 
@@ -51,4 +63,12 @@ pub trait AsyncUdpSocket: Send + Sync + Debug + 'static {
     fn max_receive_segments(&self) -> usize {
         1
     }
+
+    /// 4. Receive UDP datagrams, or register to be woken if receiving may succeed in the future
+    fn poll_recv(
+        &self,
+        cx: &mut Context,
+        bufs: &mut [IoSliceMut<'_>],
+        meta: &mut [RecvMeta],
+    ) -> Poll<io::Result<usize>>;
 }
