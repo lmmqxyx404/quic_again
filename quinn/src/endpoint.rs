@@ -23,7 +23,8 @@ use crate::runtime::default_runtime;
 use crate::{
     connection::Connecting,
     runtime::{AsyncUdpSocket, Runtime},
-    work_limiter::WorkLimiter, RECV_TIME_BOUND,
+    work_limiter::WorkLimiter,
+    RECV_TIME_BOUND,
 };
 
 /// A QUIC endpoint.
@@ -153,6 +154,9 @@ impl EndpointRef {
                 driver_lost: false,
                 recv_state,
                 ipv6,
+                prev_socket: None,
+                socket,
+                inner,
             }),
         }))
     }
@@ -217,6 +221,17 @@ impl RecvState {
             recv_limiter: WorkLimiter::new(RECV_TIME_BOUND),
         }
     }
+
+    fn poll_socket(
+        &mut self,
+        cx: &mut Context,
+        endpoint: &mut proto::Endpoint,
+        socket: &dyn AsyncUdpSocket,
+        runtime: &dyn Runtime,
+        now: Instant,
+    ) -> Result<PollProgress, io::Error> {
+        todo!()
+    }
 }
 
 #[derive(Debug)]
@@ -233,6 +248,13 @@ pub(crate) struct State {
     recv_state: RecvState,
     /// 6. support or not
     ipv6: bool,
+    /// 7. During an active migration, abandoned_socket receives traffic
+    /// until the first packet arrives on the new socket.
+    prev_socket: Option<Arc<dyn AsyncUdpSocket>>,
+    /// 8.
+    inner: proto::Endpoint,
+    /// 9.
+    socket: Arc<dyn AsyncUdpSocket>,
 }
 
 impl Drop for State {
@@ -254,7 +276,28 @@ impl State {
     fn drive_recv(&mut self, cx: &mut Context, now: Instant) -> Result<bool, io::Error> {
         let get_time = || self.runtime.now();
         self.recv_state.recv_limiter.start_cycle(get_time);
+        if let Some(socket) = &self.prev_socket {
+            // We don't care about the `PollProgress` from old sockets.
+            todo!()
+            /*  let poll_res =
+                self.recv_state
+                    .poll_socket(cx, &mut self.inner, &**socket, &*self.runtime, now);
+            if poll_res.is_err() {
+                self.prev_socket = None;
+            } */
+        };
+        let poll_res =
+            self.recv_state
+                .poll_socket(cx, &mut self.inner, &*self.socket, &*self.runtime, now);
         todo!()
+        /*  self.recv_state.recv_limiter.finish_cycle(get_time);
+        let poll_res = poll_res?;
+        if poll_res.received_connection_packet {
+            // Traffic has arrived on self.socket, therefore there is no need for the abandoned
+            // one anymore. TODO: Account for multiple outgoing connections.
+            self.prev_socket = None;
+        }
+        Ok(poll_res.keep_going) */
     }
     /// 2.
     fn handle_events(&mut self, cx: &mut Context, shared: &Shared) -> bool {
@@ -300,4 +343,12 @@ impl Future for EndpointDriver {
 struct ConnectionSet {
     /// 1. Set if the endpoint has been manually closed
     close: Option<(VarInt, Bytes)>,
+}
+
+#[derive(Default)]
+struct PollProgress {
+    /// Whether a datagram was routed to an existing connection
+    received_connection_packet: bool,
+    /// Whether datagram handling was interrupted early by the work limiter for fairness
+    keep_going: bool,
 }

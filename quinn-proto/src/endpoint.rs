@@ -654,7 +654,7 @@ impl Endpoint {
 
         let incoming_idx = self.incoming_buffers.insert(IncomingBuffer::default());
         /* self.index
-            .insert_initial_incoming(orig_dst_cid, incoming_idx); */
+        .insert_initial_incoming(orig_dst_cid, incoming_idx); */
         self.index
             .insert_initial_incoming(header.dst_cid, incoming_idx);
 
@@ -938,6 +938,25 @@ impl Endpoint {
             TransportError::CONNECTION_REFUSED(""),
             buf,
         )
+    }
+}
+
+impl fmt::Debug for Endpoint {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt.debug_struct("Endpoint")
+            .field("rng", &self.rng)
+            .field("index", &self.index)
+            .field("connections", &self.connections)
+            // todo: change the following code for `quinn::endpoint::State::inner`
+            // .field("config", &self.config)
+            // .field("server_config", &self.server_config)
+            // incoming_buffers too large
+            .field("incoming_buffers.len", &self.incoming_buffers.len())
+            .field(
+                "all_incoming_buffers_total_bytes",
+                &self.all_incoming_buffers_total_bytes,
+            )
+            .finish()
     }
 }
 
