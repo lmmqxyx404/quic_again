@@ -46,8 +46,16 @@ impl Connecting {
         );
 
         let driver = ConnectionDriver(conn.clone());
+        runtime.spawn(Box::pin(
+            async {
+                if let Err(e) = driver.await {
+                    tracing::error!("I/O error: {e}");
+                }
+            }
+            .instrument(Span::current()),
+        ));
 
-        todo!()
+        Self {}
     }
 }
 
@@ -95,7 +103,7 @@ impl ConnectionRef {
 impl Clone for ConnectionRef {
     fn clone(&self) -> Self {
         self.state.lock("clone").ref_count += 1;
-        todo!()
+        Self(self.0.clone())
     }
 }
 
@@ -124,6 +132,15 @@ pub(crate) struct ConnectionInner {
 #[must_use = "connection drivers must be spawned for their connections to function"]
 #[derive(Debug)]
 struct ConnectionDriver(ConnectionRef);
+
+impl Future for ConnectionDriver {
+    type Output = Result<(), io::Error>;
+
+    #[allow(unused_mut)] // MSRV
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Self::Output> {
+        todo!()
+    }
+}
 
 pub(crate) struct State {
     /// Number of live handles that can be used to initiate or handle I/O; excludes the driver
