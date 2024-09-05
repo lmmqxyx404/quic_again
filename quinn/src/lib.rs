@@ -21,6 +21,8 @@ mod endpoint;
 mod runtime;
 /// 5.
 mod work_limiter;
+/// 6.
+mod mutex;
 
 #[cfg(feature = "runtime-tokio")]
 pub use crate::runtime::TokioRuntime;

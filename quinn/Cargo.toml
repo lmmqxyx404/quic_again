@@ -13,6 +13,8 @@ default = ["ring", "runtime-tokio", "rustls"]
 ring = ["proto/ring"]
 runtime-tokio = ["tokio/time", "tokio/rt", "tokio/net"]
 rustls = ["dep:rustls", "proto/rustls"]
+# Records how long locks are held, and warns if they are held >= 1ms
+lock_tracking = []
 
 [dependencies]
 tracing = { workspace = true }

@@ -1,4 +1,5 @@
 use std::{
+    fmt,
     future::Future,
     io,
     pin::Pin,
@@ -9,7 +10,7 @@ use std::{
 use tokio::sync::{futures::Notified, mpsc, oneshot, Notify};
 use tracing::{Instrument, Span};
 
-use crate::{runtime::Runtime, AsyncUdpSocket, ConnectionEvent};
+use crate::{mutex::Mutex, runtime::Runtime, AsyncUdpSocket, ConnectionEvent};
 
 use proto::{
     congestion::Controller, ConnectionError, ConnectionHandle, ConnectionStats, Dir, EndpointEvent,
@@ -85,19 +86,29 @@ impl ConnectionRef {
         socket: Arc<dyn AsyncUdpSocket>,
         runtime: Arc<dyn Runtime>,
     ) -> Self {
-        Self(Arc::new(ConnectionInner {}))
+        Self(Arc::new(ConnectionInner {
+            state: Mutex::new(State { ref_count: 0 }),
+        }))
     }
 }
 
 impl Clone for ConnectionRef {
     fn clone(&self) -> Self {
+        self.state.lock("clone").ref_count += 1;
         todo!()
+    }
+}
+
+impl std::ops::Deref for ConnectionRef {
+    type Target = ConnectionInner;
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 
 #[derive(Debug)]
 pub(crate) struct ConnectionInner {
-    // pub(crate) state: Mutex<State>,
+    pub(crate) state: Mutex<State>,
 }
 
 /// A future that drives protocol logic for a connection
@@ -113,3 +124,14 @@ pub(crate) struct ConnectionInner {
 #[must_use = "connection drivers must be spawned for their connections to function"]
 #[derive(Debug)]
 struct ConnectionDriver(ConnectionRef);
+
+pub(crate) struct State {
+    /// Number of live handles that can be used to initiate or handle I/O; excludes the driver
+    ref_count: usize,
+}
+
+impl fmt::Debug for State {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        todo!() // f.debug_struct("State").field("inner", &self.inner).finish()
+    }
+}
