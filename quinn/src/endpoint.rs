@@ -37,6 +37,7 @@ use crate::{
 #[derive(Debug, Clone)]
 pub struct Endpoint {
     pub(crate) inner: EndpointRef,
+    runtime: Arc<dyn Runtime>,
 }
 
 impl Endpoint {
@@ -107,7 +108,7 @@ impl Endpoint {
             }
             .instrument(Span::current()),
         ));
-        Ok(Self { inner: rc })
+        Ok(Self { inner: rc, runtime })
     }
     /// Connect to a remote endpoint using a custom configuration.
     ///
@@ -127,7 +128,23 @@ impl Endpoint {
         if addr.is_ipv6() && !endpoint.ipv6 {
             return Err(ConnectError::InvalidRemoteAddress(addr));
         }
-        todo!()
+
+        let addr = if endpoint.ipv6 {
+            todo!() // SocketAddr::V6(ensure_ipv6(addr))
+        } else {
+            addr
+        };
+
+        let (ch, conn) = endpoint
+            .inner
+            .connect(self.runtime.now(), config, addr, server_name)?;
+
+        let socket = endpoint.socket.clone();
+        endpoint.stats.outgoing_handshakes += 1;
+        Ok(endpoint
+            .recv_state
+            .connections
+            .insert(ch, conn, socket, self.runtime.clone()))
     }
 }
 
@@ -159,6 +176,7 @@ impl EndpointRef {
                 socket,
                 inner,
                 events,
+                stats: EndpointStats::default(),
             }),
         }))
     }
@@ -301,6 +319,8 @@ pub(crate) struct State {
     socket: Arc<dyn AsyncUdpSocket>,
     /// 10.
     events: mpsc::UnboundedReceiver<(ConnectionHandle, EndpointEvent)>,
+    /// 11.
+    stats: EndpointStats,
 }
 
 impl Drop for State {
@@ -433,6 +453,15 @@ impl ConnectionSet {
     fn is_empty(&self) -> bool {
         self.senders.is_empty()
     }
+    fn insert(
+        &mut self,
+        handle: ConnectionHandle,
+        conn: proto::Connection,
+        socket: Arc<dyn AsyncUdpSocket>,
+        runtime: Arc<dyn Runtime>,
+    ) -> Connecting {
+        todo!()
+    }
 }
 
 #[derive(Default)]
@@ -441,4 +470,12 @@ struct PollProgress {
     received_connection_packet: bool,
     /// Whether datagram handling was interrupted early by the work limiter for fairness
     keep_going: bool,
+}
+
+/// Statistics on [Endpoint] activity
+#[non_exhaustive]
+#[derive(Debug, Default, Copy, Clone)]
+pub struct EndpointStats {
+    /// Cummulative number of Quic handshakees sent from this [Endpoint]
+    pub outgoing_handshakes: u64,
 }
