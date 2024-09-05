@@ -191,9 +191,17 @@ impl Clone for EndpointRef {
 
 impl Drop for EndpointRef {
     fn drop(&mut self) {
-        // let endpoint = &mut *self.0.state.lock().unwrap();
-
-        todo!()
+        let endpoint = &mut *self.0.state.lock().unwrap();
+        if let Some(x) = endpoint.ref_count.checked_sub(1) {
+            endpoint.ref_count = x;
+            if x == 0 {
+                // If the driver is about to be on its own, ensure it can shut down if the last
+                // connection is gone.
+                if let Some(task) = endpoint.driver.take() {
+                    task.wake();
+                }
+            }
+        }
     }
 }
 
@@ -434,8 +442,12 @@ impl Future for EndpointDriver {
 
 impl Drop for EndpointDriver {
     fn drop(&mut self) {
-        // let mut endpoint = self.0.state.lock().unwrap();
-        todo!()
+        let mut endpoint = self.0.state.lock().unwrap();
+        endpoint.driver_lost = true;
+        self.0.shared.incoming.notify_waiters();
+        // Drop all outgoing channels, signaling the termination of the endpoint to the associated
+        // connections.
+        endpoint.recv_state.connections.senders.clear();
     }
 }
 
