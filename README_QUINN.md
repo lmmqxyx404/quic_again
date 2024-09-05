@@ -25,5 +25,8 @@ add `recv_limiter`
 如果缺少了对应的 `sender` ，`receiver` 就无法正常的 call `poll_recv`.
 正常call 应该初始是 `Pending`, 异常就是 `Ready(None)`
 
+## 4. Endpoint::clinet
+`Self::new_with_abstract_socket` -> `driver.await` -> `endpoint.drive_recv` -> `endpoint.handle_events`
+
 # dev skill
 ## Do not omit `Drop`

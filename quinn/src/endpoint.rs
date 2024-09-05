@@ -354,7 +354,7 @@ impl State {
                 }
                 Poll::Ready(None) => unreachable!("EndpointInner owns one sender"),
                 Poll::Pending => {
-                    todo!() //return false;
+                    return false;
                 }
             };
             todo!()
@@ -393,7 +393,22 @@ impl Future for EndpointDriver {
         keep_going |= endpoint.drive_recv(cx, now)?;
         keep_going |= endpoint.handle_events(cx, &self.0.shared);
 
-        todo!()
+        if !endpoint.recv_state.incoming.is_empty() {
+            self.0.shared.incoming.notify_waiters();
+        }
+
+        if endpoint.ref_count == 0 && endpoint.recv_state.connections.is_empty() {
+            todo!() //    Poll::Ready(Ok(()))
+        } else {
+            drop(endpoint);
+            // If there is more work to do schedule the endpoint task again.
+            // `wake_by_ref()` is called outside the lock to minimize
+            // lock contention on a multithreaded runtime.
+            if keep_going {
+                todo!() // cx.waker().wake_by_ref();
+            }
+            Poll::Pending
+        }
     }
 }
 
