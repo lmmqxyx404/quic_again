@@ -460,7 +460,12 @@ impl ConnectionSet {
         socket: Arc<dyn AsyncUdpSocket>,
         runtime: Arc<dyn Runtime>,
     ) -> Connecting {
-        todo!()
+        let (send, recv) = mpsc::unbounded_channel();
+        if let Some((error_code, ref reason)) = self.close {
+            todo!()
+        }
+        self.senders.insert(handle, send);
+        Connecting::new(handle, conn, self.sender.clone(), recv, socket, runtime)
     }
 }
 

@@ -28,5 +28,9 @@ add `recv_limiter`
 ## 4. Endpoint::clinet
 `Self::new_with_abstract_socket` -> `driver.await` -> `endpoint.drive_recv` -> `endpoint.handle_events`
 
+## 5.`Endpoint::connect_with`
+* `connections.insert`[ConnectionSet::insert] -> `Connecting::new`
+-> `Clone for ConnectionRef`
+
 # dev skill
 ## Do not omit `Drop`
