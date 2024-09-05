@@ -8,7 +8,7 @@ use std::{
 };
 
 use tokio::sync::{futures::Notified, mpsc, oneshot, Notify};
-use tracing::{Instrument, Span};
+use tracing::{debug_span, Instrument, Span};
 
 use crate::{mutex::Mutex, runtime::Runtime, AsyncUdpSocket, ConnectionEvent};
 
@@ -21,7 +21,10 @@ use proto::{
 /// todo: tag
 #[derive(Debug)]
 #[must_use = "futures/streams/sinks do nothing unless you `.await` or poll them"]
-pub struct Connecting {}
+pub struct Connecting {
+    conn: Option<ConnectionRef>,
+    connected: oneshot::Receiver<bool>,
+}
 
 impl Connecting {
     pub(crate) fn new(
@@ -55,14 +58,29 @@ impl Connecting {
             .instrument(Span::current()),
         ));
 
-        Self {}
+        Self {
+            conn: Some(conn),
+            connected: on_connected_recv,
+        }
     }
 }
 
 impl Future for Connecting {
     type Output = Result<Connection, ConnectionError>;
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Self::Output> {
-        todo!()
+        Pin::new(&mut self.connected).poll(cx).map(|_| {
+            let conn = self.conn.take().unwrap();
+            let inner = conn.state.lock("connecting");
+            if inner.connected {
+                todo!() /*    drop(inner);
+                        Ok(Connection(conn)) */
+            } else {
+                Err(inner
+                    .error
+                    .clone()
+                    .expect("connected signaled without connection success or error"))
+            }
+        })
     }
 }
 
@@ -95,7 +113,12 @@ impl ConnectionRef {
         runtime: Arc<dyn Runtime>,
     ) -> Self {
         Self(Arc::new(ConnectionInner {
-            state: Mutex::new(State { ref_count: 0 }),
+            state: Mutex::new(State {
+                ref_count: 0,
+                handle,
+                error: None,
+                connected: false,
+            }),
         }))
     }
 }
@@ -138,6 +161,11 @@ impl Future for ConnectionDriver {
 
     #[allow(unused_mut)] // MSRV
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Self::Output> {
+        /*  let conn = &mut *self.0.state.lock("poll");
+
+        let span = debug_span!("drive", id = conn.handle.0);
+        let _guard = span.enter(); */
+
         todo!()
     }
 }
@@ -145,6 +173,10 @@ impl Future for ConnectionDriver {
 pub(crate) struct State {
     /// Number of live handles that can be used to initiate or handle I/O; excludes the driver
     ref_count: usize,
+    handle: ConnectionHandle,
+    connected: bool,
+    /// Always set to Some before the connection becomes drained
+    pub(crate) error: Option<ConnectionError>,
 }
 
 impl fmt::Debug for State {
