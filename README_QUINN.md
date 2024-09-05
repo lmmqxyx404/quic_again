@@ -17,3 +17,13 @@ add `recv_limiter`
 
 * `State::drive_recv -> RecvState::poll_socket`
 * * first time : ended with Poll::Pending, Then drive_recv ended.
+
+* `handle_events` -> `self.events.poll_recv(cx)`
+* * pay attention to the `events::mpsc::UnboundedReceiver<(ConnectionHandle, EndpointEvent)>`
+
+* * 应该要注意对应的 `mpsc::UnboundedSender`
+如果缺少了对应的 `sender` ，`receiver` 就无法正常的 call `poll_recv`.
+正常call 应该初始是 `Pending`, 异常就是 `Ready(None)`
+
+# dev skill
+## Do not omit `Drop`

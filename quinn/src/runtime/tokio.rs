@@ -1,4 +1,11 @@
-use std::{future::Future, io, pin::Pin, sync::Arc, task::{Context, Poll}, time::Instant};
+use std::{
+    future::Future,
+    io,
+    pin::Pin,
+    sync::Arc,
+    task::{Context, Poll},
+    time::Instant,
+};
 
 use tokio::io::Interest;
 
@@ -52,7 +59,7 @@ impl AsyncUdpSocket for UdpSocket {
         loop {
             ready!(self.io.poll_recv_ready(cx))?;
             if let Ok(res) = self.io.try_io(Interest::READABLE, || {
-                self.inner.recv((&self.io).into(), bufs, meta)
+                todo!() // self.inner.recv((&self.io).into(), bufs, meta)
             }) {
                 return Poll::Ready(Ok(res));
             }

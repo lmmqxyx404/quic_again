@@ -421,6 +421,7 @@ version = "0.1.0"
 dependencies = [
  "bytes",
  "rcgen",
+ "rustc-hash",
  "rustls",
  "scratch-quinn-proto",
  "scratch-quinn-udp",

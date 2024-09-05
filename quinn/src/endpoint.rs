@@ -3,6 +3,7 @@ use proto::{
     ClientConfig, ConnectError, ConnectionHandle, EndpointConfig, EndpointEvent, ServerConfig,
     VarInt,
 };
+use rustc_hash::FxHashMap;
 use socket2::{Domain, Protocol, Socket, Type};
 use std::{
     collections::VecDeque,
@@ -24,7 +25,7 @@ use crate::{
     connection::Connecting,
     runtime::{AsyncUdpSocket, Runtime},
     work_limiter::WorkLimiter,
-    RECV_TIME_BOUND,
+    ConnectionEvent, IO_LOOP_BOUND, RECV_TIME_BOUND,
 };
 
 /// A QUIC endpoint.
@@ -157,6 +158,7 @@ impl EndpointRef {
                 prev_socket: None,
                 socket,
                 inner,
+                events,
             }),
         }))
     }
@@ -171,7 +173,7 @@ impl Clone for EndpointRef {
 
 impl Drop for EndpointRef {
     fn drop(&mut self) {
-        let endpoint = &mut *self.0.state.lock().unwrap();
+        // let endpoint = &mut *self.0.state.lock().unwrap();
 
         todo!()
     }
@@ -218,7 +220,11 @@ impl RecvState {
                 * BATCH_SIZE
         ];
         Self {
-            connections: ConnectionSet { close: None },
+            connections: ConnectionSet {
+                close: None,
+                senders: FxHashMap::default(),
+                sender,
+            },
             incoming: VecDeque::new(),
             recv_limiter: WorkLimiter::new(RECV_TIME_BOUND),
             recv_buf: recv_buf.into(),
@@ -293,6 +299,8 @@ pub(crate) struct State {
     inner: proto::Endpoint,
     /// 9.
     socket: Arc<dyn AsyncUdpSocket>,
+    /// 10.
+    events: mpsc::UnboundedReceiver<(ConnectionHandle, EndpointEvent)>,
 }
 
 impl Drop for State {
@@ -339,6 +347,18 @@ impl State {
     }
     /// 2.
     fn handle_events(&mut self, cx: &mut Context, shared: &Shared) -> bool {
+        for _ in 0..IO_LOOP_BOUND {
+            let (ch, event): (ConnectionHandle, EndpointEvent) = match self.events.poll_recv(cx) {
+                Poll::Ready(Some(x)) => {
+                    todo!() // x,
+                }
+                Poll::Ready(None) => unreachable!("EndpointInner owns one sender"),
+                Poll::Pending => {
+                    todo!() //return false;
+                }
+            };
+            todo!()
+        }
         todo!()
     }
 }
@@ -377,10 +397,27 @@ impl Future for EndpointDriver {
     }
 }
 
+impl Drop for EndpointDriver {
+    fn drop(&mut self) {
+        // let mut endpoint = self.0.state.lock().unwrap();
+        todo!()
+    }
+}
+
 #[derive(Debug)]
 struct ConnectionSet {
     /// 1. Set if the endpoint has been manually closed
     close: Option<(VarInt, Bytes)>,
+    /// 2. Senders for communicating with the endpoint's connections
+    senders: FxHashMap<ConnectionHandle, mpsc::UnboundedSender<ConnectionEvent>>,
+    /// 3. Stored to give out clones to new ConnectionInners
+    sender: mpsc::UnboundedSender<(ConnectionHandle, EndpointEvent)>,
+}
+
+impl ConnectionSet {
+    fn is_empty(&self) -> bool {
+        self.senders.is_empty()
+    }
 }
 
 #[derive(Default)]

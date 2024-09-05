@@ -28,6 +28,8 @@ udp = { package = "scratch-quinn-udp", path = "../quinn-udp", version = "*", def
 rustls = { workspace = true, optional = true }
 bytes = { workspace = true }
 
+rustc-hash = { workspace = true }
+
 [dev-dependencies]
 tracing-subscriber = { workspace = true }
 tokio = { workspace = true, features = [
