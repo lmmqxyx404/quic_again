@@ -2,14 +2,20 @@ use core::str;
 use std::{
     io,
     net::{IpAddr, Ipv4Addr, SocketAddr},
-    sync::Arc, time::Duration,
+    sync::Arc,
+    time::Duration,
 };
 
 use rustls::RootCertStore;
-use tokio::{runtime::{Builder, Runtime}, time::Instant};
+use tokio::{
+    runtime::{Builder, Runtime},
+    time::Instant,
+};
 use tracing_subscriber::EnvFilter;
 
 use crate::endpoint::Endpoint;
+
+use super::ClientConfig;
 
 #[test]
 fn handshake_timeout() {
@@ -59,6 +65,23 @@ fn subscribe() -> tracing::subscriber::DefaultGuard {
         .with_writer(|| TestWriter)
         .finish();
     tracing::subscriber::set_default(sub)
+}
+
+#[tokio::test]
+async fn close_endpoint() {
+    let _guard = subscribe();
+
+    // Avoid NoRootAnchors error
+    let cert = rcgen::generate_simple_self_signed(vec!["localhost".into()]).unwrap();
+    let mut roots = RootCertStore::empty();
+    roots.add(cert.cert.into()).unwrap();
+
+    let mut endpoint =
+        Endpoint::client(SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0)).unwrap();
+    endpoint
+        .set_default_client_config(ClientConfig::with_root_certificates(Arc::new(roots)).unwrap());
+
+    todo!()
 }
 
 struct TestWriter;

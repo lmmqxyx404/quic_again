@@ -1,4 +1,5 @@
 use std::{
+    fmt,
     net::{SocketAddrV4, SocketAddrV6},
     sync::Arc,
     time::Duration,
@@ -250,6 +251,17 @@ impl ClientConfig {
         ))))
     }
 }
+
+impl fmt::Debug for ClientConfig {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt.debug_struct("ClientConfig<T>")
+            .field("transport", &self.transport)
+            .field("crypto", &"ClientConfig { elided }")
+            .field("version", &self.version)
+            .finish_non_exhaustive()
+    }
+}
+
 /// Parameters governing MTU discovery.
 ///
 /// # The why of MTU discovery
@@ -494,6 +506,12 @@ impl Default for TransportConfig {
             datagram_receive_buffer_size: Some(STREAM_RWND as usize),
             datagram_send_buffer_size: 1024 * 1024,
         }
+    }
+}
+
+impl fmt::Debug for TransportConfig {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
+        todo!()
     }
 }
 

@@ -38,6 +38,7 @@ use crate::{
 pub struct Endpoint {
     pub(crate) inner: EndpointRef,
     runtime: Arc<dyn Runtime>,
+    pub(crate) default_client_config: Option<ClientConfig>,
 }
 
 impl Endpoint {
@@ -108,7 +109,11 @@ impl Endpoint {
             }
             .instrument(Span::current()),
         ));
-        Ok(Self { inner: rc, runtime })
+        Ok(Self {
+            inner: rc,
+            default_client_config: None,
+            runtime,
+        })
     }
     /// Connect to a remote endpoint using a custom configuration.
     ///
@@ -145,6 +150,11 @@ impl Endpoint {
             .recv_state
             .connections
             .insert(ch, conn, socket, self.runtime.clone()))
+    }
+
+    /// Set the client configuration used by `connect`
+    pub fn set_default_client_config(&mut self, config: ClientConfig) {
+        self.default_client_config = Some(config);
     }
 }
 
