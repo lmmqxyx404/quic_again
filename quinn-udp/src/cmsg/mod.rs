@@ -1,4 +1,7 @@
-use std::ffi::c_int;
+use std::{
+    ffi::{c_int, c_uchar},
+    mem, ptr,
+};
 
 #[cfg(unix)]
 #[path = "unix.rs"]
@@ -36,15 +39,45 @@ impl<'a, M: MsgHdr> Encoder<'a, M> {
     /// - If insufficient buffer space remains.
     /// - If `T` has stricter alignment requirements than `M::ControlMessage`
     pub(crate) fn push<T: Copy + ?Sized>(&mut self, level: c_int, ty: c_int, value: T) {
-        todo!()
+        assert!(mem::align_of::<T>() <= mem::align_of::<M::ControlMessage>());
+        let space = M::ControlMessage::cmsg_space(mem::size_of_val(&value));
+        assert!(
+            self.hdr.control_len() >= self.len + space,
+            "control message buffer too small. Required: {}, Available: {}",
+            self.len + space,
+            self.hdr.control_len()
+        );
+        let cmsg = self.cmsg.take().expect("no control buffer space remaining");
+        cmsg.set(
+            level,
+            ty,
+            M::ControlMessage::cmsg_len(mem::size_of_val(&value)),
+        );
+        unsafe {
+            ptr::write(cmsg.cmsg_data() as *const T as *mut T, value);
+        }
+        self.len += space;
+        self.cmsg = unsafe { self.hdr.cmsg_nxt_hdr(cmsg).as_mut() };
     }
 }
 
 // Helper traits for native types for control messages
 pub(crate) trait MsgHdr {
     type ControlMessage: CMsgHdr;
-
+    /// 1
     fn cmsg_first_hdr(&self) -> *mut Self::ControlMessage;
+    /// 2.
+    fn control_len(&self) -> usize;
+    /// 3.
+    fn cmsg_nxt_hdr(&self, cmsg: &Self::ControlMessage) -> *mut Self::ControlMessage;
 }
 
-pub(crate) trait CMsgHdr {}
+pub(crate) trait CMsgHdr {
+    fn cmsg_space(length: usize) -> usize;
+
+    fn set(&mut self, level: c_int, ty: c_int, len: usize);
+
+    fn cmsg_len(length: usize) -> usize;
+
+    fn cmsg_data(&self) -> *mut c_uchar;
+}

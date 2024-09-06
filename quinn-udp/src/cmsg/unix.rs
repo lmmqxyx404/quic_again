@@ -1,3 +1,5 @@
+use std::ffi::{c_int, c_uchar};
+
 use super::{CMsgHdr, MsgHdr};
 
 #[derive(Copy, Clone)]
@@ -11,7 +13,33 @@ impl MsgHdr for libc::msghdr {
     fn cmsg_first_hdr(&self) -> *mut Self::ControlMessage {
         unsafe { libc::CMSG_FIRSTHDR(self) }
     }
+
+    fn control_len(&self) -> usize {
+        self.msg_controllen as _
+    }
+
+    fn cmsg_nxt_hdr(&self, cmsg: &Self::ControlMessage) -> *mut Self::ControlMessage {
+        unsafe { libc::CMSG_NXTHDR(self, cmsg) }
+    }
 }
 
 /// Helpers for [`libc::cmsghdr`]
-impl CMsgHdr for libc::cmsghdr {}
+impl CMsgHdr for libc::cmsghdr {
+    fn cmsg_space(length: usize) -> usize {
+        unsafe { libc::CMSG_SPACE(length as _) as usize }
+    }
+
+    fn set(&mut self, level: c_int, ty: c_int, len: usize) {
+        self.cmsg_level = level as _;
+        self.cmsg_type = ty as _;
+        self.cmsg_len = len as _;
+    }
+
+    fn cmsg_len(length: usize) -> usize {
+        unsafe { libc::CMSG_LEN(length as _) as usize }
+    }
+
+    fn cmsg_data(&self) -> *mut c_uchar {
+        unsafe { libc::CMSG_DATA(self) }
+    }
+}
