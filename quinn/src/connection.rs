@@ -7,10 +7,11 @@ use std::{
     task::{Context, Poll},
 };
 
+use bytes::Bytes;
 use tokio::sync::{futures::Notified, mpsc, oneshot, Notify};
 use tracing::{debug_span, Instrument, Span};
 
-use crate::{mutex::Mutex, runtime::Runtime, AsyncUdpSocket, ConnectionEvent};
+use crate::{mutex::Mutex, runtime::Runtime, AsyncUdpSocket, ConnectionEvent, VarInt};
 
 use proto::{
     congestion::Controller, ConnectionError, ConnectionHandle, ConnectionStats, Dir, EndpointEvent,
@@ -119,7 +120,10 @@ impl ConnectionRef {
                 error: None,
                 connected: false,
                 on_connected: Some(on_connected),
+                inner: conn,
+                runtime,
             }),
+            shared: Shared::default(),
         }))
     }
 }
@@ -128,6 +132,22 @@ impl Clone for ConnectionRef {
     fn clone(&self) -> Self {
         self.state.lock("clone").ref_count += 1;
         Self(self.0.clone())
+    }
+}
+
+impl Drop for ConnectionRef {
+    fn drop(&mut self) {
+        let conn = &mut *self.state.lock("drop");
+        if let Some(x) = conn.ref_count.checked_sub(1) {
+            conn.ref_count = x;
+            if x == 0 && !conn.inner.is_closed() {
+                // If the driver is alive, it's just it and us, so we'd better shut it down. If it's
+                // not, we can't do any harm. If there were any streams being opened, then either
+                // the connection will be closed for an unrelated reason or a fresh reference will
+                // be constructed for the newly opened stream.
+                conn.implicit_close(&self.shared);
+            }
+        }
     }
 }
 
@@ -141,6 +161,7 @@ impl std::ops::Deref for ConnectionRef {
 #[derive(Debug)]
 pub(crate) struct ConnectionInner {
     pub(crate) state: Mutex<State>,
+    shared: Shared,
 }
 
 /// A future that drives protocol logic for a connection
@@ -179,6 +200,22 @@ pub(crate) struct State {
     /// Always set to Some before the connection becomes drained
     pub(crate) error: Option<ConnectionError>,
     on_connected: Option<oneshot::Sender<bool>>,
+    pub(crate) inner: proto::Connection,
+    runtime: Arc<dyn Runtime>,
+}
+
+impl State {
+    /// Close for a reason other than the application's explicit request
+    pub(crate) fn implicit_close(&mut self, shared: &Shared) {
+        self.close(0u32.into(), Bytes::new(), shared);
+    }
+
+    fn close(&mut self, error_code: VarInt, reason: Bytes, shared: &Shared) {
+        self.inner.close(self.runtime.now(), error_code, reason);
+        todo!()
+        // self.terminate(ConnectionError::LocallyClosed, shared);
+        // self.wake();
+    }
 }
 
 impl fmt::Debug for State {
@@ -186,3 +223,12 @@ impl fmt::Debug for State {
         todo!() // f.debug_struct("State").field("inner", &self.inner).finish()
     }
 }
+
+impl Drop for State {
+    fn drop(&mut self) {
+        todo!()
+    }
+}
+
+#[derive(Debug, Default)]
+pub(crate) struct Shared {}
