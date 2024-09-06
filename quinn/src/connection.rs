@@ -129,6 +129,8 @@ impl ConnectionRef {
                 blocked_writers: FxHashMap::default(),
                 blocked_readers: FxHashMap::default(),
                 stopped: FxHashMap::default(),
+
+                endpoint_events,
             }),
             shared: Shared::default(),
         }))
@@ -214,6 +216,7 @@ pub(crate) struct State {
     pub(crate) blocked_writers: FxHashMap<StreamId, Waker>,
     pub(crate) blocked_readers: FxHashMap<StreamId, Waker>,
     pub(crate) stopped: FxHashMap<StreamId, Waker>,
+    endpoint_events: mpsc::UnboundedSender<(ConnectionHandle, EndpointEvent)>,
 }
 
 impl State {
@@ -265,7 +268,12 @@ impl fmt::Debug for State {
 
 impl Drop for State {
     fn drop(&mut self) {
-        todo!()
+        if !self.inner.is_drained() {
+            // Ensure the endpoint can tidy up
+            let _ = self
+                .endpoint_events
+                .send((self.handle, proto::EndpointEvent::drained()));
+        }
     }
 }
 

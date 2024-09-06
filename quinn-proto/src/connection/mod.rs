@@ -3457,6 +3457,13 @@ impl Connection {
     pub(crate) fn path_mtu(&self) -> u16 {
         self.path.current_mtu()
     }
+    /// 80. Whether there is no longer any need to keep the connection around
+    ///
+    /// Closed connections become drained after a brief timeout to absorb any remaining in-flight
+    /// packets from the peer. All drained connections have been closed.
+    pub fn is_drained(&self) -> bool {
+        self.state.is_drained()
+    }
 }
 
 #[allow(unreachable_pub)] // fuzzing only

@@ -149,3 +149,13 @@ pub(crate) enum EndpointEventInner {
 /// Events sent from a Connection to an Endpoint
 #[derive(Debug)]
 pub struct EndpointEvent(pub(crate) EndpointEventInner);
+
+impl EndpointEvent {
+    /// Construct an event that indicating that a `Connection` will no longer emit events
+    ///
+    /// Useful for notifying an `Endpoint` that a `Connection` has been destroyed outside of the
+    /// usual state machine flow, e.g. when being dropped by the user.
+    pub fn drained() -> Self {
+        Self(EndpointEventInner::Drained)
+    }
+}
