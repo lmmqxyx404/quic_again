@@ -304,5 +304,24 @@ fn prepare_msg(
     encode_src_ip: bool,
     sendmsg_einval: bool,
 ) {
+    iov.iov_base = transmit.contents.as_ptr() as *const _ as *mut _;
+    iov.iov_len = transmit.contents.len();
+
+    // SAFETY: Casting the pointer to a mutable one is legal,
+    // as sendmsg is guaranteed to not alter the mutable pointer
+    // as per the POSIX spec. See the section on the sys/socket.h
+    // header for details. The type is only mutable in the first
+    // place because it is reused by recvmsg as well.
+    let name = dst_addr.as_ptr() as *mut libc::c_void;
+    let namelen = dst_addr.len();
+    hdr.msg_name = name as *mut _;
+    hdr.msg_namelen = namelen;
+    hdr.msg_iov = iov;
+    hdr.msg_iovlen = 1;
+
+    hdr.msg_control = ctrl.0.as_mut_ptr() as _;
+    hdr.msg_controllen = CMSG_LEN as _;
+    let mut encoder = unsafe { cmsg::Encoder::new(hdr) };
+
     todo!()
 }
