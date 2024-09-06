@@ -295,7 +295,13 @@ fn send(
         encode_src_ip,
         state.sendmsg_einval(),
     );
-    todo!()
+    loop {
+        let n = unsafe { libc::sendmsg(io.as_raw_fd(), &msg_hdr, 0) };
+        if n == -1 {
+            todo!()
+        }
+        return Ok(());
+    }
 }
 
 fn prepare_msg(

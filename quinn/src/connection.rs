@@ -13,7 +13,9 @@ use tokio::sync::{futures::Notified, mpsc, oneshot, Notify};
 use tracing::{debug_span, Instrument, Span};
 
 use crate::{
-    mutex::Mutex, runtime::{Runtime, UdpPoller}, udp_transmit, AsyncUdpSocket, ConnectionEvent, VarInt
+    mutex::Mutex,
+    runtime::{Runtime, UdpPoller},
+    udp_transmit, AsyncUdpSocket, ConnectionEvent, VarInt,
 };
 
 use proto::{
@@ -213,7 +215,9 @@ impl Future for ConnectionDriver {
         let mut keep_going = conn.drive_transmit(cx)?;
         // If a timer expires, there might be more to transmit. When we transmit something, we
         // might need to reset a timer. Hence, we must loop until neither happens.
-        // keep_going |= conn.drive_timer(cx);
+        /* keep_going |= conn.drive_timer(cx);
+        conn.forward_endpoint_events();
+        conn.forward_app_events(&self.0.shared); */
         todo!()
     }
 }
@@ -340,9 +344,7 @@ impl State {
                             };
                             t
                         }
-                        None => {
-                            todo!()
-                        }
+                        None => break,
                     }
                 }
             };
@@ -362,9 +364,25 @@ impl State {
                 Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => true,
                 Err(e) => return Err(e),
             };
-            todo!()
+            if retry {
+                // We thought the socket was writable, but it wasn't. Retry so that either another
+                // `poll_writable` call determines that the socket is indeed not writable and
+                // registers us for a wakeup, or the send succeeds if this really was just a
+                // transient failure.
+                // self.buffered_transmit = Some(t);
+                // continue;
+                todo!()
+            }
+            if transmits >= MAX_TRANSMIT_DATAGRAMS {
+                // TODO: What isn't ideal here yet is that if we don't poll all
+                // datagrams that could be sent we don't go into the `app_limited`
+                // state and CWND continues to grow until we get here the next time.
+                // See https://github.com/quinn-rs/quinn/issues/1126
+                todo!() // return Ok(true);
+            }
         }
-        todo!()
+
+        Ok(false)
     }
 }
 
@@ -400,3 +418,9 @@ pub(crate) struct Shared {
 fn wake_all(wakers: &mut FxHashMap<StreamId, Waker>) {
     wakers.drain().for_each(|(_, waker)| waker.wake())
 }
+
+/// The maximum amount of datagrams which will be produced in a single `drive_transmit` call
+///
+/// This limits the amount of CPU resources consumed by datagram generation,
+/// and allows other tasks (like receiving ACKs) to run in between.
+const MAX_TRANSMIT_DATAGRAMS: usize = 20;
