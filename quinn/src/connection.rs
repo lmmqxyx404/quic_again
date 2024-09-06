@@ -131,6 +131,12 @@ impl ConnectionRef {
                 stopped: FxHashMap::default(),
 
                 endpoint_events,
+
+                // io_poller: socket.clone().create_io_poller(),
+                conn_events,
+                socket,
+                send_buffer: Vec::new(),
+                buffered_transmit: None,
             }),
             shared: Shared::default(),
         }))
@@ -192,11 +198,20 @@ impl Future for ConnectionDriver {
 
     #[allow(unused_mut)] // MSRV
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Self::Output> {
-        /*  let conn = &mut *self.0.state.lock("poll");
+        let conn = &mut *self.0.state.lock("poll");
 
         let span = debug_span!("drive", id = conn.handle.0);
-        let _guard = span.enter(); */
+        let _guard = span.enter();
 
+        if let Err(e) = conn.process_conn_events(&self.0.shared, cx) {
+            todo!() // conn.terminate(e, &self.0.shared);
+                    // return Poll::Ready(Ok(()));
+        }
+
+        let mut keep_going = conn.drive_transmit(cx)?;
+        // If a timer expires, there might be more to transmit. When we transmit something, we
+        // might need to reset a timer. Hence, we must loop until neither happens.
+        // keep_going |= conn.drive_timer(cx);
         todo!()
     }
 }
@@ -217,6 +232,12 @@ pub(crate) struct State {
     pub(crate) blocked_readers: FxHashMap<StreamId, Waker>,
     pub(crate) stopped: FxHashMap<StreamId, Waker>,
     endpoint_events: mpsc::UnboundedSender<(ConnectionHandle, EndpointEvent)>,
+    conn_events: mpsc::UnboundedReceiver<ConnectionEvent>,
+    socket: Arc<dyn AsyncUdpSocket>,
+    send_buffer: Vec<u8>,
+    /// We buffer a transmit when the underlying I/O would block
+    buffered_transmit: Option<proto::Transmit>,
+    // io_poller: Pin<Box<dyn UdpPoller>>,
 }
 
 impl State {
@@ -257,6 +278,81 @@ impl State {
         if let Some(x) = self.driver.take() {
             todo!() // x.wake();
         }
+    }
+
+    /// If this returns `Err`, the endpoint is dead, so the driver should exit immediately.
+    fn process_conn_events(
+        &mut self,
+        shared: &Shared,
+        cx: &mut Context,
+    ) -> Result<(), ConnectionError> {
+        loop {
+            match self.conn_events.poll_recv(cx) {
+                Poll::Ready(Some(ConnectionEvent::Rebind(socket))) => {
+                    todo!() //
+                            /*  self.socket = socket;
+                            self.io_poller = self.socket.clone().create_io_poller();
+                            self.inner.local_address_changed(); */
+                }
+                Poll::Ready(Some(ConnectionEvent::Proto(event))) => {
+                    todo!() // self.inner.handle_event(event);
+                }
+                Poll::Ready(Some(ConnectionEvent::Close { reason, error_code })) => {
+                    todo!() // self.close(error_code, reason, shared);
+                }
+                Poll::Ready(None) => {
+                    todo!()
+                    /*  return Err(ConnectionError::TransportError(proto::TransportError {
+                        code: proto::TransportErrorCode::INTERNAL_ERROR,
+                        frame: None,
+                        reason: "endpoint driver future was dropped".to_string(),
+                    })); */
+                }
+                Poll::Pending => {
+                    return Ok(());
+                }
+            }
+        }
+    }
+
+    fn drive_transmit(&mut self, cx: &mut Context) -> io::Result<bool> {
+        let now = self.runtime.now();
+        let mut transmits = 0;
+
+        let max_datagrams = self.socket.max_transmit_segments();
+        loop {
+            // Retry the last transmit, or get a new one.
+            let t = match self.buffered_transmit.take() {
+                Some(t) => t,
+                None => {
+                    self.send_buffer.clear();
+                    self.send_buffer.reserve(self.inner.current_mtu() as usize);
+                    match self
+                        .inner
+                        .poll_transmit(now, max_datagrams, &mut self.send_buffer)
+                    {
+                        Some(t) => {
+                            transmits += match t.segment_size {
+                                None => 1,
+                                Some(s) => (t.size + s - 1) / s, // round up
+                            };
+                            t
+                        }
+                        None => {
+                            todo!()
+                        }
+                    }
+                }
+            };
+
+            /*   if self.io_poller.as_mut().poll_writable(cx)?.is_pending() {
+                // Retry after a future wakeup
+                //   self.buffered_transmit = Some(t);
+                // return Ok(false);
+            } */
+            todo!()
+        }
+        todo!()
     }
 }
 

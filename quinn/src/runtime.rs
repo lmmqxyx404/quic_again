@@ -71,4 +71,24 @@ pub trait AsyncUdpSocket: Send + Sync + Debug + 'static {
         bufs: &mut [IoSliceMut<'_>],
         meta: &mut [RecvMeta],
     ) -> Poll<io::Result<usize>>;
+
+    /// 5. Maximum number of datagrams that a [`Transmit`] may encode
+    fn max_transmit_segments(&self) -> usize {
+        1
+    }
+    
 }
+
+/* /// An object polled to detect when an associated [`AsyncUdpSocket`] is writable
+///
+/// Any number of `UdpPoller`s may exist for a single [`AsyncUdpSocket`]. Each `UdpPoller` is
+/// responsible for notifying at most one task when that socket becomes writable.
+pub trait UdpPoller: Send + Sync + Debug + 'static {
+    /// Check whether the associated socket is likely to be writable
+    ///
+    /// Must be called after [`AsyncUdpSocket::try_send`] returns [`io::ErrorKind::WouldBlock`] to
+    /// register the task associated with `cx` to be woken when a send should be attempted
+    /// again. Unlike in [`Future::poll`], a [`UdpPoller`] may be reused indefinitely no matter how
+    /// many times `poll_writable` returns [`Poll::Ready`].
+    fn poll_writable(self: Pin<&mut Self>, cx: &mut Context) -> Poll<io::Result<()>>;
+} */

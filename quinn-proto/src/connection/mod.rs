@@ -3464,6 +3464,12 @@ impl Connection {
     pub fn is_drained(&self) -> bool {
         self.state.is_drained()
     }
+    /// 81. Storage size required for the largest packet known to be supported by the current path
+    ///
+    /// Buffers passed to [`Connection::poll_transmit`] should be at least this large.
+    pub fn current_mtu(&self) -> u16 {
+        self.path.current_mtu()
+    }
 }
 
 #[allow(unreachable_pub)] // fuzzing only
