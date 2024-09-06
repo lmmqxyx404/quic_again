@@ -220,8 +220,7 @@ impl Future for ConnectionDriver {
         // If a timer expires, there might be more to transmit. When we transmit something, we
         // might need to reset a timer. Hence, we must loop until neither happens.
         keep_going |= conn.drive_timer(cx);
-        todo!()
-        /* conn.forward_endpoint_events();
+        conn.forward_endpoint_events();
         conn.forward_app_events(&self.0.shared);
         if !conn.inner.is_drained() {
             if keep_going {
@@ -236,7 +235,7 @@ impl Future for ConnectionDriver {
         if conn.error.is_none() {
             unreachable!("drained connections always have an error");
         }
-        Poll::Ready(Ok(())) */
+        Poll::Ready(Ok(()))
     }
 }
 
@@ -454,14 +453,14 @@ impl State {
         self.timer_deadline = None;
         true
     }
-    /* fn forward_endpoint_events(&mut self) {
+    fn forward_endpoint_events(&mut self) {
         while let Some(event) = self.inner.poll_endpoint_events() {
             // If the endpoint driver is gone, noop.
             let _ = self.endpoint_events.send((self.handle, event));
         }
-    } */
+    }
 
-    /*   fn forward_app_events(&mut self, shared: &Shared) {
+    fn forward_app_events(&mut self, shared: &Shared) {
         while let Some(event) = self.inner.poll() {
             use proto::Event::*;
             match event {
@@ -521,7 +520,7 @@ impl State {
                 }
             }
         }
-    } */
+    }
 }
 
 impl fmt::Debug for State {

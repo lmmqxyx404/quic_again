@@ -37,9 +37,15 @@ add `recv_limiter`
 注意后面调用这个poll 方法时，要将与之关联的 `sender` 正确设置.
 也就是 `connection::State::on_connected`
 
-## 7. 5 -> `Future for ConnectionDriver`
+## 7. `5 -> Future for ConnectionDriver`
 `poll conn.drive_transmit` -> `State::drive_transmit` -> `self.socket.try_send` ->
 `impl AsyncUdpSocket for UdpSocket ::try_send` -> `self.inner.send` -> `UdpSocketState::send` -> `unix::send` -> `prepare_msg`
+
+* `Future for ConnectionDriver`
+* * `conn.drive_transmit`
+* * `conn.drive_timer`
+* * `conn.forward_endpoint_events`
+* * `conn.forward_app_events`
 
 # dev skill
 ## Do not omit `Drop`

@@ -377,13 +377,21 @@ impl State {
     fn handle_events(&mut self, cx: &mut Context, shared: &Shared) -> bool {
         for _ in 0..IO_LOOP_BOUND {
             let (ch, event): (ConnectionHandle, EndpointEvent) = match self.events.poll_recv(cx) {
-                Poll::Ready(Some(x)) => {
-                    todo!() // x,
-                }
+                Poll::Ready(Some(x)) => x,
                 Poll::Ready(None) => unreachable!("EndpointInner owns one sender"),
                 Poll::Pending => {
                     return false;
                 }
+            };
+
+            if event.is_drained() {
+                self.recv_state.connections.senders.remove(&ch);
+                if self.recv_state.connections.is_empty() {
+                    shared.idle.notify_waiters();
+                }
+            }
+            let Some(event) = self.inner.handle_event(ch, event) else {
+                continue;
             };
             todo!()
         }

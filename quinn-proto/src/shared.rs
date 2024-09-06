@@ -158,4 +158,11 @@ impl EndpointEvent {
     pub fn drained() -> Self {
         Self(EndpointEventInner::Drained)
     }
+
+    /// Determine whether this is the last event a `Connection` will emit
+    ///
+    /// Useful for determining when connection-related event loop state can be freed.
+    pub fn is_drained(&self) -> bool {
+        self.0 == EndpointEventInner::Drained
+    }
 }
