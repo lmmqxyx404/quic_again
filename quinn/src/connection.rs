@@ -12,7 +12,7 @@ use rustc_hash::FxHashMap;
 use tokio::sync::{futures::Notified, mpsc, oneshot, Notify};
 use tracing::{debug_span, Instrument, Span};
 
-use crate::{mutex::Mutex, runtime::Runtime, AsyncUdpSocket, ConnectionEvent, VarInt};
+use crate::{mutex::Mutex, runtime::{Runtime, UdpPoller}, AsyncUdpSocket, ConnectionEvent, VarInt};
 
 use proto::{
     congestion::Controller, ConnectionError, ConnectionHandle, ConnectionStats, Dir, EndpointEvent,
@@ -132,7 +132,7 @@ impl ConnectionRef {
 
                 endpoint_events,
 
-                // io_poller: socket.clone().create_io_poller(),
+                io_poller: socket.clone().create_io_poller(),
                 conn_events,
                 socket,
                 send_buffer: Vec::new(),
@@ -237,7 +237,7 @@ pub(crate) struct State {
     send_buffer: Vec<u8>,
     /// We buffer a transmit when the underlying I/O would block
     buffered_transmit: Option<proto::Transmit>,
-    // io_poller: Pin<Box<dyn UdpPoller>>,
+    io_poller: Pin<Box<dyn UdpPoller>>,
 }
 
 impl State {
@@ -345,11 +345,11 @@ impl State {
                 }
             };
 
-            /*   if self.io_poller.as_mut().poll_writable(cx)?.is_pending() {
+            if self.io_poller.as_mut().poll_writable(cx)?.is_pending() {
                 // Retry after a future wakeup
                 //   self.buffered_transmit = Some(t);
                 // return Ok(false);
-            } */
+            }
             todo!()
         }
         todo!()

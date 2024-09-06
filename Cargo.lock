@@ -420,6 +420,7 @@ name = "scratch-quinn"
 version = "0.1.0"
 dependencies = [
  "bytes",
+ "pin-project-lite",
  "rcgen",
  "rustc-hash",
  "rustls",

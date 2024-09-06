@@ -32,6 +32,8 @@ bytes = { workspace = true }
 
 rustc-hash = { workspace = true }
 
+pin-project-lite = { workspace = true }
+
 [dev-dependencies]
 tracing-subscriber = { workspace = true }
 tokio = { workspace = true, features = [

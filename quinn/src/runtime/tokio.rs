@@ -9,7 +9,7 @@ use std::{
 
 use tokio::io::Interest;
 
-use super::{AsyncUdpSocket, Runtime};
+use super::{AsyncUdpSocket, Runtime, UdpPollHelper};
 
 /// A Quinn runtime for Tokio
 #[derive(Debug)]
@@ -39,6 +39,13 @@ struct UdpSocket {
 }
 
 impl AsyncUdpSocket for UdpSocket {
+    fn create_io_poller(self: Arc<Self>) -> Pin<Box<dyn super::UdpPoller>> {
+        Box::pin(UdpPollHelper::new(move || {
+            let socket = self.clone();
+            async move { socket.io.writable().await }
+        }))
+    }
+
     fn local_addr(&self) -> io::Result<std::net::SocketAddr> {
         self.io.local_addr()
     }
