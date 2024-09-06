@@ -118,6 +118,7 @@ impl ConnectionRef {
                 handle,
                 error: None,
                 connected: false,
+                on_connected: Some(on_connected),
             }),
         }))
     }
@@ -177,6 +178,7 @@ pub(crate) struct State {
     connected: bool,
     /// Always set to Some before the connection becomes drained
     pub(crate) error: Option<ConnectionError>,
+    on_connected: Option<oneshot::Sender<bool>>,
 }
 
 impl fmt::Debug for State {

@@ -32,5 +32,12 @@ add `recv_limiter`
 * `connections.insert`[ConnectionSet::insert] -> `Connecting::new`
 -> `Clone for ConnectionRef`
 
+## 6. `Connecting::poll` called in `handshake_timeout`
+`client.connect_with().unwrap.await` -> `Pin::new(&mut self.connected).poll(cx)`
+注意后面调用这个poll 方法时，要将与之关联的 `sender` 正确设置.
+也就是 `connection::State::on_connected`
+
 # dev skill
 ## Do not omit `Drop`
+
+## watch the tokio relative paired Api, like `Sender` `Receiver` carefully.
