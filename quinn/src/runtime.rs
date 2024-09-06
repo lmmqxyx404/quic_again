@@ -29,6 +29,8 @@ pub trait Runtime: Send + Sync + Debug + 'static {
     fn now(&self) -> Instant {
         Instant::now()
     }
+    /// 4. Construct a timer that will expire at `i`
+    fn new_timer(&self, i: Instant) -> Pin<Box<dyn AsyncTimer>>;
 }
 
 /// Automatically select an appropriate runtime from those enabled at compile time
@@ -163,4 +165,12 @@ impl<MakeFut, Fut> Debug for UdpPollHelper<MakeFut, Fut> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("UdpPollHelper").finish_non_exhaustive()
     }
+}
+
+/// Abstract implementation of an async timer for runtime independence
+pub trait AsyncTimer: Send + Debug + 'static {
+    /// Update the timer to expire at `i`
+    fn reset(self: Pin<&mut Self>, i: Instant);
+    /// Check whether the timer has expired, and register to be woken if not
+    fn poll(self: Pin<&mut Self>, cx: &mut Context) -> Poll<()>;
 }

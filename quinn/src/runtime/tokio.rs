@@ -7,9 +7,12 @@ use std::{
     time::Instant,
 };
 
-use tokio::io::Interest;
+use tokio::{
+    io::Interest,
+    time::{sleep_until, Sleep},
+};
 
-use super::{AsyncUdpSocket, Runtime, UdpPollHelper};
+use super::{AsyncTimer, AsyncUdpSocket, Runtime, UdpPollHelper};
 
 /// A Quinn runtime for Tokio
 #[derive(Debug)]
@@ -29,6 +32,19 @@ impl Runtime for TokioRuntime {
 
     fn now(&self) -> Instant {
         tokio::time::Instant::now().into_std()
+    }
+
+    fn new_timer(&self, t: Instant) -> Pin<Box<dyn AsyncTimer>> {
+        Box::pin(sleep_until(t.into()))
+    }
+}
+
+impl AsyncTimer for Sleep {
+    fn reset(self: Pin<&mut Self>, t: Instant) {
+        Self::reset(self, t.into())
+    }
+    fn poll(self: Pin<&mut Self>, cx: &mut Context) -> Poll<()> {
+        Future::poll(self, cx)
     }
 }
 

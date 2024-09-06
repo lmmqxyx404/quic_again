@@ -5,6 +5,7 @@ use std::{
     pin::Pin,
     sync::Arc,
     task::{Context, Poll, Waker},
+    time::Instant,
 };
 
 use bytes::Bytes;
@@ -14,7 +15,7 @@ use tracing::{debug_span, Instrument, Span};
 
 use crate::{
     mutex::Mutex,
-    runtime::{Runtime, UdpPoller},
+    runtime::{AsyncTimer, Runtime, UdpPoller},
     udp_transmit, AsyncUdpSocket, ConnectionEvent, VarInt,
 };
 
@@ -141,6 +142,9 @@ impl ConnectionRef {
                 socket,
                 send_buffer: Vec::new(),
                 buffered_transmit: None,
+
+                timer: None,
+                timer_deadline: None,
             }),
             shared: Shared::default(),
         }))
@@ -215,10 +219,24 @@ impl Future for ConnectionDriver {
         let mut keep_going = conn.drive_transmit(cx)?;
         // If a timer expires, there might be more to transmit. When we transmit something, we
         // might need to reset a timer. Hence, we must loop until neither happens.
-        /* keep_going |= conn.drive_timer(cx);
-        conn.forward_endpoint_events();
-        conn.forward_app_events(&self.0.shared); */
+        keep_going |= conn.drive_timer(cx);
         todo!()
+        /* conn.forward_endpoint_events();
+        conn.forward_app_events(&self.0.shared);
+        if !conn.inner.is_drained() {
+            if keep_going {
+                // If the connection hasn't processed all tasks, schedule it again
+                cx.waker().wake_by_ref();
+            } else {
+                conn.driver = Some(cx.waker().clone());
+            }
+            return Poll::Pending;
+        }
+
+        if conn.error.is_none() {
+            unreachable!("drained connections always have an error");
+        }
+        Poll::Ready(Ok(())) */
     }
 }
 
@@ -244,6 +262,8 @@ pub(crate) struct State {
     /// We buffer a transmit when the underlying I/O would block
     buffered_transmit: Option<proto::Transmit>,
     io_poller: Pin<Box<dyn UdpPoller>>,
+    timer: Option<Pin<Box<dyn AsyncTimer>>>,
+    timer_deadline: Option<Instant>,
 }
 
 impl State {
@@ -384,6 +404,124 @@ impl State {
 
         Ok(false)
     }
+
+    fn drive_timer(&mut self, cx: &mut Context) -> bool {
+        // Check whether we need to (re)set the timer. If so, we must poll again to ensure the
+        // timer is registered with the runtime (and check whether it's already
+        // expired).
+        match self.inner.poll_timeout() {
+            Some(deadline) => {
+                if let Some(delay) = &mut self.timer {
+                    // There is no need to reset the tokio timer if the deadline
+                    // did not change
+                    if self
+                        .timer_deadline
+                        .map(|current_deadline| current_deadline != deadline)
+                        .unwrap_or(true)
+                    {
+                        delay.as_mut().reset(deadline);
+                    }
+                } else {
+                    self.timer = Some(self.runtime.new_timer(deadline));
+                }
+                // Store the actual expiration time of the timer
+                self.timer_deadline = Some(deadline);
+            }
+            None => {
+                self.timer_deadline = None;
+                return false;
+            }
+        }
+
+        if self.timer_deadline.is_none() {
+            return false;
+        }
+
+        let delay = self
+            .timer
+            .as_mut()
+            .expect("timer must exist in this state")
+            .as_mut();
+        if delay.poll(cx).is_pending() {
+            // Since there wasn't a timeout event, there is nothing new
+            // for the connection to do
+            return false;
+        }
+
+        // A timer expired, so the caller needs to check for
+        // new transmits, which might cause new timers to be set.
+        self.inner.handle_timeout(self.runtime.now());
+        self.timer_deadline = None;
+        true
+    }
+    /* fn forward_endpoint_events(&mut self) {
+        while let Some(event) = self.inner.poll_endpoint_events() {
+            // If the endpoint driver is gone, noop.
+            let _ = self.endpoint_events.send((self.handle, event));
+        }
+    } */
+
+    /*   fn forward_app_events(&mut self, shared: &Shared) {
+        while let Some(event) = self.inner.poll() {
+            use proto::Event::*;
+            match event {
+                HandshakeDataReady => {
+                    if let Some(x) = self.on_handshake_data.take() {
+                        let _ = x.send(());
+                    }
+                }
+                Connected => {
+                    self.connected = true;
+                    if let Some(x) = self.on_connected.take() {
+                        // We don't care if the on-connected future was dropped
+                        let _ = x.send(self.inner.accepted_0rtt());
+                    }
+                    todo!()
+                    /*  if self.inner.side().is_client() && !self.inner.accepted_0rtt() {
+                        // Wake up rejected 0-RTT streams so they can fail immediately with
+                        // `ZeroRttRejected` errors.
+                        wake_all(&mut self.blocked_writers);
+                        wake_all(&mut self.blocked_readers);
+                        wake_all(&mut self.stopped);
+                    } */
+                }
+                ConnectionLost { reason } => {
+                    self.terminate(reason, shared);
+                }
+                Stream(StreamEvent::Writable { id }) => {
+                    todo!()
+                    // wake_stream(id, &mut self.blocked_writers),
+                }
+                Stream(StreamEvent::Opened { dir: Dir::Uni }) => {
+                    shared.stream_incoming[Dir::Uni as usize].notify_waiters();
+                }
+                Stream(StreamEvent::Opened { dir: Dir::Bi }) => {
+                    shared.stream_incoming[Dir::Bi as usize].notify_waiters();
+                }
+                DatagramReceived => {
+                    shared.datagram_received.notify_waiters();
+                }
+                DatagramsUnblocked => {
+                    shared.datagrams_unblocked.notify_waiters();
+                }
+                Stream(StreamEvent::Readable { id }) => {
+                    todo!()
+                    //wake_stream(id, &mut self.blocked_readers),
+                }
+                Stream(StreamEvent::Available { dir }) => {
+                    // Might mean any number of streams are ready, so we wake up everyone
+                    shared.stream_budget_available[dir as usize].notify_waiters();
+                }
+                Stream(StreamEvent::Finished { id }) => {
+                    todo!()
+                    // wake_stream(id, &mut self.stopped),
+                }
+                Stream(StreamEvent::Stopped { id, .. }) => {
+                    todo!()
+                }
+            }
+        }
+    } */
 }
 
 impl fmt::Debug for State {
