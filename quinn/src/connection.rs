@@ -4,10 +4,11 @@ use std::{
     io,
     pin::Pin,
     sync::Arc,
-    task::{Context, Poll},
+    task::{Context, Poll, Waker},
 };
 
 use bytes::Bytes;
+use rustc_hash::FxHashMap;
 use tokio::sync::{futures::Notified, mpsc, oneshot, Notify};
 use tracing::{debug_span, Instrument, Span};
 
@@ -122,6 +123,12 @@ impl ConnectionRef {
                 on_connected: Some(on_connected),
                 inner: conn,
                 runtime,
+
+                driver: None,
+                on_handshake_data: Some(on_handshake_data),
+                blocked_writers: FxHashMap::default(),
+                blocked_readers: FxHashMap::default(),
+                stopped: FxHashMap::default(),
             }),
             shared: Shared::default(),
         }))
@@ -202,6 +209,11 @@ pub(crate) struct State {
     on_connected: Option<oneshot::Sender<bool>>,
     pub(crate) inner: proto::Connection,
     runtime: Arc<dyn Runtime>,
+    driver: Option<Waker>,
+    on_handshake_data: Option<oneshot::Sender<()>>,
+    pub(crate) blocked_writers: FxHashMap<StreamId, Waker>,
+    pub(crate) blocked_readers: FxHashMap<StreamId, Waker>,
+    pub(crate) stopped: FxHashMap<StreamId, Waker>,
 }
 
 impl State {
@@ -212,9 +224,36 @@ impl State {
 
     fn close(&mut self, error_code: VarInt, reason: Bytes, shared: &Shared) {
         self.inner.close(self.runtime.now(), error_code, reason);
-        todo!()
-        // self.terminate(ConnectionError::LocallyClosed, shared);
-        // self.wake();
+        self.terminate(ConnectionError::LocallyClosed, shared);
+        self.wake();
+    }
+
+    /// Used to wake up all blocked futures when the connection becomes closed for any reason
+    fn terminate(&mut self, reason: ConnectionError, shared: &Shared) {
+        self.error = Some(reason.clone());
+        if let Some(x) = self.on_handshake_data.take() {
+            let _ = x.send(());
+        }
+        wake_all(&mut self.blocked_writers);
+        wake_all(&mut self.blocked_readers);
+        shared.stream_budget_available[Dir::Uni as usize].notify_waiters();
+        shared.stream_budget_available[Dir::Bi as usize].notify_waiters();
+        shared.stream_incoming[Dir::Uni as usize].notify_waiters();
+        shared.stream_incoming[Dir::Bi as usize].notify_waiters();
+        shared.datagram_received.notify_waiters();
+        shared.datagrams_unblocked.notify_waiters();
+        if let Some(x) = self.on_connected.take() {
+            let _ = x.send(false);
+        }
+        wake_all(&mut self.stopped);
+        shared.closed.notify_waiters();
+    }
+
+    /// Wake up a blocked `Driver` task to process I/O
+    pub(crate) fn wake(&mut self) {
+        if let Some(x) = self.driver.take() {
+            todo!() // x.wake();
+        }
     }
 }
 
@@ -231,4 +270,17 @@ impl Drop for State {
 }
 
 #[derive(Debug, Default)]
-pub(crate) struct Shared {}
+pub(crate) struct Shared {
+    /// Notified when new streams may be locally initiated due to an increase in stream ID flow
+    /// control budget
+    stream_budget_available: [Notify; 2],
+    /// Notified when the peer has initiated a new stream
+    stream_incoming: [Notify; 2],
+    datagram_received: Notify,
+    datagrams_unblocked: Notify,
+    closed: Notify,
+}
+
+fn wake_all(wakers: &mut FxHashMap<StreamId, Waker>) {
+    wakers.drain().for_each(|(_, waker)| waker.wake())
+}
