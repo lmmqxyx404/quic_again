@@ -340,5 +340,12 @@ fn prepare_msg(
     } else {
         todo!() // encoder.push(libc::IPPROTO_IPV6, libc::IPV6_TCLASS, ecn);
     }
-    todo!()
+    if let Some(segment_size) = transmit.segment_size {
+        todo!() // gso::set_segment_size(&mut encoder, segment_size as u16);
+    }
+    if let Some(ip) = &transmit.src_ip {
+        todo!()
+    }
+
+    encoder.finish();
 }

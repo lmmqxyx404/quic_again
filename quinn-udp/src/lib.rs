@@ -1,4 +1,4 @@
-use std::net::SocketAddr;
+use std::net::{IpAddr, SocketAddr};
 #[cfg(unix)]
 use std::os::unix::io::AsFd;
 
@@ -67,6 +67,11 @@ pub struct Transmit<'a> {
     pub contents: &'a [u8],
     /// Explicit congestion notification bits to set on the packet
     pub ecn: Option<EcnCodepoint>,
+    /// The segment size if this transmission contains multiple datagrams.
+    /// This is `None` if the transmit only contains a single datagram
+    pub segment_size: Option<usize>,
+    /// Optional source IP address for the datagram
+    pub src_ip: Option<IpAddr>,
 }
 
 /// Explicit congestion notification codepoint

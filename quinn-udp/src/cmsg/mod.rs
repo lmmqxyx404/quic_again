@@ -59,6 +59,19 @@ impl<'a, M: MsgHdr> Encoder<'a, M> {
         self.len += space;
         self.cmsg = unsafe { self.hdr.cmsg_nxt_hdr(cmsg).as_mut() };
     }
+
+    /// Finishes appending control messages to the buffer
+    pub(crate) fn finish(self) {
+        // Delegates to the `Drop` impl
+    }
+}
+
+// Statically guarantees that the encoding operation is "finished" before the control buffer is read
+// by `sendmsg` like API.
+impl<'a, M: MsgHdr> Drop for Encoder<'a, M> {
+    fn drop(&mut self) {
+        self.hdr.set_control_len(self.len as _);
+    }
 }
 
 // Helper traits for native types for control messages
@@ -70,6 +83,11 @@ pub(crate) trait MsgHdr {
     fn control_len(&self) -> usize;
     /// 3.
     fn cmsg_nxt_hdr(&self, cmsg: &Self::ControlMessage) -> *mut Self::ControlMessage;
+    /// 4. Sets the number of control messages added to this `struct msghdr`.
+    ///
+    /// Note that this is a destructive operation and should only be done as a finalisation
+    /// step.
+    fn set_control_len(&mut self, len: usize);
 }
 
 pub(crate) trait CMsgHdr {

@@ -21,6 +21,15 @@ impl MsgHdr for libc::msghdr {
     fn cmsg_nxt_hdr(&self, cmsg: &Self::ControlMessage) -> *mut Self::ControlMessage {
         unsafe { libc::CMSG_NXTHDR(self, cmsg) }
     }
+
+    fn set_control_len(&mut self, len: usize) {
+        self.msg_controllen = len as _;
+        if len == 0 {
+            // netbsd is particular about this being a NULL pointer if there are no control
+            // messages.
+            self.msg_control = std::ptr::null_mut();
+        }
+    }
 }
 
 /// Helpers for [`libc::cmsghdr`]
