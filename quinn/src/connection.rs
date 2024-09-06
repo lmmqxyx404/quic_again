@@ -323,7 +323,7 @@ impl State {
                     todo!() // self.inner.handle_event(event);
                 }
                 Poll::Ready(Some(ConnectionEvent::Close { reason, error_code })) => {
-                    todo!() // self.close(error_code, reason, shared);
+                    self.close(error_code, reason, shared);
                 }
                 Poll::Ready(None) => {
                     todo!()
@@ -369,11 +369,11 @@ impl State {
             };
 
             if self.io_poller.as_mut().poll_writable(cx)?.is_pending() {
-                todo!()
                 // Retry after a future wakeup
-                //   self.buffered_transmit = Some(t);
-                // return Ok(false);
+                self.buffered_transmit = Some(t);
+                return Ok(false);
             }
+
             let len = t.size;
             let retry = match self
                 .socket

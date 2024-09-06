@@ -156,6 +156,43 @@ impl Endpoint {
     pub fn set_default_client_config(&mut self, config: ClientConfig) {
         self.default_client_config = Some(config);
     }
+
+    /// Connect to a remote endpoint
+    ///
+    /// `server_name` must be covered by the certificate presented by the server. This prevents a
+    /// connection from being intercepted by an attacker with a valid certificate for some other
+    /// server.
+    ///
+    /// May fail immediately due to configuration errors, or in the future if the connection could
+    /// not be established.
+    pub fn connect(&self, addr: SocketAddr, server_name: &str) -> Result<Connecting, ConnectError> {
+        let config = match &self.default_client_config {
+            Some(config) => config.clone(),
+            None => {
+                todo!() // return Err(ConnectError::NoDefaultClientConfig),
+            }
+        };
+
+        self.connect_with(config, addr, server_name)
+    }
+    /// Close all of this endpoint's connections immediately and cease accepting new connections.
+    ///
+    /// See [`Connection::close()`] for details.
+    ///
+    /// [`Connection::close()`]: crate::Connection::close
+    pub fn close(&self, error_code: VarInt, reason: &[u8]) {
+        let reason = Bytes::copy_from_slice(reason);
+        let mut endpoint = self.inner.state.lock().unwrap();
+        endpoint.recv_state.connections.close = Some((error_code, reason.clone()));
+        for sender in endpoint.recv_state.connections.senders.values() {
+            // Ignoring errors from dropped connections
+            let _ = sender.send(ConnectionEvent::Close {
+                error_code,
+                reason: reason.clone(),
+            });
+        }
+        self.inner.shared.incoming.notify_waiters();
+    }
 }
 
 #[derive(Debug)]

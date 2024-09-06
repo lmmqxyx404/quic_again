@@ -47,6 +47,9 @@ add `recv_limiter`
 * * `conn.forward_endpoint_events`
 * * `conn.forward_app_events`
 
+## 8. about `tests::close_endpoint`
+`match conn.await` -> `process_conn_events` -> `drive_transmit`
+
 # dev skill
 ## Do not omit `Drop`
 

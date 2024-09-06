@@ -81,7 +81,31 @@ async fn close_endpoint() {
     endpoint
         .set_default_client_config(ClientConfig::with_root_certificates(Arc::new(roots)).unwrap());
 
-    todo!()
+    let conn = endpoint
+        .connect(
+            SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 1234),
+            "localhost",
+        )
+        .unwrap();
+
+    tokio::spawn(async move {
+        let _ = conn.await;
+    });
+
+    let conn = endpoint
+        .connect(
+            SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 1234),
+            "localhost",
+        )
+        .unwrap();
+    endpoint.close(0u32.into(), &[]);
+    match conn.await {
+        Err(crate::ConnectionError::LocallyClosed) => (),
+        Err(e) => panic!("unexpected error: {e}"),
+        Ok(_) => {
+            panic!("unexpected success");
+        }
+    }
 }
 
 struct TestWriter;
