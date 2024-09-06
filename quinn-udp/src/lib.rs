@@ -65,4 +65,18 @@ pub struct Transmit<'a> {
     pub destination: SocketAddr,
     /// Contents of the datagram
     pub contents: &'a [u8],
+    /// Explicit congestion notification bits to set on the packet
+    pub ecn: Option<EcnCodepoint>,
+}
+
+/// Explicit congestion notification codepoint
+#[repr(u8)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum EcnCodepoint {
+    #[doc(hidden)]
+    Ect0 = 0b10,
+    #[doc(hidden)]
+    Ect1 = 0b01,
+    #[doc(hidden)]
+    Ce = 0b11,
 }

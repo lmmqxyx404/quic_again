@@ -1,3 +1,5 @@
+use std::ffi::c_int;
+
 #[cfg(unix)]
 #[path = "unix.rs"]
 mod imp;
@@ -26,6 +28,15 @@ impl<'a, M: MsgHdr> Encoder<'a, M> {
             hdr,
             len: 0,
         }
+    }
+
+    /// Append a control message to the buffer.
+    ///
+    /// # Panics
+    /// - If insufficient buffer space remains.
+    /// - If `T` has stricter alignment requirements than `M::ControlMessage`
+    pub(crate) fn push<T: Copy + ?Sized>(&mut self, level: c_int, ty: c_int, value: T) {
+        todo!()
     }
 }
 

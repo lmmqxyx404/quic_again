@@ -1,6 +1,7 @@
 use std::{
     io::{self, IoSliceMut},
     mem,
+    net::IpAddr,
     os::fd::AsRawFd,
     sync::atomic::{AtomicBool, Ordering},
     time::Instant,
@@ -11,6 +12,9 @@ use socket2::SockRef;
 use super::log::debug;
 
 use crate::{cmsg, RecvMeta, Transmit, UdpSockRef};
+
+#[cfg(not(any(target_os = "freebsd", target_os = "netbsd")))]
+type IpTosTy = libc::c_int;
 
 /// Tokio-compatible UDP socket with some useful specializations.
 ///
@@ -322,6 +326,19 @@ fn prepare_msg(
     hdr.msg_control = ctrl.0.as_mut_ptr() as _;
     hdr.msg_controllen = CMSG_LEN as _;
     let mut encoder = unsafe { cmsg::Encoder::new(hdr) };
-
+    let ecn = transmit.ecn.map_or(0, |x| x as libc::c_int);
+    // True for IPv4 or IPv4-Mapped IPv6
+    let is_ipv4 = transmit.destination.is_ipv4()
+        || matches!(transmit.destination.ip(), IpAddr::V6(addr) if addr.to_ipv4_mapped().is_some());
+    if is_ipv4 {
+        if !sendmsg_einval {
+            #[cfg(not(target_os = "netbsd"))]
+            {
+                encoder.push(libc::IPPROTO_IP, libc::IP_TOS, ecn as IpTosTy);
+            }
+        }
+    } else {
+        todo!() // encoder.push(libc::IPPROTO_IPV6, libc::IPV6_TCLASS, ecn);
+    }
     todo!()
 }
