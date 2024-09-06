@@ -12,7 +12,9 @@ use rustc_hash::FxHashMap;
 use tokio::sync::{futures::Notified, mpsc, oneshot, Notify};
 use tracing::{debug_span, Instrument, Span};
 
-use crate::{mutex::Mutex, runtime::{Runtime, UdpPoller}, AsyncUdpSocket, ConnectionEvent, VarInt};
+use crate::{
+    mutex::Mutex, runtime::{Runtime, UdpPoller}, udp_transmit, AsyncUdpSocket, ConnectionEvent, VarInt
+};
 
 use proto::{
     congestion::Controller, ConnectionError, ConnectionHandle, ConnectionStats, Dir, EndpointEvent,
@@ -346,10 +348,20 @@ impl State {
             };
 
             if self.io_poller.as_mut().poll_writable(cx)?.is_pending() {
+                todo!()
                 // Retry after a future wakeup
                 //   self.buffered_transmit = Some(t);
                 // return Ok(false);
             }
+            let len = t.size;
+            let retry = match self
+                .socket
+                .try_send(&udp_transmit(&t, &self.send_buffer[..len]))
+            {
+                Ok(()) => false,
+                Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => true,
+                Err(e) => return Err(e),
+            };
             todo!()
         }
         todo!()

@@ -9,7 +9,7 @@ use std::{
     time::Instant,
 };
 
-use udp::RecvMeta;
+use udp::{RecvMeta, Transmit};
 
 #[cfg(feature = "runtime-tokio")]
 mod tokio;
@@ -86,6 +86,12 @@ pub trait AsyncUdpSocket: Send + Sync + Debug + 'static {
     ///
     /// [`Waker`]: std::task::Waker
     fn create_io_poller(self: Arc<Self>) -> Pin<Box<dyn UdpPoller>>;
+    /// 7. Send UDP datagrams from `transmits`, or return `WouldBlock` and clear the underlying
+    /// socket's readiness, or return an I/O error
+    ///
+    /// If this returns [`io::ErrorKind::WouldBlock`], [`UdpPoller::poll_writable`] must be called
+    /// to register the calling task to be woken when a send should be attempted again.
+    fn try_send(&self, transmit: &Transmit) -> io::Result<()>;
 }
 
 /// An object polled to detect when an associated [`AsyncUdpSocket`] is writable

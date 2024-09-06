@@ -17,16 +17,15 @@ mod tests;
 mod connection;
 /// 2.
 mod endpoint;
+/// 6.
+mod mutex;
 /// 3.
 mod runtime;
 /// 5.
 mod work_limiter;
-/// 6.
-mod mutex;
 
 #[cfg(feature = "runtime-tokio")]
 pub use crate::runtime::TokioRuntime;
-
 
 pub use udp;
 
@@ -42,6 +41,16 @@ enum ConnectionEvent {
     },
     Proto(proto::ConnectionEvent),
     Rebind(Arc<dyn AsyncUdpSocket>),
+}
+
+fn udp_transmit<'a>(t: &proto::Transmit, buffer: &'a [u8]) -> udp::Transmit<'a> {
+    udp::Transmit {
+        destination: t.destination,
+        // ecn: t.ecn.map(udp_ecn),
+        contents: buffer,
+        // segment_size: t.segment_size,
+        // src_ip: t.src_ip,
+    }
 }
 
 /// Maximum number of datagrams processed in send/recv calls to make before moving on to other processing

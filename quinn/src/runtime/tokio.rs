@@ -72,4 +72,10 @@ impl AsyncUdpSocket for UdpSocket {
             }
         }
     }
+
+    fn try_send(&self, transmit: &udp::Transmit) -> io::Result<()> {
+        self.io.try_io(Interest::WRITABLE, || {
+            self.inner.send((&self.io).into(), transmit)
+        })
+    }
 }

@@ -1,3 +1,4 @@
+use std::net::SocketAddr;
 #[cfg(unix)]
 use std::os::unix::io::AsFd;
 
@@ -55,4 +56,13 @@ impl Default for RecvMeta {
             dst_ip: None, */
         }
     }
+}
+
+/// An outgoing packet
+#[derive(Debug, Clone)]
+pub struct Transmit<'a> {
+    /// The socket this datagram should be sent to
+    pub destination: SocketAddr,
+    /// Contents of the datagram
+    pub contents: &'a [u8],
 }

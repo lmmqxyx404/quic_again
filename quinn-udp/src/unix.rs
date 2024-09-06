@@ -2,6 +2,7 @@ use std::{
     io::{self, IoSliceMut},
     mem,
     os::fd::AsRawFd,
+    sync::atomic::{AtomicBool, Ordering},
     time::Instant,
 };
 
@@ -9,7 +10,7 @@ use socket2::SockRef;
 
 use super::log::debug;
 
-use crate::{cmsg, RecvMeta, UdpSockRef};
+use crate::{cmsg, RecvMeta, Transmit, UdpSockRef};
 
 /// Tokio-compatible UDP socket with some useful specializations.
 ///
@@ -21,6 +22,12 @@ pub struct UdpSocketState {
     may_fragment: bool,
     /// 2.
     gro_segments: usize,
+    /// 3. True if we have received EINVAL error from `sendmsg` system call at least once.
+    ///
+    /// If enabled, we assume that old kernel is used and switch to fallback mode.
+    /// In particular, we do not use IP_TOS cmsg_type in this case,
+    /// which is not supported on Linux <3.13 and results in not sending the UDP packet at all.
+    sendmsg_einval: AtomicBool,
 }
 
 impl UdpSocketState {
@@ -128,6 +135,7 @@ impl UdpSocketState {
         Ok(Self {
             may_fragment,
             gro_segments: gro::gro_segments(),
+            sendmsg_einval: AtomicBool::new(false),
         })
     }
     /// 2. Whether transmitted datagrams might get fragmented by the IP layer
@@ -153,6 +161,15 @@ impl UdpSocketState {
         meta: &mut [RecvMeta],
     ) -> io::Result<usize> {
         recv(socket.0, bufs, meta)
+    }
+
+    pub fn send(&self, socket: UdpSockRef<'_>, transmit: &Transmit<'_>) -> io::Result<()> {
+        send(self, socket.0, transmit)
+    }
+
+    /// Returns true if we previously got an EINVAL error from `sendmsg` syscall.
+    fn sendmsg_einval(&self) -> bool {
+        self.sendmsg_einval.load(Ordering::Relaxed)
     }
 }
 
@@ -240,5 +257,52 @@ pub(crate) const BATCH_SIZE: usize = 32;
 
 #[cfg(not(any(target_os = "macos", target_os = "ios", target_os = "openbsd")))]
 fn recv(io: SockRef<'_>, bufs: &mut [IoSliceMut<'_>], meta: &mut [RecvMeta]) -> io::Result<usize> {
+    todo!()
+}
+
+#[cfg(not(any(
+    target_os = "macos",
+    target_os = "ios",
+    target_os = "openbsd",
+    target_os = "netbsd"
+)))]
+fn send(
+    #[allow(unused_variables)] // only used on Linux
+    state: &UdpSocketState,
+    io: SockRef<'_>,
+    transmit: &Transmit<'_>,
+) -> io::Result<()> {
+    #[allow(unused_mut)] // only mutable on FreeBSD
+    let mut encode_src_ip = true;
+    #[cfg(target_os = "freebsd")]
+    {
+        todo!()
+    }
+    let mut msg_hdr: libc::msghdr = unsafe { mem::zeroed() };
+    let mut iovec: libc::iovec = unsafe { mem::zeroed() };
+    let mut cmsgs = cmsg::Aligned([0u8; CMSG_LEN]);
+    let dst_addr = socket2::SockAddr::from(transmit.destination);
+    prepare_msg(
+        transmit,
+        &dst_addr,
+        &mut msg_hdr,
+        &mut iovec,
+        &mut cmsgs,
+        encode_src_ip,
+        state.sendmsg_einval(),
+    );
+    todo!()
+}
+
+fn prepare_msg(
+    transmit: &Transmit<'_>,
+    dst_addr: &socket2::SockAddr,
+    hdr: &mut libc::msghdr,
+    iov: &mut libc::iovec,
+    ctrl: &mut cmsg::Aligned<[u8; CMSG_LEN]>,
+    #[allow(unused_variables)] // only used on FreeBSD & macOS
+    encode_src_ip: bool,
+    sendmsg_einval: bool,
+) {
     todo!()
 }
