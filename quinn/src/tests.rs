@@ -1,7 +1,7 @@
 use core::str;
 use std::{
     io,
-    net::{IpAddr, Ipv4Addr, SocketAddr},
+    net::{IpAddr, Ipv4Addr, SocketAddr, UdpSocket},
     sync::Arc,
     time::Duration,
 };
@@ -13,7 +13,7 @@ use tokio::{
 };
 use tracing_subscriber::EnvFilter;
 
-use crate::endpoint::Endpoint;
+use crate::{endpoint::Endpoint, TokioRuntime};
 
 use super::ClientConfig;
 
@@ -108,6 +108,23 @@ async fn close_endpoint() {
     }
 }
 
+#[test]
+fn local_addr() {
+    let socket = UdpSocket::bind("[::1]:0").unwrap();
+    let addr = socket.local_addr().unwrap();
+    let runtime = rt_basic();
+    let ep = {
+        let _guard = runtime.enter();
+        Endpoint::new(Default::default(), None, socket, Arc::new(TokioRuntime)).unwrap()
+    };
+    // println!("{:?}", addr);
+    assert_eq!(
+        addr,
+        ep.local_addr()
+            .expect("Could not obtain our local endpoint")
+    );
+}
+
 struct TestWriter;
 
 impl std::io::Write for TestWriter {
@@ -125,4 +142,8 @@ impl std::io::Write for TestWriter {
 
 fn rt_threaded() -> Runtime {
     Builder::new_multi_thread().enable_all().build().unwrap()
+}
+
+fn rt_basic() -> Runtime {
+    Builder::new_current_thread().enable_all().build().unwrap()
 }

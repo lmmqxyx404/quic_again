@@ -193,6 +193,22 @@ impl Endpoint {
         }
         self.inner.shared.incoming.notify_waiters();
     }
+
+    /// Construct an endpoint with arbitrary configuration and socket
+    pub fn new(
+        config: EndpointConfig,
+        server_config: Option<ServerConfig>,
+        socket: std::net::UdpSocket,
+        runtime: Arc<dyn Runtime>,
+    ) -> io::Result<Self> {
+        let socket = runtime.wrap_udp_socket(socket)?;
+        Self::new_with_abstract_socket(config, server_config, socket, runtime)
+    }
+
+    /// Get the local `SocketAddr` the underlying socket is bound to
+    pub fn local_addr(&self) -> io::Result<SocketAddr> {
+        self.inner.state.lock().unwrap().socket.local_addr()
+    }
 }
 
 #[derive(Debug)]
