@@ -442,6 +442,19 @@ impl QuicServerConfig {
         inner.max_early_data_size = u32::MAX;
         inner
     }
+
+    pub(crate) fn new(
+        cert_chain: Vec<CertificateDer<'static>>,
+        key: PrivateKeyDer<'static>,
+    ) -> Self {
+        let inner = Self::inner(cert_chain, key);
+        Self {
+            // We're confident that the *ring* default provider contains TLS13_AES_128_GCM_SHA256
+            initial: initial_suite_from_provider(inner.crypto_provider())
+                .expect("no initial cipher suite found"),
+            inner: Arc::new(inner),
+        }
+    }
 }
 
 impl TryFrom<rustls::ServerConfig> for QuicServerConfig {

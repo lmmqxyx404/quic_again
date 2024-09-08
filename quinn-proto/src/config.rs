@@ -8,6 +8,11 @@ use std::{
 use rand::RngCore;
 use rustls::client::WebPkiServerVerifier;
 
+#[cfg(feature = "rustls")]
+use crate::crypto::rustls::QuicServerConfig;
+#[cfg(feature = "rustls")]
+use rustls::pki_types::{CertificateDer, PrivateKeyDer};
+
 use crate::{
     cid_generator::HashedConnectionIdGenerator,
     congestion,
@@ -169,6 +174,27 @@ impl ServerConfig {
     pub fn incoming_buffer_size_total(&mut self, incoming_buffer_size_total: u64) -> &mut Self {
         self.incoming_buffer_size_total = incoming_buffer_size_total;
         self
+    }
+
+    /// 4. Set a custom [`TransportConfig`]
+    pub fn transport_config(&mut self, transport: Arc<TransportConfig>) -> &mut Self {
+        self.transport = transport;
+        self
+    }
+}
+
+#[cfg(feature = "rustls")]
+impl ServerConfig {
+    /// Create a server config with the given certificate chain to be presented to clients
+    ///
+    /// Uses a randomized handshake token key.
+    pub fn with_single_cert(
+        cert_chain: Vec<CertificateDer<'static>>,
+        key: PrivateKeyDer<'static>,
+    ) -> Result<Self, rustls::Error> {
+        Ok(Self::with_crypto(Arc::new(QuicServerConfig::new(
+            cert_chain, key,
+        ))))
     }
 }
 

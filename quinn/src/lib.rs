@@ -29,7 +29,9 @@ pub use crate::runtime::TokioRuntime;
 
 pub use udp;
 
-pub use proto::{ClientConfig, ConnectionError, TransportConfig, VarInt};
+pub use proto::{
+    ClientConfig, ConnectionError, EndpointConfig, ServerConfig, TransportConfig, VarInt,
+};
 
 pub use runtime::AsyncUdpSocket;
 
