@@ -9,6 +9,7 @@ use std::{
 };
 
 use bytes::Bytes;
+use pin_project_lite::pin_project;
 use rustc_hash::FxHashMap;
 use tokio::sync::{futures::Notified, mpsc, oneshot, Notify};
 use tracing::{debug_span, Instrument, Span};

@@ -50,6 +50,12 @@ add `recv_limiter`
 ## 8. about `tests::close_endpoint`
 `match conn.await` -> `process_conn_events` -> `drive_transmit`
 
+## 9. about `tests::read_after_close`
+`endpoint2.accept().await.expect("endpoint").await.expect("connection");` -> `Endpoint::Accept` ->
+`Future for Accept` -> `IntoFuture for Incoming` -> `IncomingFuture(self.accept())`
+-> `Incoming::accept` -> `state.endpoint.accept` -> `EndpointInner::accept`
+
+
 # dev skill
 ## Do not omit `Drop`
 

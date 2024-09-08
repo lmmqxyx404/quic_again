@@ -33,6 +33,7 @@ bytes = { workspace = true }
 rustc-hash = { workspace = true }
 
 pin-project-lite = { workspace = true }
+thiserror = { workspace = true }
 
 [dev-dependencies]
 tracing-subscriber = { workspace = true }

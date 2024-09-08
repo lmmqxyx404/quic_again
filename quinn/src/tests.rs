@@ -145,11 +145,12 @@ fn read_after_close() {
             .expect("endpoint")
             .await
             .expect("connection");
-        let mut s = new_conn.open_uni().await.unwrap();
+        todo!()
+        /*  let mut s = new_conn.open_uni().await.unwrap();
         s.write_all(MSG).await.unwrap();
         s.finish().unwrap();
         // Wait for the stream to be closed, one way or another.
-        _ = s.stopped().await;
+        _ = s.stopped().await; */
     });
     runtime.block_on(async move {
         let new_conn = endpoint
@@ -157,10 +158,11 @@ fn read_after_close() {
             .unwrap()
             .await
             .expect("connect");
-        tokio::time::sleep_until(Instant::now() + Duration::from_millis(100)).await;
+        todo!()
+        /* tokio::time::sleep_until(Instant::now() + Duration::from_millis(100)).await;
         let mut stream = new_conn.accept_uni().await.expect("incoming streams");
         let msg = stream.read_to_end(usize::MAX).await.expect("read_to_end");
-        assert_eq!(msg, MSG);
+        assert_eq!(msg, MSG); */
     });
 }
 

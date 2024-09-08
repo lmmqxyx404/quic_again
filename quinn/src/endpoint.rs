@@ -1,7 +1,8 @@
 use bytes::Bytes;
+use pin_project_lite::pin_project;
 use proto::{
-    ClientConfig, ConnectError, ConnectionHandle, EndpointConfig, EndpointEvent, ServerConfig,
-    VarInt,
+    ClientConfig, ConnectError, ConnectionError, ConnectionHandle, EndpointConfig, EndpointEvent,
+    ServerConfig, VarInt,
 };
 use rustc_hash::FxHashMap;
 use socket2::{Domain, Protocol, Socket, Type};
@@ -15,7 +16,7 @@ use std::{
     task::{Context, Poll, Waker},
     time::Instant,
 };
-use tokio::sync::{mpsc, Notify};
+use tokio::sync::{futures::Notified, mpsc, Notify};
 use tracing::{Instrument, Span};
 use udp::{RecvMeta, BATCH_SIZE};
 
@@ -23,6 +24,7 @@ use udp::{RecvMeta, BATCH_SIZE};
 use crate::runtime::default_runtime;
 use crate::{
     connection::Connecting,
+    incoming::Incoming,
     runtime::{AsyncUdpSocket, Runtime},
     work_limiter::WorkLimiter,
     ConnectionEvent, IO_LOOP_BOUND, RECV_TIME_BOUND,
@@ -209,6 +211,19 @@ impl Endpoint {
     pub fn local_addr(&self) -> io::Result<SocketAddr> {
         self.inner.state.lock().unwrap().socket.local_addr()
     }
+
+    /// Get the next incoming connection attempt from a client
+    ///
+    /// Yields [`Incoming`]s, or `None` if the endpoint is [`close`](Self::close)d. [`Incoming`]
+    /// can be `await`ed to obtain the final [`Connection`](crate::Connection), or used to e.g.
+    /// filter connection attempts or force address validation, or converted into an intermediate
+    /// `Connecting` future which can be used to e.g. send 0.5-RTT data.
+    pub fn accept(&self) -> Accept<'_> {
+        Accept {
+            endpoint: self,
+            notify: self.inner.shared.incoming.notified(),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -274,6 +289,38 @@ pub(crate) struct EndpointInner {
     pub(crate) state: Mutex<State>,
     /// 2.
     pub(crate) shared: Shared,
+}
+
+impl EndpointInner {
+    pub(crate) fn accept(
+        &self,
+        incoming: proto::Incoming,
+        server_config: Option<Arc<ServerConfig>>,
+    ) -> Result<Connecting, ConnectionError> {
+        let mut state = self.state.lock().unwrap();
+        let mut response_buffer = Vec::new();
+        let now = state.runtime.now();
+        match state
+            .inner
+            .accept(incoming, now, &mut response_buffer, server_config)
+        {
+            Ok((handle, conn)) => {
+                state.stats.accepted_handshakes += 1;
+                let socket = state.socket.clone();
+                let runtime = state.runtime.clone();
+                Ok(state
+                    .recv_state
+                    .connections
+                    .insert(handle, conn, socket, runtime))
+            }
+            Err(error) => {
+                if let Some(transmit) = error.response {
+                    todo!() // respond(transmit, &response_buffer, &*state.socket);
+                }
+                Err(error.cause)
+            }
+        }
+    }
 }
 
 impl std::ops::Deref for EndpointRef {
@@ -566,4 +613,22 @@ struct PollProgress {
 pub struct EndpointStats {
     /// Cummulative number of Quic handshakees sent from this [Endpoint]
     pub outgoing_handshakes: u64,
+    /// Cummulative number of Quic handshakes accepted by this [Endpoint]
+    pub accepted_handshakes: u64,
+}
+
+pin_project! {
+    /// Future produced by [`Endpoint::accept`]
+    pub struct Accept<'a> {
+        endpoint: &'a Endpoint,
+        #[pin]
+        notify: Notified<'a>,
+    }
+}
+
+impl<'a> Future for Accept<'a> {
+    type Output = Option<Incoming>;
+    fn poll(self: Pin<&mut Self>, ctx: &mut Context<'_>) -> Poll<Self::Output> {
+        todo!()
+    }
 }

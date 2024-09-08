@@ -427,6 +427,7 @@ dependencies = [
  "scratch-quinn-proto",
  "scratch-quinn-udp",
  "socket2",
+ "thiserror",
  "tokio",
  "tracing",
  "tracing-subscriber",

@@ -17,6 +17,8 @@ mod tests;
 mod connection;
 /// 2.
 mod endpoint;
+/// 7
+mod incoming;
 /// 6.
 mod mutex;
 /// 3.
