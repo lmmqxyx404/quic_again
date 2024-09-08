@@ -139,12 +139,9 @@ fn read_after_close() {
     const MSG: &[u8] = b"goodbye!";
     let endpoint2 = endpoint.clone();
     runtime.spawn(async move {
-        let new_conn = endpoint2
-            .accept()
-            .await
-            .expect("endpoint")
-            .await
-            .expect("connection");
+        let new_conn = endpoint2.accept().await.expect("endpoint");
+        /* .await
+        .expect("connection"); */
         todo!()
         /*  let mut s = new_conn.open_uni().await.unwrap();
         s.write_all(MSG).await.unwrap();

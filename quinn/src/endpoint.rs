@@ -629,6 +629,32 @@ pin_project! {
 impl<'a> Future for Accept<'a> {
     type Output = Option<Incoming>;
     fn poll(self: Pin<&mut Self>, ctx: &mut Context<'_>) -> Poll<Self::Output> {
-        todo!()
+        let mut this = self.project();
+        let mut endpoint = this.endpoint.inner.state.lock().unwrap();
+        if endpoint.driver_lost {
+            return Poll::Ready(None);
+        }
+        if let Some(incoming) = endpoint.recv_state.incoming.pop_front() {
+            // Release the mutex lock on endpoint so cloning it doesn't deadlock
+            drop(endpoint);
+            let incoming = Incoming::new(incoming, this.endpoint.inner.clone());
+            return Poll::Ready(Some(incoming));
+        }
+        if endpoint.recv_state.connections.close.is_some() {
+            return Poll::Ready(None);
+        }
+        loop {
+            match this.notify.as_mut().poll(ctx) {
+                // `state` lock ensures we didn't race with readiness
+                Poll::Pending => return Poll::Pending,
+                // Spurious wakeup, get a new future
+                Poll::Ready(()) => {
+                    todo!()
+                    /* this
+                    .notify
+                    .set(this.endpoint.inner.shared.incoming.notified()) */
+                }
+            }
+        }
     }
 }
