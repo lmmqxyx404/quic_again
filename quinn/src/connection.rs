@@ -16,6 +16,7 @@ use tracing::{debug_span, Instrument, Span};
 
 use crate::{
     mutex::Mutex,
+    recv_stream::RecvStream,
     runtime::{AsyncTimer, Runtime, UdpPoller},
     send_stream::SendStream,
     udp_transmit, AsyncUdpSocket, ConnectionEvent, VarInt,
@@ -116,6 +117,13 @@ impl Connection {
         OpenUni {
             conn: &self.0,
             notify: self.0.shared.stream_budget_available[Dir::Uni as usize].notified(),
+        }
+    }
+    /// Accept the next incoming uni-directional stream
+    pub fn accept_uni(&self) -> AcceptUni<'_> {
+        AcceptUni {
+            conn: &self.0,
+            notify: self.0.shared.stream_incoming[Dir::Uni as usize].notified(),
         }
     }
 }
@@ -607,6 +615,34 @@ fn wake_stream(stream_id: StreamId, wakers: &mut FxHashMap<StreamId, Waker>) {
     if let Some(waker) = wakers.remove(&stream_id) {
         waker.wake();
     }
+}
+
+pin_project! {
+    /// Future produced by [`Connection::accept_uni`]
+    pub struct AcceptUni<'a> {
+        conn: &'a ConnectionRef,
+        #[pin]
+        notify: Notified<'a>,
+    }
+}
+
+impl Future for AcceptUni<'_> {
+    type Output = Result<RecvStream, ConnectionError>;
+
+    fn poll(self: Pin<&mut Self>, ctx: &mut Context<'_>) -> Poll<Self::Output> {
+        let this = self.project();
+        let (conn, id, is_0rtt) = ready!(poll_accept(ctx, this.conn, this.notify, Dir::Uni))?;
+        Poll::Ready(Ok(RecvStream::new(conn, id, is_0rtt)))
+    }
+}
+
+fn poll_accept<'a>(
+    ctx: &mut Context<'_>,
+    conn: &'a ConnectionRef,
+    mut notify: Pin<&mut Notified<'a>>,
+    dir: Dir,
+) -> Poll<Result<(ConnectionRef, StreamId, bool), ConnectionError>> {
+    todo!()
 }
 
 /// The maximum amount of datagrams which will be produced in a single `drive_transmit` call

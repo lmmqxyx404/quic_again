@@ -21,6 +21,8 @@ mod endpoint;
 mod incoming;
 /// 6.
 mod mutex;
+/// 9.
+mod recv_stream;
 /// 3.
 mod runtime;
 /// 8.
