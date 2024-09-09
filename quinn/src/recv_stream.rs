@@ -49,21 +49,21 @@ use crate::{connection::ConnectionRef, VarInt};
 /// [`Connection::accept_bi`]: crate::Connection::accept_bi
 #[derive(Debug)]
 pub struct RecvStream {
-    /*  conn: ConnectionRef,
+    conn: ConnectionRef,
     stream: StreamId,
     is_0rtt: bool,
     all_data_read: bool,
-    reset: Option<VarInt>, */
+    reset: Option<VarInt>,
 }
 
 impl RecvStream {
     pub(crate) fn new(conn: ConnectionRef, stream: StreamId, is_0rtt: bool) -> Self {
         Self {
-            /* conn,
+            conn,
             stream,
             is_0rtt,
             all_data_read: false,
-            reset: None, */
+            reset: None,
         }
     }
 
@@ -104,7 +104,85 @@ impl RecvStream {
         max_length: usize,
         ordered: bool,
     ) -> Poll<Result<Option<Chunk>, ReadError>> {
-        todo!()
+        self.poll_read_generic(cx, ordered, |chunks| match chunks.next(max_length) {
+            Ok(Some(chunk)) => ReadStatus::Readable(chunk),
+            res => (None, res.err()).into(),
+        })
+    }
+
+    /// Handle common logic related to reading out of a receive stream
+    ///
+    /// This takes an `FnMut` closure that takes care of the actual reading process, matching
+    /// the detailed read semantics for the calling function with a particular return type.
+    /// The closure can read from the passed `&mut Chunks` and has to return the status after
+    /// reading: the amount of data read, and the status after the final read call.
+    fn poll_read_generic<T, U>(
+        &mut self,
+        cx: &mut Context,
+        ordered: bool,
+        mut read_fn: T,
+    ) -> Poll<Result<Option<U>, ReadError>>
+    where
+        T: FnMut(&mut Chunks) -> ReadStatus<U>,
+    {
+        use proto::ReadError::*;
+        if self.all_data_read {
+            todo!() // return Poll::Ready(Ok(None));
+        }
+        let mut conn = self.conn.state.lock("RecvStream::poll_read");
+        if self.is_0rtt {
+            todo!() // conn.check_0rtt().map_err(|()| ReadError::ZeroRttRejected)?;
+        }
+        // If we stored an error during a previous call, return it now. This can happen if a
+        // `read_fn` both wants to return data and also returns an error in its final stream status.
+        let status: ReadStatus<U> = match self.reset {
+            Some(code) => {
+                todo!() // ReadStatus::Failed(None, Reset(code)),
+            }
+            None => {
+                let mut recv = conn.inner.recv_stream(self.stream);
+                let mut chunks = recv.read(ordered)?;
+                let status = read_fn(&mut chunks);
+                if chunks.finalize().should_transmit() {
+                    todo!() // conn.wake();
+                }
+                status
+            }
+        };
+        match status {
+            ReadStatus::Readable(read) => Poll::Ready(Ok(Some(read))),
+            ReadStatus::Finished(read) => {
+                todo!()
+                /* self.all_data_read = true;
+                Poll::Ready(Ok(read)) */
+            }
+            ReadStatus::Failed(read, Blocked) => match read {
+                Some(val) => {
+                    todo!() // Poll::Ready(Ok(Some(val))),
+                }
+                None => {
+                    todo!()
+                    /* if let Some(ref x) = conn.error {
+                        return Poll::Ready(Err(ReadError::ConnectionLost(x.clone())));
+                    }
+                    conn.blocked_readers.insert(self.stream, cx.waker().clone());
+                    Poll::Pending */
+                }
+            },
+            ReadStatus::Failed(read, Reset(error_code)) => match read {
+                None => {
+                    todo!()
+                    /*  self.all_data_read = true;
+                    self.reset = Some(error_code);
+                    Poll::Ready(Err(ReadError::Reset(error_code))) */
+                }
+                done => {
+                    todo!()
+                    /* self.reset = Some(error_code);
+                    Poll::Ready(Ok(done)) */
+                }
+            },
+        }
     }
 }
 
@@ -166,5 +244,38 @@ pub enum ReadToEndError {
 
 /// Errors that arise from reading from a stream.
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
-pub enum ReadError {}
+pub enum ReadError {
+    /// The stream has already been stopped, finished, or reset
+    #[error("closed stream")]
+    ClosedStream,
+    /// Attempted an ordered read following an unordered read
+    ///
+    /// Performing an unordered read allows discontinuities to arise in the receive buffer of a
+    /// stream which cannot be recovered, making further ordered reads impossible.
+    #[error("ordered read after unordered read")]
+    IllegalOrderedRead,
+}
 
+impl From<ReadableError> for ReadError {
+    fn from(e: ReadableError) -> Self {
+        match e {
+            ReadableError::ClosedStream => Self::ClosedStream,
+            ReadableError::IllegalOrderedRead => Self::IllegalOrderedRead,
+        }
+    }
+}
+
+enum ReadStatus<T> {
+    Readable(T),
+    Finished(Option<T>),
+    Failed(Option<T>, proto::ReadError),
+}
+
+impl<T> From<(Option<T>, Option<proto::ReadError>)> for ReadStatus<T> {
+    fn from(status: (Option<T>, Option<proto::ReadError>)) -> Self {
+        match status {
+            (read, None) => Self::Finished(read),
+            (read, Some(e)) => Self::Failed(read, e),
+        }
+    }
+}
