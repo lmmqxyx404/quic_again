@@ -278,6 +278,14 @@ impl<'a> SendStream<'a> {
         // Don't reopen an already-closed stream we haven't forgotten yet
         Ok(())
     }
+    /// Check if this stream was stopped, get the reason if it was
+    pub fn stopped(&self) -> Result<Option<VarInt>, ClosedStream> {
+        match self.state.send.get(&self.id).as_ref() {
+            Some(Some(s)) => Ok(s.stop_reason),
+            Some(None) => Ok(None),
+            None => Err(ClosedStream { _private: () }),
+        }
+    }
 }
 
 /// Access to streams

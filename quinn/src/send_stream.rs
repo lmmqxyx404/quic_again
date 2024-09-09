@@ -107,6 +107,45 @@ impl SendStream {
             }
         }
     }
+
+    /// Completes when the peer stops the stream or reads the stream to completion
+    ///
+    /// Yields `Some` with the stop error code if the peer stops the stream. Yields `None` if the
+    /// local side [`finish()`](Self::finish)es the stream and then the peer acknowledges receipt
+    /// of all stream data (although not necessarily the processing of it), after which the peer
+    /// closing the stream is no longer meaningful.
+    ///
+    /// For a variety of reasons, the peer may not send acknowledgements immediately upon receiving
+    /// data. As such, relying on `stopped` to know when the peer has read a stream to completion
+    /// may introduce more latency than using an application-level response of some sort.
+    pub async fn stopped(&mut self) -> Result<Option<VarInt>, StoppedError> {
+        Stopped { stream: self }.await
+    }
+
+    #[doc(hidden)]
+    pub fn poll_stopped(&mut self, cx: &mut Context) -> Poll<Result<Option<VarInt>, StoppedError>> {
+        let mut conn = self.conn.state.lock("SendStream::poll_stopped");
+
+        if self.is_0rtt {
+            todo!()
+            /* conn.check_0rtt()
+            .map_err(|()| StoppedError::ZeroRttRejected)?; */
+        }
+        match conn.inner.send_stream(self.stream).stopped() {
+            Err(_) => Poll::Ready(Ok(None)),
+            Ok(Some(error_code)) => {
+                todo!()
+                // Poll::Ready(Ok(Some(error_code))),
+            }
+            Ok(None) => {
+                if let Some(e) = &conn.error {
+                    todo!() //    return Poll::Ready(Err(e.clone().into()));
+                }
+                conn.stopped.insert(self.stream, cx.waker().clone());
+                Poll::Pending
+            }
+        }
+    }
 }
 
 /// Future produced by [`SendStream::write_all()`].
@@ -136,3 +175,21 @@ impl<'a> Future for WriteAll<'a> {
 /// Errors that arise from writing to a stream
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
 pub enum WriteError {}
+
+/// Errors that arise while monitoring for a send stream stop from the peer
+#[derive(Debug, Error, Clone, PartialEq, Eq)]
+pub enum StoppedError {}
+
+/// Future produced by `SendStream::stopped`
+#[must_use = "futures/streams/sinks do nothing unless you `.await` or poll them"]
+struct Stopped<'a> {
+    stream: &'a mut SendStream,
+}
+
+impl Future for Stopped<'_> {
+    type Output = Result<Option<VarInt>, StoppedError>;
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Self::Output> {
+        self.get_mut().stream.poll_stopped(cx)
+    }
+}

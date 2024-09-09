@@ -526,10 +526,7 @@ impl State {
                     // Might mean any number of streams are ready, so we wake up everyone
                     shared.stream_budget_available[dir as usize].notify_waiters();
                 }
-                Stream(StreamEvent::Finished { id }) => {
-                    todo!()
-                    // wake_stream(id, &mut self.stopped),
-                }
+                Stream(StreamEvent::Finished { id }) => wake_stream(id, &mut self.stopped),
                 Stream(StreamEvent::Stopped { id, .. }) => {
                     todo!()
                 }
@@ -604,6 +601,12 @@ fn poll_open<'a>(
         return Poll::Ready(Ok((conn.clone(), id, is_0rtt)));
     }
     todo!()
+}
+
+fn wake_stream(stream_id: StreamId, wakers: &mut FxHashMap<StreamId, Waker>) {
+    if let Some(waker) = wakers.remove(&stream_id) {
+        waker.wake();
+    }
 }
 
 /// The maximum amount of datagrams which will be produced in a single `drive_transmit` call
