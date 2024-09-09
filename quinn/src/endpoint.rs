@@ -408,7 +408,14 @@ impl RecvState {
                                 &mut response_buffer,
                             ) {
                                 Some(DatagramEvent::NewConnection(incoming)) => {
-                                    todo!()
+                                    if self.connections.close.is_none() {
+                                        self.incoming.push_back(incoming);
+                                    } else {
+                                        todo!()
+                                        /* let transmit =
+                                            endpoint.refuse(incoming, &mut response_buffer);
+                                        respond(transmit, &response_buffer, socket); */
+                                    }
                                 }
                                 Some(DatagramEvent::ConnectionEvent(handle, event)) => {
                                     todo!()
@@ -419,7 +426,6 @@ impl RecvState {
                                 None => {}
                             }
                         }
-                        todo!()
                     }
                 }
                 Poll::Pending => {
@@ -437,7 +443,12 @@ impl RecvState {
                     todo!() // return Err(e);
                 }
             }
-            todo!()
+            if !self.recv_limiter.allow_work(|| runtime.now()) {
+                return Ok(PollProgress {
+                    received_connection_packet,
+                    keep_going: true,
+                });
+            }
         }
     }
 }

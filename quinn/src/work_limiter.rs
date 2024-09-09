@@ -23,6 +23,10 @@ pub(crate) struct WorkLimiter {
     completed: usize,
     /// The time the cycle started - only used in measurement mode
     start_time: Option<Instant>,
+    /// The amount of work items which are allowed for a cycle
+    allowed: usize,
+    /// The desired cycle time
+    desired_cycle_time: Duration,
 }
 
 impl WorkLimiter {
@@ -31,10 +35,11 @@ impl WorkLimiter {
             mode: Mode::Measure,
             completed: 0,
             start_time: None,
-            /*
-            cycle: 0,
             allowed: 0,
             desired_cycle_time,
+            /*
+            cycle: 0,
+            
             smoothed_time_per_work_item_nanos: 0.0, */
         }
     }
@@ -67,6 +72,16 @@ impl WorkLimiter {
     /// Must be called between `start_cycle` and `finish_cycle`.
     pub(crate) fn record_work(&mut self, work: usize) {
         self.completed += work;
+    }
+
+    /// Returns whether more work can be performed inside the `desired_cycle_time`
+    ///
+    /// Requires that previous work was tracked using `record_work`.
+    pub(crate) fn allow_work(&mut self, now: impl Fn() -> Instant) -> bool {
+        match self.mode {
+            Mode::Measure => (now() - self.start_time.unwrap()) < self.desired_cycle_time,
+            Mode::HistoricData => self.completed < self.allowed,
+        }
     }
 }
 
