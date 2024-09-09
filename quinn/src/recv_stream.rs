@@ -152,9 +152,8 @@ impl RecvStream {
         match status {
             ReadStatus::Readable(read) => Poll::Ready(Ok(Some(read))),
             ReadStatus::Finished(read) => {
-                todo!()
-                /* self.all_data_read = true;
-                Poll::Ready(Ok(read)) */
+                self.all_data_read = true;
+                Poll::Ready(Ok(read))
             }
             ReadStatus::Failed(read, Blocked) => match read {
                 Some(val) => {
@@ -204,22 +203,18 @@ impl Future for ReadToEnd<'_> {
         loop {
             match ready!(self.stream.poll_read_chunk(cx, usize::MAX, false))? {
                 Some(chunk) => {
-                    todo!()
-
-                    /* self.start = self.start.min(chunk.offset);
+                    self.start = self.start.min(chunk.offset);
                     let end = chunk.bytes.len() as u64 + chunk.offset;
                     if (end - self.start) > self.size_limit as u64 {
-                        return Poll::Ready(Err(ReadToEndError::TooLong));
+                        todo!() // return Poll::Ready(Err(ReadToEndError::TooLong));
                     }
                     self.end = self.end.max(end);
-                    self.read.push((chunk.bytes, chunk.offset)); */
+                    self.read.push((chunk.bytes, chunk.offset));
                 }
                 None => {
-                    todo!()
-
-                    /* if self.end == 0 {
+                    if self.end == 0 {
                         // Never received anything
-                        return Poll::Ready(Ok(Vec::new()));
+                        todo!() // return Poll::Ready(Ok(Vec::new()));
                     }
                     let start = self.start;
                     let mut buffer = vec![0; (self.end - start) as usize];
@@ -227,7 +222,7 @@ impl Future for ReadToEnd<'_> {
                         let offset = (offset - start) as usize;
                         buffer[offset..offset + data.len()].copy_from_slice(&data);
                     }
-                    return Poll::Ready(Ok(buffer)); */
+                    return Poll::Ready(Ok(buffer));
                 }
             }
         }

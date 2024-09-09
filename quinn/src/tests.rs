@@ -162,8 +162,7 @@ fn read_after_close() {
         let mut stream = new_conn.accept_uni().await.expect("incoming streams");
 
         let msg = stream.read_to_end(usize::MAX).await.expect("read_to_end");
-        todo!()
-        // assert_eq!(msg, MSG);
+        assert_eq!(msg, MSG);
     });
 }
 
