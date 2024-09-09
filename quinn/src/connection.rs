@@ -595,6 +595,14 @@ fn poll_open<'a>(
     mut notify: Pin<&mut Notified<'a>>,
     dir: Dir,
 ) -> Poll<Result<(ConnectionRef, StreamId, bool), ConnectionError>> {
+    let mut state = conn.state.lock("poll_open");
+    if let Some(ref e) = state.error {
+        todo!() // return Poll::Ready(Err(e.clone()));
+    } else if let Some(id) = state.inner.streams().open(dir) {
+        let is_0rtt = state.inner.side().is_client() && state.inner.is_handshaking();
+        drop(state); // Release the lock so clone can take it
+        return Poll::Ready(Ok((conn.clone(), id, is_0rtt)));
+    }
     todo!()
 }
 
