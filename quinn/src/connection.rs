@@ -17,6 +17,7 @@ use tracing::{debug_span, Instrument, Span};
 use crate::{
     mutex::Mutex,
     runtime::{AsyncTimer, Runtime, UdpPoller},
+    send_stream::SendStream,
     udp_transmit, AsyncUdpSocket, ConnectionEvent, VarInt,
 };
 
@@ -80,8 +81,8 @@ impl Future for Connecting {
             let conn = self.conn.take().unwrap();
             let inner = conn.state.lock("connecting");
             if inner.connected {
-                todo!() /*    drop(inner);
-                        Ok(Connection(conn)) */
+                drop(inner);
+                Ok(Connection(conn))
             } else {
                 Err(inner
                     .error
@@ -104,6 +105,20 @@ impl Future for Connecting {
 /// [`Connection::close()`]: Connection::close
 #[derive(Debug, Clone)]
 pub struct Connection(ConnectionRef);
+
+impl Connection {
+    /// Initiate a new outgoing unidirectional stream.
+    ///
+    /// Streams are cheap and instantaneous to open unless blocked by flow control. As a
+    /// consequence, the peer won't be notified that a stream has been opened until the stream is
+    /// actually used.
+    pub fn open_uni(&self) -> OpenUni<'_> {
+        OpenUni {
+            conn: &self.0,
+            notify: self.0.shared.stream_budget_available[Dir::Uni as usize].notified(),
+        }
+    }
+}
 
 #[derive(Debug)]
 pub(crate) struct ConnectionRef(Arc<ConnectionInner>);
@@ -554,6 +569,33 @@ pub(crate) struct Shared {
 
 fn wake_all(wakers: &mut FxHashMap<StreamId, Waker>) {
     wakers.drain().for_each(|(_, waker)| waker.wake())
+}
+
+pin_project! {
+    /// Future produced by [`Connection::open_uni`]
+    pub struct OpenUni<'a> {
+        conn: &'a ConnectionRef,
+        #[pin]
+        notify: Notified<'a>,
+    }
+}
+
+impl Future for OpenUni<'_> {
+    type Output = Result<SendStream, ConnectionError>;
+    fn poll(self: Pin<&mut Self>, ctx: &mut Context<'_>) -> Poll<Self::Output> {
+        let this = self.project();
+        let (conn, id, is_0rtt) = ready!(poll_open(ctx, this.conn, this.notify, Dir::Uni))?;
+        Poll::Ready(Ok(SendStream::new(conn, id, is_0rtt)))
+    }
+}
+
+fn poll_open<'a>(
+    ctx: &mut Context<'_>,
+    conn: &'a ConnectionRef,
+    mut notify: Pin<&mut Notified<'a>>,
+    dir: Dir,
+) -> Poll<Result<(ConnectionRef, StreamId, bool), ConnectionError>> {
+    todo!()
 }
 
 /// The maximum amount of datagrams which will be produced in a single `drive_transmit` call
