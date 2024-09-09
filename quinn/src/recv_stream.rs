@@ -89,6 +89,23 @@ impl RecvStream {
         }
         .await
     }
+
+    /// Attempts to read a chunk from the stream.
+    ///
+    /// On success, returns `Poll::Ready(Ok(Some(chunk)))`. If `Poll::Ready(Ok(None))`
+    /// is returned, it implies that EOF has been reached.
+    ///
+    /// If no data is available for reading, the method returns `Poll::Pending`
+    /// and arranges for the current task (via cx.waker()) to receive a notification
+    /// when the stream becomes readable or is closed.
+    fn poll_read_chunk(
+        &mut self,
+        cx: &mut Context,
+        max_length: usize,
+        ordered: bool,
+    ) -> Poll<Result<Option<Chunk>, ReadError>> {
+        todo!()
+    }
 }
 
 /// Future produced by [`RecvStream::read_to_end()`].
@@ -106,10 +123,48 @@ struct ReadToEnd<'a> {
 impl Future for ReadToEnd<'_> {
     type Output = Result<Vec<u8>, ReadToEndError>;
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Self::Output> {
-        todo!()
+        loop {
+            match ready!(self.stream.poll_read_chunk(cx, usize::MAX, false))? {
+                Some(chunk) => {
+                    todo!()
+
+                    /* self.start = self.start.min(chunk.offset);
+                    let end = chunk.bytes.len() as u64 + chunk.offset;
+                    if (end - self.start) > self.size_limit as u64 {
+                        return Poll::Ready(Err(ReadToEndError::TooLong));
+                    }
+                    self.end = self.end.max(end);
+                    self.read.push((chunk.bytes, chunk.offset)); */
+                }
+                None => {
+                    todo!()
+
+                    /* if self.end == 0 {
+                        // Never received anything
+                        return Poll::Ready(Ok(Vec::new()));
+                    }
+                    let start = self.start;
+                    let mut buffer = vec![0; (self.end - start) as usize];
+                    for (data, offset) in self.read.drain(..) {
+                        let offset = (offset - start) as usize;
+                        buffer[offset..offset + data.len()].copy_from_slice(&data);
+                    }
+                    return Poll::Ready(Ok(buffer)); */
+                }
+            }
+        }
     }
 }
 
 /// Errors from [`RecvStream::read_to_end`]
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
-pub enum ReadToEndError {}
+pub enum ReadToEndError {
+    /// An error occurred during reading
+    #[error("read error: {0}")]
+    Read(#[from] ReadError),
+}
+
+/// Errors that arise from reading from a stream.
+#[derive(Debug, Error, Clone, PartialEq, Eq)]
+pub enum ReadError {}
+
