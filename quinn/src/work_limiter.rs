@@ -27,6 +27,10 @@ pub(crate) struct WorkLimiter {
     allowed: usize,
     /// The desired cycle time
     desired_cycle_time: Duration,
+    /// The estimated and smoothed time per work item in nanoseconds
+    smoothed_time_per_work_item_nanos: f64,
+    /// The current cycle number
+    cycle: u16,
 }
 
 impl WorkLimiter {
@@ -37,10 +41,9 @@ impl WorkLimiter {
             start_time: None,
             allowed: 0,
             desired_cycle_time,
-            /*
+
+            smoothed_time_per_work_item_nanos: 0.0,
             cycle: 0,
-            
-            smoothed_time_per_work_item_nanos: 0.0, */
         }
     }
 
@@ -64,7 +67,33 @@ impl WorkLimiter {
         if self.completed == 0 {
             return;
         }
-        todo!()
+
+        if let Mode::Measure = self.mode {
+            let elapsed = now() - self.start_time.unwrap();
+
+            let time_per_work_item_nanos = (elapsed.as_nanos()) as f64 / self.completed as f64;
+            // Calculate the time per work item. We set this to at least 1ns to avoid
+            // dividing by 0 when calculating the allowed amount of work items.
+            self.smoothed_time_per_work_item_nanos = if self.allowed == 0 {
+                // Initial estimate
+                time_per_work_item_nanos
+            } else {
+                // Smoothed estimate
+                (7.0 * self.smoothed_time_per_work_item_nanos + time_per_work_item_nanos) / 8.0
+            }
+            .max(1.0);
+
+            // Allow at least 1 work item in order to make progress
+            self.allowed = (((self.desired_cycle_time.as_nanos()) as f64
+                / self.smoothed_time_per_work_item_nanos) as usize)
+                .max(1);
+            self.start_time = None;
+        }
+        self.cycle = self.cycle.wrapping_add(1);
+        self.mode = match self.cycle % SAMPLING_INTERVAL {
+            0 => Mode::Measure,
+            _ => Mode::HistoricData,
+        };
     }
 
     /// Records that `work` additional work items have been completed inside the cycle
@@ -84,6 +113,9 @@ impl WorkLimiter {
         }
     }
 }
+
+/// We take a measurement sample once every `SAMPLING_INTERVAL` cycles
+const SAMPLING_INTERVAL: u16 = 256;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Mode {
