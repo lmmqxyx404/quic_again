@@ -1,6 +1,8 @@
+#[cfg(not(any(target_os = "macos", target_os = "ios", target_os = "openbsd")))]
+use std::ptr;
 use std::{
     io::{self, IoSliceMut},
-    mem,
+    mem::{self, MaybeUninit},
     net::IpAddr,
     os::fd::AsRawFd,
     sync::atomic::{AtomicBool, Ordering},
@@ -261,6 +263,40 @@ pub(crate) const BATCH_SIZE: usize = 32;
 
 #[cfg(not(any(target_os = "macos", target_os = "ios", target_os = "openbsd")))]
 fn recv(io: SockRef<'_>, bufs: &mut [IoSliceMut<'_>], meta: &mut [RecvMeta]) -> io::Result<usize> {
+    let mut names = [MaybeUninit::<libc::sockaddr_storage>::uninit(); BATCH_SIZE];
+    let mut ctrls = [cmsg::Aligned(MaybeUninit::<[u8; CMSG_LEN]>::uninit()); BATCH_SIZE];
+    let mut hdrs = unsafe { mem::zeroed::<[libc::mmsghdr; BATCH_SIZE]>() };
+    let max_msg_count = bufs.len().min(BATCH_SIZE);
+
+    for i in 0..max_msg_count {
+        prepare_recv(
+            &mut bufs[i],
+            &mut names[i],
+            &mut ctrls[i],
+            &mut hdrs[i].msg_hdr,
+        );
+    }
+    let msg_count = loop {
+        let n = unsafe {
+            recvmmsg_with_fallback(
+                io.as_raw_fd(),
+                hdrs.as_mut_ptr(),
+                bufs.len().min(BATCH_SIZE) as _,
+            )
+        };
+        if n == -1 {
+            todo!()
+            /*  let e = io::Error::last_os_error();
+            if e.kind() == io::ErrorKind::Interrupted {
+                continue;
+            }
+            return Err(e); */
+        }
+        break n;
+    };
+    for i in 0..(msg_count as usize) {
+        meta[i] = decode_recv(&names[i], &hdrs[i].msg_hdr, hdrs[i].msg_len as usize);
+    }
     todo!()
 }
 
@@ -354,4 +390,67 @@ fn prepare_msg(
     }
 
     encoder.finish();
+}
+
+fn prepare_recv(
+    buf: &mut IoSliceMut,
+    name: &mut MaybeUninit<libc::sockaddr_storage>,
+    ctrl: &mut cmsg::Aligned<MaybeUninit<[u8; CMSG_LEN]>>,
+    hdr: &mut libc::msghdr,
+) {
+    hdr.msg_name = name.as_mut_ptr() as _;
+    hdr.msg_namelen = mem::size_of::<libc::sockaddr_storage>() as _;
+    hdr.msg_iov = buf as *mut IoSliceMut as *mut libc::iovec;
+    hdr.msg_iovlen = 1;
+    hdr.msg_control = ctrl.0.as_mut_ptr() as _;
+    hdr.msg_controllen = CMSG_LEN as _;
+    hdr.msg_flags = 0;
+}
+
+/// Implementation of `recvmmsg` with a fallback
+/// to `recvmsg` if syscall is not available.
+///
+/// It uses [`libc::syscall`] instead of [`libc::recvmmsg`]
+/// to avoid linking error on systems where libc does not contain `recvmmsg`.
+#[cfg(not(any(target_os = "macos", target_os = "ios", target_os = "openbsd")))]
+unsafe fn recvmmsg_with_fallback(
+    sockfd: libc::c_int,
+    msgvec: *mut libc::mmsghdr,
+    vlen: libc::c_uint,
+) -> libc::c_int {
+    let flags = 0;
+    let timeout = ptr::null_mut::<libc::timespec>();
+
+    #[cfg(not(any(target_os = "freebsd", target_os = "netbsd")))]
+    {
+        let ret =
+            libc::syscall(libc::SYS_recvmmsg, sockfd, msgvec, vlen, flags, timeout) as libc::c_int;
+        if ret != -1 {
+            return ret;
+        }
+    }
+
+    // libc on FreeBSD and NetBSD implement `recvmmsg` as a high-level abstraction over
+    // `recvmsg`, thus `SYS_recvmmsg` constant and direct system call do not exist
+    #[cfg(any(target_os = "freebsd", target_os = "netbsd"))]
+    {
+        todo!()
+    }
+
+    let e = io::Error::last_os_error();
+    match e.raw_os_error() {
+        Some(libc::ENOSYS) => {
+            // Fallback to `recvmsg`.
+            todo!() // recvmmsg_fallback(sockfd, msgvec, vlen)
+        }
+        _ => -1,
+    }
+}
+
+fn decode_recv(
+    name: &MaybeUninit<libc::sockaddr_storage>,
+    hdr: &libc::msghdr,
+    len: usize,
+) -> RecvMeta {
+    todo!()
 }

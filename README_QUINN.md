@@ -55,6 +55,10 @@ add `recv_limiter`
 `Future for Accept` -> `IntoFuture for Incoming` -> `IncomingFuture(self.accept())`
 -> `Incoming::accept` -> `state.endpoint.accept` -> `EndpointInner::accept`
 
+* second step
+`Future for ConnectionDriver` -> `endpoint.drive_recv` -> `self.recv_state.poll_socket` ->
+`match socket.poll_recv` -> `AsyncUdpSocket for UdpSocket::poll_recv`
+-> `self.inner.recv` -> `UdpSocketState::recv`
 
 # dev skill
 ## Do not omit `Drop`

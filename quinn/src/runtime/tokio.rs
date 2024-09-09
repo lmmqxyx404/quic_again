@@ -82,7 +82,7 @@ impl AsyncUdpSocket for UdpSocket {
         loop {
             ready!(self.io.poll_recv_ready(cx))?;
             if let Ok(res) = self.io.try_io(Interest::READABLE, || {
-                todo!() // self.inner.recv((&self.io).into(), bufs, meta)
+                self.inner.recv((&self.io).into(), bufs, meta)
             }) {
                 return Poll::Ready(Ok(res));
             }
