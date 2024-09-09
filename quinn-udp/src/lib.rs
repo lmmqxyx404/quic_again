@@ -1,4 +1,4 @@
-use std::net::{IpAddr, SocketAddr};
+use std::net::{IpAddr, Ipv6Addr, SocketAddr};
 #[cfg(unix)]
 use std::os::unix::io::AsFd;
 
@@ -43,17 +43,39 @@ pub const BATCH_SIZE: usize = imp::BATCH_SIZE;
 ///
 /// [`stride`]: RecvMeta::stride
 #[derive(Debug, Copy, Clone)]
-pub struct RecvMeta {}
+pub struct RecvMeta {
+    /// The source address of the datagram(s) contained in the buffer
+    pub addr: SocketAddr,
+    /// The number of bytes the associated buffer has
+    pub len: usize,
+    /// The size of a single datagram in the associated buffer
+    ///
+    /// When GRO (Generic Receive Offload) is used this indicates the size of a single
+    /// datagram inside the buffer. If the buffer is larger, that is if [`len`] is greater
+    /// then this value, then the individual datagrams contained have their boundaries at
+    /// `stride` increments from the start. The last datagram could be smaller than
+    /// `stride`.
+    ///
+    /// [`len`]: RecvMeta::len
+    pub stride: usize,
+    /// The Explicit Congestion Notification bits for the datagram(s) in the buffer
+    pub ecn: Option<EcnCodepoint>,
+    /// The destination IP address which was encoded in this datagram
+    ///
+    /// Populated on platforms: Windows, Linux, Android, FreeBSD, OpenBSD, NetBSD, macOS,
+    /// and iOS.
+    pub dst_ip: Option<IpAddr>,
+}
 
 impl Default for RecvMeta {
     /// Constructs a value with arbitrary fields, intended to be overwritten
     fn default() -> Self {
         Self {
-           /*  addr: SocketAddr::new(Ipv6Addr::UNSPECIFIED.into(), 0),
+            addr: SocketAddr::new(Ipv6Addr::UNSPECIFIED.into(), 0),
             len: 0,
             stride: 0,
             ecn: None,
-            dst_ip: None, */
+            dst_ip: None,
         }
     }
 }
@@ -84,4 +106,19 @@ pub enum EcnCodepoint {
     Ect1 = 0b01,
     #[doc(hidden)]
     Ce = 0b11,
+}
+
+impl EcnCodepoint {
+    /// Create new object from the given bits
+    pub fn from_bits(x: u8) -> Option<Self> {
+        use self::EcnCodepoint::*;
+        Some(match x & 0b11 {
+            0b10 => Ect0,
+            0b01 => Ect1,
+            0b11 => Ce,
+            _ => {
+                return None;
+            }
+        })
+    }
 }

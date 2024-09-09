@@ -13,7 +13,7 @@ use socket2::SockRef;
 
 use super::log::debug;
 
-use crate::{cmsg, RecvMeta, Transmit, UdpSockRef};
+use crate::{cmsg, EcnCodepoint, RecvMeta, Transmit, UdpSockRef};
 
 #[cfg(not(any(target_os = "freebsd", target_os = "netbsd")))]
 type IpTosTy = libc::c_int;
@@ -536,10 +536,10 @@ fn decode_recv(
         _ => unreachable!(),
     };
     RecvMeta {
-        /* len,
+            len,
         stride,
         addr,
         ecn: EcnCodepoint::from_bits(ecn_bits),
-        dst_ip, */
+        dst_ip,
     }
 }

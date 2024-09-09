@@ -60,6 +60,9 @@ add `recv_limiter`
 `match socket.poll_recv` -> `AsyncUdpSocket for UdpSocket::poll_recv`
 -> `self.inner.recv` -> `UdpSocketState::recv` -> `decode_recv`
 
+* seconde step finished. Then
+`socket.poll_recv` -> `Poll::Ready(Ok(msgs))` -> `match endpoint.handle()` -> `Some(DatagramEvent::NewConnection(incoming))`
+
 # dev skill
 ## Do not omit `Drop`
 

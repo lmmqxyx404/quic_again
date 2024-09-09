@@ -61,6 +61,13 @@ impl WorkLimiter {
         }
         todo!()
     }
+
+    /// Records that `work` additional work items have been completed inside the cycle
+    ///
+    /// Must be called between `start_cycle` and `finish_cycle`.
+    pub(crate) fn record_work(&mut self, work: usize) {
+        self.completed += work;
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

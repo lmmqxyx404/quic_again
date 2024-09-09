@@ -1,8 +1,8 @@
-use bytes::Bytes;
+use bytes::{Bytes, BytesMut};
 use pin_project_lite::pin_project;
 use proto::{
-    ClientConfig, ConnectError, ConnectionError, ConnectionHandle, EndpointConfig, EndpointEvent,
-    ServerConfig, VarInt,
+    ClientConfig, ConnectError, ConnectionError, ConnectionHandle, DatagramEvent, EndpointConfig,
+    EndpointEvent, ServerConfig, VarInt,
 };
 use rustc_hash::FxHashMap;
 use socket2::{Domain, Protocol, Socket, Type};
@@ -393,7 +393,34 @@ impl RecvState {
             println!("before socket.poll_recv used for tests::read_after_close");
             match socket.poll_recv(cx, &mut iovs, &mut metas) {
                 Poll::Ready(Ok(msgs)) => {
-                    todo!()
+                    self.recv_limiter.record_work(msgs);
+                    for (meta, buf) in metas.iter().zip(iovs.iter()).take(msgs) {
+                        let mut data: BytesMut = buf[0..meta.len].into();
+                        while !data.is_empty() {
+                            let buf = data.split_to(meta.stride.min(data.len()));
+                            let mut response_buffer = Vec::new();
+                            match endpoint.handle(
+                                now,
+                                meta.addr,
+                                meta.dst_ip,
+                                meta.ecn.map(proto_ecn),
+                                buf,
+                                &mut response_buffer,
+                            ) {
+                                Some(DatagramEvent::NewConnection(incoming)) => {
+                                    todo!()
+                                }
+                                Some(DatagramEvent::ConnectionEvent(handle, event)) => {
+                                    todo!()
+                                }
+                                Some(DatagramEvent::Response(transmit)) => {
+                                    todo!()
+                                }
+                                None => {}
+                            }
+                        }
+                        todo!()
+                    }
                 }
                 Poll::Pending => {
                     return Ok(PollProgress {
@@ -657,5 +684,14 @@ impl<'a> Future for Accept<'a> {
                 }
             }
         }
+    }
+}
+
+#[inline]
+fn proto_ecn(ecn: udp::EcnCodepoint) -> proto::EcnCodepoint {
+    match ecn {
+        udp::EcnCodepoint::Ect0 => proto::EcnCodepoint::Ect0,
+        udp::EcnCodepoint::Ect1 => proto::EcnCodepoint::Ect1,
+        udp::EcnCodepoint::Ce => proto::EcnCodepoint::Ce,
     }
 }
