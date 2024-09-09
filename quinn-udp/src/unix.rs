@@ -285,12 +285,11 @@ fn recv(io: SockRef<'_>, bufs: &mut [IoSliceMut<'_>], meta: &mut [RecvMeta]) -> 
             )
         };
         if n == -1 {
-            todo!()
-            /*  let e = io::Error::last_os_error();
+            let e = io::Error::last_os_error();
             if e.kind() == io::ErrorKind::Interrupted {
-                continue;
+                todo!() // continue;
             }
-            return Err(e); */
+            return Err(e);
         }
         break n;
     };
@@ -387,7 +386,41 @@ fn prepare_msg(
         todo!() // gso::set_segment_size(&mut encoder, segment_size as u16);
     }
     if let Some(ip) = &transmit.src_ip {
-        todo!()
+        match ip {
+            IpAddr::V4(v4) => {
+                #[cfg(any(target_os = "linux", target_os = "android"))]
+                {
+                    let pktinfo = libc::in_pktinfo {
+                        ipi_ifindex: 0,
+                        ipi_spec_dst: libc::in_addr {
+                            s_addr: u32::from_ne_bytes(v4.octets()),
+                        },
+                        ipi_addr: libc::in_addr { s_addr: 0 },
+                    };
+                    encoder.push(libc::IPPROTO_IP, libc::IP_PKTINFO, pktinfo);
+                }
+                #[cfg(any(
+                    target_os = "freebsd",
+                    target_os = "openbsd",
+                    target_os = "netbsd",
+                    target_os = "macos",
+                    target_os = "ios",
+                ))]
+                {
+                    todo!()
+                }
+            }
+            IpAddr::V6(v6) => {
+                todo!()
+                /* let pktinfo = libc::in6_pktinfo {
+                    ipi6_ifindex: 0,
+                    ipi6_addr: libc::in6_addr {
+                        s6_addr: v6.octets(),
+                    },
+                };
+                encoder.push(libc::IPPROTO_IPV6, libc::IPV6_PKTINFO, pktinfo); */
+            }
+        }
     }
 
     encoder.finish();
@@ -536,7 +569,7 @@ fn decode_recv(
         _ => unreachable!(),
     };
     RecvMeta {
-            len,
+        len,
         stride,
         addr,
         ecn: EcnCodepoint::from_bits(ecn_bits),

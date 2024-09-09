@@ -63,6 +63,9 @@ add `recv_limiter`
 * seconde step finished. Then
 `socket.poll_recv` -> `Poll::Ready(Ok(msgs))` -> `match endpoint.handle()` -> `Some(DatagramEvent::NewConnection(incoming))`
 
+# `endpoint2.accept().await.;` -> `endpoint2.accept().await.expect("endpoint").await.expect("connection")`
+The second await means `impl IntoFuture for Incoming`
+
 # dev skill
 ## Do not omit `Drop`
 

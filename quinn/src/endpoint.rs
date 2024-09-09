@@ -308,6 +308,7 @@ impl EndpointInner {
                 state.stats.accepted_handshakes += 1;
                 let socket = state.socket.clone();
                 let runtime = state.runtime.clone();
+                println!("accept Connecting");
                 Ok(state
                     .recv_state
                     .connections
@@ -542,7 +543,14 @@ impl State {
             let Some(event) = self.inner.handle_event(ch, event) else {
                 continue;
             };
-            todo!()
+            // Ignoring errors from dropped connections that haven't yet been cleaned up
+            let _ = self
+                .recv_state
+                .connections
+                .senders
+                .get_mut(&ch)
+                .unwrap()
+                .send(ConnectionEvent::Proto(event));
         }
         todo!()
     }
@@ -590,7 +598,7 @@ impl Future for EndpointDriver {
             // `wake_by_ref()` is called outside the lock to minimize
             // lock contention on a multithreaded runtime.
             if keep_going {
-                todo!() // cx.waker().wake_by_ref();
+                cx.waker().wake_by_ref();
             }
             Poll::Pending
         }
