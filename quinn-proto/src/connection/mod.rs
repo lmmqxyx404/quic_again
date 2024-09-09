@@ -3470,6 +3470,10 @@ impl Connection {
     pub fn current_mtu(&self) -> u16 {
         self.path.current_mtu()
     }
+    /// Look up whether we're the client or server of this Connection
+    pub fn side(&self) -> Side {
+        self.side
+    }
 }
 
 #[allow(unreachable_pub)] // fuzzing only

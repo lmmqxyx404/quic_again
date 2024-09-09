@@ -321,7 +321,7 @@ impl State {
                             self.inner.local_address_changed(); */
                 }
                 Poll::Ready(Some(ConnectionEvent::Proto(event))) => {
-                    todo!() // self.inner.handle_event(event);
+                    self.inner.handle_event(event);
                 }
                 Poll::Ready(Some(ConnectionEvent::Close { reason, error_code })) => {
                     self.close(error_code, reason, shared);
@@ -476,14 +476,13 @@ impl State {
                         // We don't care if the on-connected future was dropped
                         let _ = x.send(self.inner.accepted_0rtt());
                     }
-                    todo!()
-                    /*  if self.inner.side().is_client() && !self.inner.accepted_0rtt() {
+                    if self.inner.side().is_client() && !self.inner.accepted_0rtt() {
                         // Wake up rejected 0-RTT streams so they can fail immediately with
                         // `ZeroRttRejected` errors.
                         wake_all(&mut self.blocked_writers);
                         wake_all(&mut self.blocked_readers);
                         wake_all(&mut self.stopped);
-                    } */
+                    }
                 }
                 ConnectionLost { reason } => {
                     self.terminate(reason, shared);

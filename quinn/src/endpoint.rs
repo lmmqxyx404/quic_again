@@ -419,7 +419,14 @@ impl RecvState {
                                     }
                                 }
                                 Some(DatagramEvent::ConnectionEvent(handle, event)) => {
-                                    todo!()
+                                    // Ignoring errors from dropped connections that haven't yet been cleaned up
+                                    received_connection_packet = true;
+                                    let _ = self
+                                        .connections
+                                        .senders
+                                        .get_mut(&handle)
+                                        .unwrap()
+                                        .send(ConnectionEvent::Proto(event));
                                 }
                                 Some(DatagramEvent::Response(transmit)) => {
                                     todo!()
@@ -519,7 +526,7 @@ impl State {
         if poll_res.received_connection_packet {
             // Traffic has arrived on self.socket, therefore there is no need for the abandoned
             // one anymore. TODO: Account for multiple outgoing connections.
-            todo!() // self.prev_socket = None;
+            self.prev_socket = None;
         }
         Ok(poll_res.keep_going)
     }
