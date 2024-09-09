@@ -642,6 +642,17 @@ fn poll_accept<'a>(
     mut notify: Pin<&mut Notified<'a>>,
     dir: Dir,
 ) -> Poll<Result<(ConnectionRef, StreamId, bool), ConnectionError>> {
+    let mut state = conn.state.lock("poll_accept");
+    // Check for incoming streams before checking `state.error` so that already-received streams,
+    // which are necessarily finite, can be drained from a closed connection.
+    if let Some(id) = state.inner.streams().accept(dir) {
+        let is_0rtt = state.inner.is_handshaking();
+        state.wake(); // To send additional stream ID credit
+        drop(state); // Release the lock so clone can take it
+        return Poll::Ready(Ok((conn.clone(), id, is_0rtt)));
+    } else if let Some(ref e) = state.error {
+        todo!() // return Poll::Ready(Err(e.clone()));
+    }
     todo!()
 }
 

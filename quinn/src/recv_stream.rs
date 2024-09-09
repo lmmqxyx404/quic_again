@@ -1,4 +1,13 @@
+use std::{
+    future::{poll_fn, Future},
+    io,
+    pin::Pin,
+    task::{Context, Poll},
+};
+
+use bytes::Bytes;
 use proto::{Chunk, Chunks, ClosedStream, ConnectionError, ReadableError, StreamId};
+use thiserror::Error;
 
 use crate::{connection::ConnectionRef, VarInt};
 
@@ -40,7 +49,7 @@ use crate::{connection::ConnectionRef, VarInt};
 /// [`Connection::accept_bi`]: crate::Connection::accept_bi
 #[derive(Debug)]
 pub struct RecvStream {
-   /*  conn: ConnectionRef,
+    /*  conn: ConnectionRef,
     stream: StreamId,
     is_0rtt: bool,
     all_data_read: bool,
@@ -57,4 +66,50 @@ impl RecvStream {
             reset: None, */
         }
     }
+
+    /// Convenience method to read all remaining data into a buffer
+    ///
+    /// Fails with [`ReadToEndError::TooLong`] on reading more than `size_limit` bytes, discarding
+    /// all data read. Uses unordered reads to be more efficient than using `AsyncRead` would
+    /// allow. `size_limit` should be set to limit worst-case memory use.
+    ///
+    /// If unordered reads have already been made, the resulting buffer may have gaps containing
+    /// arbitrary data.
+    ///
+    /// This operation is *not* cancel-safe.
+    ///
+    /// [`ReadToEndError::TooLong`]: crate::ReadToEndError::TooLong
+    pub async fn read_to_end(&mut self, size_limit: usize) -> Result<Vec<u8>, ReadToEndError> {
+        ReadToEnd {
+            stream: self,
+            size_limit,
+            read: Vec::new(),
+            start: u64::MAX,
+            end: 0,
+        }
+        .await
+    }
 }
+
+/// Future produced by [`RecvStream::read_to_end()`].
+///
+/// [`RecvStream::read_to_end()`]: crate::RecvStream::read_to_end
+#[must_use = "futures/streams/sinks do nothing unless you `.await` or poll them"]
+struct ReadToEnd<'a> {
+    stream: &'a mut RecvStream,
+    read: Vec<(Bytes, u64)>,
+    start: u64,
+    end: u64,
+    size_limit: usize,
+}
+
+impl Future for ReadToEnd<'_> {
+    type Output = Result<Vec<u8>, ReadToEndError>;
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Self::Output> {
+        todo!()
+    }
+}
+
+/// Errors from [`RecvStream::read_to_end`]
+#[derive(Debug, Error, Clone, PartialEq, Eq)]
+pub enum ReadToEndError {}
