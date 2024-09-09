@@ -148,10 +148,10 @@ fn read_after_close() {
 
         let mut s = new_conn.open_uni().await.unwrap();
         s.write_all(MSG).await.unwrap();
+        s.finish().unwrap();
         todo!()
-        /* s.finish().unwrap();
         // Wait for the stream to be closed, one way or another.
-        _ = s.stopped().await; */
+        // _ = s.stopped().await;
     });
     runtime.block_on(async move {
         let new_conn = endpoint

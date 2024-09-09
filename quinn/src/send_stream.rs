@@ -78,6 +78,35 @@ impl SendStream {
         conn.wake();
         Poll::Ready(Ok(result))
     }
+
+    /// Notify the peer that no more data will ever be written to this stream
+    ///
+    /// It is an error to write to a [`SendStream`] after `finish()`ing it. [`reset()`](Self::reset)
+    /// may still be called after `finish` to abandon transmission of any stream data that might
+    /// still be buffered.
+    ///
+    /// To wait for the peer to receive all buffered stream data, see [`stopped()`](Self::stopped).
+    ///
+    /// May fail if [`finish()`](Self::finish) or [`reset()`](Self::reset) was previously
+    /// called. This error is harmless and serves only to indicate that the caller may have
+    /// incorrect assumptions about the stream's state.
+    pub fn finish(&mut self) -> Result<(), ClosedStream> {
+        let mut conn = self.conn.state.lock("finish");
+        match conn.inner.send_stream(self.stream).finish() {
+            Ok(()) => {
+                conn.wake();
+                Ok(())
+            }
+            Err(FinishError::ClosedStream) => {
+                todo!() // Err(ClosedStream::new()),
+            }
+            // Harmless. If the application needs to know about stopped streams at this point, it
+            // should call `stopped`.
+            Err(FinishError::Stopped(_)) => {
+                todo!() // Ok(()),
+            }
+        }
+    }
 }
 
 /// Future produced by [`SendStream::write_all()`].
@@ -95,7 +124,7 @@ impl<'a> Future for WriteAll<'a> {
         let this = self.get_mut();
         loop {
             if this.buf.is_empty() {
-                todo!() // return Poll::Ready(Ok(()));
+                return Poll::Ready(Ok(()));
             }
             let buf = this.buf;
             let n = ready!(this.stream.execute_poll(cx, |s| s.write(buf)))?;
