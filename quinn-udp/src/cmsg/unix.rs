@@ -51,4 +51,8 @@ impl CMsgHdr for libc::cmsghdr {
     fn cmsg_data(&self) -> *mut c_uchar {
         unsafe { libc::CMSG_DATA(self) }
     }
+
+    fn len(&self) -> usize {
+        self.cmsg_len as _
+    }
 }

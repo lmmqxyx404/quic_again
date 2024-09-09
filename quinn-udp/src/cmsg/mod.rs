@@ -98,4 +98,44 @@ pub(crate) trait CMsgHdr {
     fn cmsg_len(length: usize) -> usize;
 
     fn cmsg_data(&self) -> *mut c_uchar;
+
+    fn len(&self) -> usize;
+}
+
+pub(crate) struct Iter<'a, M: MsgHdr> {
+    hdr: &'a M,
+    cmsg: Option<&'a M::ControlMessage>,
+}
+
+impl<'a, M: MsgHdr> Iter<'a, M> {
+    /// # Safety
+    ///
+    /// `hdr` must hold a pointer to memory outliving `'a` which can be soundly read for the
+    /// lifetime of the constructed `Iter` and contains a buffer of native cmsgs, i.e. is aligned
+    //  for native `cmsghdr`, is fully initialized, and has correct internal links.
+    pub(crate) unsafe fn new(hdr: &'a M) -> Self {
+        Self {
+            hdr,
+            cmsg: hdr.cmsg_first_hdr().as_ref(),
+        }
+    }
+}
+
+impl<'a, M: MsgHdr> Iterator for Iter<'a, M> {
+    type Item = &'a M::ControlMessage;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let current = self.cmsg.take()?;
+        self.cmsg = unsafe { self.hdr.cmsg_nxt_hdr(current).as_ref() };
+        Some(current)
+    }
+}
+
+/// # Safety
+///
+/// `cmsg` must refer to a native cmsg containing a payload of type `T`
+pub(crate) unsafe fn decode<T: Copy, C: CMsgHdr>(cmsg: &impl CMsgHdr) -> T {
+    assert!(mem::align_of::<T>() <= mem::align_of::<C>());
+    debug_assert_eq!(cmsg.len(), C::cmsg_len(mem::size_of::<T>()));
+    ptr::read(cmsg.cmsg_data() as *const T)
 }

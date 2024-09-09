@@ -3,7 +3,7 @@ use std::ptr;
 use std::{
     io::{self, IoSliceMut},
     mem::{self, MaybeUninit},
-    net::IpAddr,
+    net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6},
     os::fd::AsRawFd,
     sync::atomic::{AtomicBool, Ordering},
     time::Instant,
@@ -297,7 +297,8 @@ fn recv(io: SockRef<'_>, bufs: &mut [IoSliceMut<'_>], meta: &mut [RecvMeta]) -> 
     for i in 0..(msg_count as usize) {
         meta[i] = decode_recv(&names[i], &hdrs[i].msg_hdr, hdrs[i].msg_len as usize);
     }
-    todo!()
+
+    Ok(msg_count as usize)
 }
 
 #[cfg(not(any(
@@ -452,5 +453,93 @@ fn decode_recv(
     hdr: &libc::msghdr,
     len: usize,
 ) -> RecvMeta {
-    todo!()
+    let name = unsafe { name.assume_init() };
+    let mut ecn_bits = 0;
+    let mut dst_ip = None;
+    #[allow(unused_mut)] // only mutable on Linux
+    let mut stride = len;
+
+    let cmsg_iter = unsafe { cmsg::Iter::new(hdr) };
+    for cmsg in cmsg_iter {
+        match (cmsg.cmsg_level, cmsg.cmsg_type) {
+            (libc::IPPROTO_IP, libc::IP_TOS) => unsafe {
+                ecn_bits = cmsg::decode::<u8, libc::cmsghdr>(cmsg);
+            },
+            // FreeBSD uses IP_RECVTOS here, and we can be liberal because cmsgs are opt-in.
+            #[cfg(not(any(target_os = "openbsd", target_os = "netbsd")))]
+            (libc::IPPROTO_IP, libc::IP_RECVTOS) => unsafe {
+                ecn_bits = cmsg::decode::<u8, libc::cmsghdr>(cmsg);
+            },
+            (libc::IPPROTO_IPV6, libc::IPV6_TCLASS) => unsafe {
+                // Temporary hack around broken macos ABI. Remove once upstream fixes it.
+                // https://bugreport.apple.com/web/?problemID=48761855
+                #[allow(clippy::unnecessary_cast)] // cmsg.cmsg_len defined as size_t
+                if (cfg!(target_os = "macos") || cfg!(target_os = "ios"))
+                    && cmsg.cmsg_len as usize == libc::CMSG_LEN(mem::size_of::<u8>() as _) as usize
+                {
+                    ecn_bits = cmsg::decode::<u8, libc::cmsghdr>(cmsg);
+                } else {
+                    ecn_bits = cmsg::decode::<libc::c_int, libc::cmsghdr>(cmsg) as u8;
+                }
+            },
+            #[cfg(any(target_os = "linux", target_os = "android"))]
+            (libc::IPPROTO_IP, libc::IP_PKTINFO) => {
+                let pktinfo = unsafe { cmsg::decode::<libc::in_pktinfo, libc::cmsghdr>(cmsg) };
+                dst_ip = Some(IpAddr::V4(Ipv4Addr::from(
+                    pktinfo.ipi_addr.s_addr.to_ne_bytes(),
+                )));
+            }
+            #[cfg(any(
+                target_os = "freebsd",
+                target_os = "openbsd",
+                target_os = "netbsd",
+                target_os = "macos",
+                target_os = "ios",
+            ))]
+            (libc::IPPROTO_IP, libc::IP_RECVDSTADDR) => {
+                let in_addr = unsafe { cmsg::decode::<libc::in_addr, libc::cmsghdr>(cmsg) };
+                dst_ip = Some(IpAddr::V4(Ipv4Addr::from(in_addr.s_addr.to_ne_bytes())));
+            }
+            (libc::IPPROTO_IPV6, libc::IPV6_PKTINFO) => {
+                let pktinfo = unsafe { cmsg::decode::<libc::in6_pktinfo, libc::cmsghdr>(cmsg) };
+                dst_ip = Some(IpAddr::V6(Ipv6Addr::from(pktinfo.ipi6_addr.s6_addr)));
+            }
+            #[cfg(target_os = "linux")]
+            (libc::SOL_UDP, libc::UDP_GRO) => unsafe {
+                stride = cmsg::decode::<libc::c_int, libc::cmsghdr>(cmsg) as usize;
+            },
+            _ => {}
+        }
+    }
+
+    let addr = match libc::c_int::from(name.ss_family) {
+        libc::AF_INET => {
+            // Safety: if the ss_family field is AF_INET then storage must be a sockaddr_in.
+            let addr: &libc::sockaddr_in =
+                unsafe { &*(&name as *const _ as *const libc::sockaddr_in) };
+            SocketAddr::V4(SocketAddrV4::new(
+                Ipv4Addr::from(addr.sin_addr.s_addr.to_ne_bytes()),
+                u16::from_be(addr.sin_port),
+            ))
+        }
+        libc::AF_INET6 => {
+            // Safety: if the ss_family field is AF_INET6 then storage must be a sockaddr_in6.
+            let addr: &libc::sockaddr_in6 =
+                unsafe { &*(&name as *const _ as *const libc::sockaddr_in6) };
+            SocketAddr::V6(SocketAddrV6::new(
+                Ipv6Addr::from(addr.sin6_addr.s6_addr),
+                u16::from_be(addr.sin6_port),
+                addr.sin6_flowinfo,
+                addr.sin6_scope_id,
+            ))
+        }
+        _ => unreachable!(),
+    };
+    RecvMeta {
+        /* len,
+        stride,
+        addr,
+        ecn: EcnCodepoint::from_bits(ecn_bits),
+        dst_ip, */
+    }
 }
