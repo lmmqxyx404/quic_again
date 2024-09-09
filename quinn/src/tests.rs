@@ -147,9 +147,9 @@ fn read_after_close() {
             .expect("connection");
 
         let mut s = new_conn.open_uni().await.unwrap();
+        s.write_all(MSG).await.unwrap();
         todo!()
-        /*s.write_all(MSG).await.unwrap();
-        s.finish().unwrap();
+        /* s.finish().unwrap();
         // Wait for the stream to be closed, one way or another.
         _ = s.stopped().await; */
     });

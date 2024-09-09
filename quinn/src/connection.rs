@@ -317,7 +317,7 @@ impl State {
     /// Wake up a blocked `Driver` task to process I/O
     pub(crate) fn wake(&mut self) {
         if let Some(x) = self.driver.take() {
-            todo!() // x.wake();
+            x.wake();
         }
     }
 
