@@ -126,6 +126,28 @@ impl Connection {
             notify: self.0.shared.stream_incoming[Dir::Uni as usize].notified(),
         }
     }
+
+    /// Derive keying material from this connection's TLS session secrets.
+    ///
+    /// When both peers call this method with the same `label` and `context`
+    /// arguments and `output` buffers of equal length, they will get the
+    /// same sequence of bytes in `output`. These bytes are cryptographically
+    /// strong and pseudorandom, and are suitable for use as keying material.
+    ///
+    /// See [RFC5705](https://tools.ietf.org/html/rfc5705) for more information.
+    pub fn export_keying_material(
+        &self,
+        output: &mut [u8],
+        label: &[u8],
+        context: &[u8],
+    ) -> Result<(), proto::crypto::ExportKeyingMaterialError> {
+        self.0
+            .state
+            .lock("export_keying_material")
+            .inner
+            .crypto_session()
+            .export_keying_material(output, label, context)
+    }
 }
 
 #[derive(Debug)]
