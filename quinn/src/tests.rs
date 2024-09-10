@@ -13,6 +13,7 @@ use tokio::{
     runtime::{Builder, Runtime},
     time::Instant,
 };
+use tracing::info;
 use tracing_subscriber::EnvFilter;
 
 use crate::{endpoint::Endpoint, TokioRuntime};
@@ -321,4 +322,36 @@ impl EndpointFactory {
 
         endpoint
     }
+}
+
+#[tokio::test]
+async fn zero_rtt() {
+    let _guard = subscribe();
+    let endpoint = endpoint();
+
+    const MSG0: &[u8] = b"zero";
+    const MSG1: &[u8] = b"one";
+    let endpoint2 = endpoint.clone();
+    tokio::spawn(async move {
+        for _ in 0..2 {
+            todo!()
+        }
+    });
+
+    let connection = endpoint
+        .connect(endpoint.local_addr().unwrap(), "localhost")
+        .unwrap()
+        .into_0rtt()
+        .err()
+        .expect("0-RTT succeeded without keys")
+        .await
+        .expect("connect");
+
+    {
+        todo!()
+    }
+
+    info!("initial connection complete");
+
+    todo!()
 }
