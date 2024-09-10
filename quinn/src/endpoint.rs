@@ -26,6 +26,7 @@ use crate::{
     connection::Connecting,
     incoming::Incoming,
     runtime::{AsyncUdpSocket, Runtime},
+    udp_transmit,
     work_limiter::WorkLimiter,
     ConnectionEvent, IO_LOOP_BOUND, RECV_TIME_BOUND,
 };
@@ -328,6 +329,14 @@ impl EndpointInner {
         let mut response_buffer = Vec::new();
         let transmit = state.inner.refuse(incoming, &mut response_buffer);
         respond(transmit, &response_buffer, &*state.socket);
+    }
+
+    pub(crate) fn retry(&self, incoming: proto::Incoming) -> Result<(), proto::RetryError> {
+        let mut state = self.state.lock().unwrap();
+        let mut response_buffer = Vec::new();
+        let transmit = state.inner.retry(incoming, &mut response_buffer)?;
+        respond(transmit, &response_buffer, &*state.socket);
+        Ok(())
     }
 }
 
@@ -732,5 +741,25 @@ fn proto_ecn(ecn: udp::EcnCodepoint) -> proto::EcnCodepoint {
 }
 
 fn respond(transmit: proto::Transmit, response_buffer: &[u8], socket: &dyn AsyncUdpSocket) {
-    todo!()
+    // Send if there's kernel buffer space; otherwise, drop it
+    //
+    // As an endpoint-generated packet, we know this is an
+    // immediate, stateless response to an unconnected peer,
+    // one of:
+    //
+    // - A version negotiation response due to an unknown version
+    // - A `CLOSE` due to a malformed or unwanted connection attempt
+    // - A stateless reset due to an unrecognized connection
+    // - A `Retry` packet due to a connection attempt when
+    //   `use_retry` is set
+    //
+    // In each case, a well-behaved peer can be trusted to retry a
+    // few times, which is guaranteed to produce the same response
+    // from us. Repeated failures might at worst cause a peer's new
+    // connection attempt to time out, which is acceptable if we're
+    // under such heavy load that there's never room for this code
+    // to transmit. This is morally equivalent to the packet getting
+    // lost due to congestion further along the link, which
+    // similarly relies on peer retries for recovery.
+    _ = socket.try_send(&udp_transmit(&transmit, &response_buffer[..transmit.size]));
 }

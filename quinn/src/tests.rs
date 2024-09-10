@@ -225,9 +225,9 @@ async fn ip_blocking() {
             if accepting.remote_address() == client_1_addr {
                 accepting.refuse();
             } else if accepting.remote_address_validated() {
-                todo!()
+                accepting.await.expect("connection");
             } else {
-                todo!()
+                accepting.retry().unwrap();
             }
         }
     });
@@ -251,7 +251,7 @@ async fn ip_blocking() {
                 .expect("connect");
         }
     );
-    todo!() // server_task.abort();
+    server_task.abort();
 }
 struct TestWriter;
 

@@ -45,6 +45,18 @@ impl Incoming {
         let state = self.0.take().unwrap();
         state.endpoint.refuse(state.inner);
     }
+    /// Respond with a retry packet, requiring the client to retry with address validation
+    ///
+    /// Errors if `remote_address_validated()` is true.
+    pub fn retry(mut self) -> Result<(), RetryError> {
+        let state = self.0.take().unwrap();
+        state.endpoint.retry(state.inner).map_err(|e| {
+            RetryError(Self(Some(State {
+                inner: e.into_incoming(),
+                endpoint: state.endpoint,
+            })))
+        })
+    }
 }
 
 impl Drop for Incoming {

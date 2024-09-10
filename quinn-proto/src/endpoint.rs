@@ -1283,3 +1283,10 @@ impl IncomingImproperDropWarner {
 #[derive(Debug, Error)]
 #[error("retry() with validated Incoming")]
 pub struct RetryError(Incoming);
+
+impl RetryError {
+    /// Get the [`Incoming`]
+    pub fn into_incoming(self) -> Incoming {
+        self.0
+    }
+}
