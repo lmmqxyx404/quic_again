@@ -8,5 +8,5 @@ clear
 # cargo watch -x "test -p scratch-quinn tests::handshake_timeout"
 
 #RUST_BACKTRACE=1  RUSTFLAGS="-Awarnings"  
-cargo watch -x "test -p scratch-quinn --lib -- tests::export_keying_material"
+cargo watch -x "test -p scratch-quinn --lib -- tests::ip_blocking"
 # tests::server_stateless_reset

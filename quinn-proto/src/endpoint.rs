@@ -1239,6 +1239,11 @@ impl Incoming {
     pub fn remote_address_validated(&self) -> bool {
         self.retry_src_cid.is_some()
     }
+
+    /// The peer's UDP address.
+    pub fn remote_address(&self) -> SocketAddr {
+        self.addresses.remote
+    }
 }
 
 impl fmt::Debug for Incoming {

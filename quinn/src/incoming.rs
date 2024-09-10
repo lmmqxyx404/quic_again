@@ -28,6 +28,23 @@ impl Incoming {
         let state = self.0.take().unwrap();
         state.endpoint.accept(state.inner, None)
     }
+
+    /// The peer's UDP address
+    pub fn remote_address(&self) -> SocketAddr {
+        self.0.as_ref().unwrap().inner.remote_address()
+    }
+    /// Whether the socket address that is initiating this connection has been validated
+    ///
+    /// This means that the sender of the initial packet has proved that they can receive traffic
+    /// sent to `self.remote_address()`.
+    pub fn remote_address_validated(&self) -> bool {
+        self.0.as_ref().unwrap().inner.remote_address_validated()
+    }
+    /// Reject this incoming connection attempt
+    pub fn refuse(mut self) {
+        let state = self.0.take().unwrap();
+        state.endpoint.refuse(state.inner);
+    }
 }
 
 impl Drop for Incoming {

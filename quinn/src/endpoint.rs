@@ -322,6 +322,13 @@ impl EndpointInner {
             }
         }
     }
+    pub(crate) fn refuse(&self, incoming: proto::Incoming) {
+        let mut state = self.state.lock().unwrap();
+        state.stats.refused_handshakes += 1;
+        let mut response_buffer = Vec::new();
+        let transmit = state.inner.refuse(incoming, &mut response_buffer);
+        respond(transmit, &response_buffer, &*state.socket);
+    }
 }
 
 impl std::ops::Deref for EndpointRef {
@@ -669,6 +676,8 @@ pub struct EndpointStats {
     pub outgoing_handshakes: u64,
     /// Cummulative number of Quic handshakes accepted by this [Endpoint]
     pub accepted_handshakes: u64,
+    /// Cummulative number of Quic handshakes refused on this [Endpoint]
+    pub refused_handshakes: u64,
 }
 
 pin_project! {
@@ -720,4 +729,8 @@ fn proto_ecn(ecn: udp::EcnCodepoint) -> proto::EcnCodepoint {
         udp::EcnCodepoint::Ect1 => proto::EcnCodepoint::Ect1,
         udp::EcnCodepoint::Ce => proto::EcnCodepoint::Ce,
     }
+}
+
+fn respond(transmit: proto::Transmit, response_buffer: &[u8], socket: &dyn AsyncUdpSocket) {
+    todo!()
 }
