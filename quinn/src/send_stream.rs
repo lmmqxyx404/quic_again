@@ -56,9 +56,8 @@ impl SendStream {
         use proto::WriteError::*;
         let mut conn = self.conn.state.lock("SendStream::poll_write");
         if self.is_0rtt {
-            todo!()
-            /* conn.check_0rtt()
-            .map_err(|()| WriteError::ZeroRttRejected)?; */
+            conn.check_0rtt()
+                .map_err(|()| WriteError::ZeroRttRejected)?;
         }
         if let Some(ref x) = conn.error {
             todo!() // return Poll::Ready(Err(WriteError::ConnectionLost(x.clone())));
@@ -174,7 +173,16 @@ impl<'a> Future for WriteAll<'a> {
 
 /// Errors that arise from writing to a stream
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
-pub enum WriteError {}
+pub enum WriteError {
+    /// This was a 0-RTT stream and the server rejected it
+    ///
+    /// Can only occur on clients for 0-RTT streams, which can be opened using
+    /// [`Connecting::into_0rtt()`].
+    ///
+    /// [`Connecting::into_0rtt()`]: crate::Connecting::into_0rtt()
+    #[error("0-RTT rejected")]
+    ZeroRttRejected,
+}
 
 /// Errors that arise while monitoring for a send stream stop from the peer
 #[derive(Debug, Error, Clone, PartialEq, Eq)]

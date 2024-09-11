@@ -380,5 +380,23 @@ async fn zero_rtt() {
 
     info!("initial connection complete");
 
+    let (connection, zero_rtt) = endpoint
+        .connect(endpoint.local_addr().unwrap(), "localhost")
+        .unwrap()
+        .into_0rtt()
+        .unwrap_or_else(|_| panic!("missing 0-RTT keys"));
+    // Send something ASAP to use 0-RTT
+    let c = connection.clone();
+    tokio::spawn(async move {
+        let mut s = c.open_uni().await.expect("0-RTT open uni");
+        info!("sending 0-RTT");
+        s.write_all(MSG0).await.expect("0-RTT write");
+        s.finish().unwrap();
+    });
+
+    let mut stream = connection.accept_uni().await.expect("incoming streams");
+    /* let msg = stream.read_to_end(usize::MAX).await.expect("read_to_end");
+    assert_eq!(msg, MSG0);
+    assert!(zero_rtt.await); */
     todo!()
 }

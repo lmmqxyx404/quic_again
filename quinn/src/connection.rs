@@ -621,6 +621,16 @@ impl State {
             }
         }
     }
+    pub(crate) fn check_0rtt(&self) -> Result<(), ()> {
+        if self.inner.is_handshaking()
+            || self.inner.accepted_0rtt()
+            || self.inner.side().is_server()
+        {
+            Ok(())
+        } else {
+            Err(())
+        }
+    }
 }
 
 impl fmt::Debug for State {
@@ -731,7 +741,7 @@ fn poll_accept<'a>(
         drop(state); // Release the lock so clone can take it
         return Poll::Ready(Ok((conn.clone(), id, is_0rtt)));
     } else if let Some(ref e) = state.error {
-        todo!() // return Poll::Ready(Err(e.clone()));
+        return Poll::Ready(Err(e.clone()));
     }
     loop {
         match notify.as_mut().poll(ctx) {
