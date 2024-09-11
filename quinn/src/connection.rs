@@ -125,7 +125,8 @@ impl Connecting {
         let is_ok = conn.inner.has_0rtt() || conn.inner.side().is_server();
         drop(conn);
         if is_ok {
-            todo!()
+            let conn = self.conn.take().unwrap();
+            Ok((Connection(conn), ZeroRttAccepted(self.connected)))
         } else {
             Err(self)
         }
@@ -732,7 +733,16 @@ fn poll_accept<'a>(
     } else if let Some(ref e) = state.error {
         todo!() // return Poll::Ready(Err(e.clone()));
     }
-    todo!()
+    loop {
+        match notify.as_mut().poll(ctx) {
+            // `state` lock ensures we didn't race with readiness
+            Poll::Pending => return Poll::Pending,
+            // Spurious wakeup, get a new future
+            Poll::Ready(()) => {
+                todo!() // notify.set(conn.shared.stream_incoming[dir as usize].notified()),
+            }
+        }
+    }
 }
 
 /// Future that completes when a connection is fully established

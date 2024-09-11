@@ -334,7 +334,26 @@ async fn zero_rtt() {
     let endpoint2 = endpoint.clone();
     tokio::spawn(async move {
         for _ in 0..2 {
-            todo!()
+            let incoming = endpoint2.accept().await.unwrap().accept().unwrap();
+            let (connection, established) = incoming.into_0rtt().unwrap_or_else(|_| unreachable!());
+
+            let c = connection.clone();
+            tokio::spawn(async move {
+                while let Ok(mut x) = c.accept_uni().await {
+                    let msg = x.read_to_end(usize::MAX).await.unwrap();
+                    assert_eq!(msg, MSG0);
+                }
+            });
+            info!("sending 0.5-RTT");
+            let mut s = connection.open_uni().await.expect("open_uni");
+            s.write_all(MSG0).await.expect("write");
+            s.finish().unwrap();
+            established.await;
+            info!("sending 1-RTT");
+            let mut s = connection.open_uni().await.expect("open_uni");
+            s.write_all(MSG1).await.expect("write");
+            // The peer might close the connection before ACKing
+            let _ = s.finish();
         }
     });
 
