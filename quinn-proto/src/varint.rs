@@ -114,6 +114,12 @@ impl std::convert::TryFrom<u128> for VarInt {
     }
 }
 
+impl From<u8> for VarInt {
+    fn from(x: u8) -> Self {
+        Self(x.into())
+    }
+}
+
 /// Error returned when constructing a `VarInt` from a value >= 2^62
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Error)]
 #[error("value too large for varint encoding")]

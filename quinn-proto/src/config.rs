@@ -492,6 +492,23 @@ impl TransportConfig {
         self.initial_rtt = value;
         self
     }
+
+    /// Maximum number of incoming bidirectional streams that may be open concurrently
+    ///
+    /// Must be nonzero for the peer to open any bidirectional streams.
+    ///
+    /// Worst-case memory use is directly proportional to `max_concurrent_bidi_streams *
+    /// stream_receive_window`, with an upper bound proportional to `receive_window`.
+    pub fn max_concurrent_bidi_streams(&mut self, value: VarInt) -> &mut Self {
+        self.max_concurrent_bidi_streams = value;
+        self
+    }
+
+    /// Variant of `max_concurrent_bidi_streams` affecting unidirectional streams
+    pub fn max_concurrent_uni_streams(&mut self, value: VarInt) -> &mut Self {
+        self.max_concurrent_uni_streams = value;
+        self
+    }
 }
 
 impl Default for TransportConfig {

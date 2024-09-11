@@ -3,17 +3,21 @@
 use core::str;
 use std::{
     io,
-    net::{IpAddr, Ipv4Addr, SocketAddr, UdpSocket},
+    net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, UdpSocket},
     sync::Arc,
     time::Duration,
 };
 
-use rustls::{pki_types::PrivateKeyDer, RootCertStore};
+use proto::crypto::rustls::QuicClientConfig;
+use rustls::{
+    pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer},
+    RootCertStore,
+};
 use tokio::{
     runtime::{Builder, Runtime},
     time::Instant,
 };
-use tracing::info;
+use tracing::{error_span, info};
 use tracing_subscriber::EnvFilter;
 
 use crate::{endpoint::Endpoint, TokioRuntime};
@@ -402,4 +406,90 @@ async fn zero_rtt() {
     drop((stream, connection));
 
     endpoint.wait_idle().await;
+}
+
+#[test]
+fn echo_v6() {
+    run_echo(EchoArgs {
+        client_addr: SocketAddr::new(IpAddr::V6(Ipv6Addr::UNSPECIFIED), 0),
+        server_addr: SocketAddr::new(IpAddr::V6(Ipv6Addr::LOCALHOST), 0),
+        nr_streams: 1,
+        stream_size: 10 * 1024,
+        receive_window: None,
+        stream_receive_window: None,
+    });
+}
+
+fn run_echo(args: EchoArgs) {
+    let _guard = subscribe();
+    let runtime = rt_basic();
+    let handle = {
+        // Use small receive windows
+        let mut transport_config = TransportConfig::default();
+        if let Some(receive_window) = args.receive_window {
+            todo!() // transport_config.receive_window(receive_window.try_into().unwrap());
+        }
+        if let Some(stream_receive_window) = args.stream_receive_window {
+            todo!() // transport_config.stream_receive_window(stream_receive_window.try_into().unwrap());
+        }
+        transport_config.max_concurrent_bidi_streams(1_u8.into());
+        transport_config.max_concurrent_uni_streams(1_u8.into());
+        let transport_config = Arc::new(transport_config);
+
+        // We don't use the `endpoint` helper here because we want two different endpoints with
+        // different addresses.
+        let cert = rcgen::generate_simple_self_signed(vec!["localhost".into()]).unwrap();
+        let key = PrivatePkcs8KeyDer::from(cert.key_pair.serialize_der());
+        let cert = CertificateDer::from(cert.cert);
+        let mut server_config =
+            crate::ServerConfig::with_single_cert(vec![cert.clone()], key.into()).unwrap();
+
+        server_config.transport = transport_config.clone();
+        let server_sock = UdpSocket::bind(args.server_addr).unwrap();
+        let server_addr = server_sock.local_addr().unwrap();
+        let server = {
+            let _guard = runtime.enter();
+            let _guard = error_span!("server").entered();
+            Endpoint::new(
+                Default::default(),
+                Some(server_config),
+                server_sock,
+                Arc::new(TokioRuntime),
+            )
+            .unwrap()
+        };
+
+        let mut roots = rustls::RootCertStore::empty();
+        roots.add(cert).unwrap();
+        let mut client_crypto = rustls::ClientConfig::builder_with_provider(
+            rustls::crypto::ring::default_provider().into(),
+        )
+        .with_safe_default_protocol_versions()
+        .unwrap()
+        .with_root_certificates(roots)
+        .with_no_client_auth();
+        client_crypto.key_log = Arc::new(rustls::KeyLogFile::new());
+
+        let mut client = {
+            let _guard = runtime.enter();
+            let _guard = error_span!("client").entered();
+            Endpoint::client(args.client_addr).unwrap()
+        };
+        let mut client_config =
+            ClientConfig::new(Arc::new(QuicClientConfig::try_from(client_crypto).unwrap()));
+        client_config.transport_config(transport_config);
+        client.set_default_client_config(client_config);
+
+        todo!()
+    };
+    todo!()
+}
+
+struct EchoArgs {
+    client_addr: SocketAddr,
+    server_addr: SocketAddr,
+    nr_streams: usize,
+    stream_size: usize,
+    receive_window: Option<u64>,
+    stream_receive_window: Option<u64>,
 }
