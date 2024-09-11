@@ -367,7 +367,15 @@ async fn zero_rtt() {
         .expect("connect");
 
     {
-        todo!()
+        let mut stream = connection.accept_uni().await.expect("incoming streams");
+        let msg = stream.read_to_end(usize::MAX).await.expect("read_to_end");
+        assert_eq!(msg, MSG0);
+        // Read a 1-RTT message to ensure the handshake completes fully, allowing the server's
+        // NewSessionTicket frame to be received.
+        let mut stream = connection.accept_uni().await.expect("incoming streams");
+        let msg = stream.read_to_end(usize::MAX).await.expect("read_to_end");
+        assert_eq!(msg, MSG1);
+        drop(connection);
     }
 
     info!("initial connection complete");
