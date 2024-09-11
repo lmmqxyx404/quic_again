@@ -395,8 +395,11 @@ async fn zero_rtt() {
     });
 
     let mut stream = connection.accept_uni().await.expect("incoming streams");
-    /* let msg = stream.read_to_end(usize::MAX).await.expect("read_to_end");
+    let msg = stream.read_to_end(usize::MAX).await.expect("read_to_end");
     assert_eq!(msg, MSG0);
-    assert!(zero_rtt.await); */
-    todo!()
+    assert!(zero_rtt.await);
+
+    drop((stream, connection));
+
+    endpoint.wait_idle().await;
 }
